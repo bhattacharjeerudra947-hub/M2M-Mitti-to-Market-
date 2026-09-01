@@ -1,3 +1,4 @@
+HEAD
 # 🌾 Mitti2Market — Direct Agri Marketplace
 
 > **SIH 26033:** "Multiple intermediaries reduce farmers' earnings and increase consumer prices."
@@ -98,3 +99,6 @@ Landing → Login → Dashboard → Browse Produce
 ## License
 
 Built for **Smart India Hackathon (SIH) 26033**.
+
+# M2M-Mitti-to-Market
+
