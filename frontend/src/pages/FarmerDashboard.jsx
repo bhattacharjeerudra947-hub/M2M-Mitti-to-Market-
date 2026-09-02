@@ -11,6 +11,7 @@ import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
 import { Package, ShoppingCart, Wallet, FileText, Mic, BarChart3, Navigation } from 'lucide-react';
 import { priceChartData, orders } from '../data/mockData';
+
 import { useFarmerLanguage } from '../context/FarmerContext';
 import { t_key } from '../data/farmerTranslations';
 
@@ -32,6 +33,13 @@ export default function FarmerDashboard() {
   const greetKey = getGreetingKey();
   const [activeView, setActiveView] = useState('dashboard');
 
+import { useAuth } from '../context/AuthContext';
+
+export default function FarmerDashboard() {
+  const { user } = useAuth();
+  const firstName = user?.name?.split(' ')[0] || 'Farmer';
+8842d0d097e028a5bf77b37e25309ec8041f382c
+
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
       <Sidebar role="farmer" />
@@ -50,6 +58,7 @@ export default function FarmerDashboard() {
 
           {/* ─── Quick Actions ─── */}
           <div className="mb-8">
+
             <h2 className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-3">
               {t_key(language, 'quickActions') || 'Quick Actions'}
             </h2>
@@ -86,6 +95,53 @@ export default function FarmerDashboard() {
                   </button>
                 );
               })}
+
+            <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">Good morning, {firstName} 👋</h1>
+            <p className="text-navy-500 mt-1">Here's an overview of your marketplace activity.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatCard
+              icon={<Package className="w-5 h-5" />}
+              label="Produce Listed"
+              value="1,250 kg"
+              change="+12%"
+              changeType="up"
+              color="primary"
+            />
+            <StatCard
+              icon={<ShoppingCart className="w-5 h-5" />}
+              label="Active Orders"
+              value="8"
+              change="+2"
+              changeType="up"
+              color="blue"
+            />
+            <StatCard
+              icon={<Wallet className="w-5 h-5" />}
+              label="This Month's Earnings"
+              value="₹42,500"
+              change="+8.5%"
+              changeType="up"
+              color="emerald"
+            />
+            <StatCard
+              icon={<FileText className="w-5 h-5" />}
+              label="Buyer Requests"
+              value="5"
+              change="3 new"
+              changeType="up"
+              color="accent"
+            />
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+            <div className="lg:col-span-2">
+              <PriceAdvisor />
+            </div>
+            <div>
+              <NotificationPanel />
+ 8842d0d097e028a5bf77b37e25309ec8041f382c
             </div>
           </div>
 

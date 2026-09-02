@@ -1,8 +1,14 @@
 package com.mitti2market.controller;
 
-import com.mitti2market.model.Order;
-import com.mitti2market.repository.OrderRepository;
+import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.dto.order.OrderRequest;
+import com.mitti2market.dto.order.OrderResponse;
+import com.mitti2market.dto.order.OrderStatusUpdateRequest;
+import com.mitti2market.model.Order.OrderStatus;
+import com.mitti2market.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,43 +19,52 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final OrderRepository orderRepository;
+    private final OrderService orderService;
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
+            @Valid @RequestBody OrderRequest request) {
+        OrderResponse order = orderService.placeOrder(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Order placed successfully", order));
+    }
 
     @GetMapping
-    public ResponseEntity<List<Order>> getAllOrders() {
-        return ResponseEntity.ok(orderRepository.findAll());
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrders(
+            @RequestParam(required = false) OrderStatus status) {
+        List<OrderResponse> orders = orderService.listOrders(status);
+        return ResponseEntity.ok(ApiResponse.ok(orders));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
-        return orderRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(@PathVariable Long id) {
+        OrderResponse order = orderService.getOrder(id);
+        return ResponseEntity.ok(ApiResponse.ok(order));
     }
 
-    @GetMapping("/number/{orderNumber}")
-    public ResponseEntity<Order> getOrderByNumber(@PathVariable String orderNumber) {
-        return orderRepository.findByOrderNumber(orderNumber)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @GetMapping("/farmer/{farmerId}")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrdersByFarmer(@PathVariable Long farmerId) {
+        List<OrderResponse> orders = orderService.getByFarmer(farmerId);
+        return ResponseEntity.ok(ApiResponse.ok(orders));
     }
 
-    @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody Order order) {
-        Order saved = orderRepository.save(order);
-        return ResponseEntity.ok(saved);
+    @GetMapping("/buyer/{buyerId}")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getOrdersByBuyer(@PathVariable Long buyerId) {
+        List<OrderResponse> orders = orderService.getByBuyer(buyerId);
+        return ResponseEntity.ok(ApiResponse.ok(orders));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Order> updateOrderStatus(
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
             @PathVariable Long id,
-            @RequestBody Order.OrderStatus status) {
-        return orderRepository.findById(id).map(order -> {
-            order.setStatus(status);
-            order.setCurrentStage(status == Order.OrderStatus.DELIVERED
-                    ? Order.DeliveryStage.DELIVERED
-                    : order.getCurrentStage());
-            return ResponseEntity.ok(orderRepository.save(order));
-        }).orElse(ResponseEntity.notFound().build());
+            @Valid @RequestBody OrderStatusUpdateRequest request) {
+        OrderResponse updated = orderService.updateStatus(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Order status updated successfully", updated));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(@PathVariable Long id) {
+        OrderResponse cancelled = orderService.cancelOrder(id);
+        return ResponseEntity.ok(ApiResponse.ok("Order cancelled successfully", cancelled));
     }
 }
