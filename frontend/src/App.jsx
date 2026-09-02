@@ -1,6 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { FarmerProvider } from './context/FarmerContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import SignUp from './pages/SignUp';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Profile from './pages/Profile';
 import FarmerDashboard from './pages/FarmerDashboard';
 import FarmerProducts from './pages/FarmerProducts';
 import AddProduce from './pages/AddProduce';
@@ -20,35 +27,61 @@ import FindFarmers from './pages/FindFarmers';
 import SavedSuppliers from './pages/SavedSuppliers';
 import BusinessAnalytics from './pages/BusinessAnalytics';
 
+function FarmerLayout() {
+  return (
+    <ProtectedRoute role="farmer">
+      <FarmerProvider>
+        <Outlet />
+      </FarmerProvider>
+    </ProtectedRoute>
+  );
+}
+
 export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Farmer Routes */}
-        <Route path="/farmer" element={<FarmerDashboard />} />
-        <Route path="/farmer/produce" element={<FarmerProducts />} />
-        <Route path="/farmer/add-produce" element={<AddProduce />} />
-        <Route path="/farmer/price-advisor" element={<PriceAdvisorPage />} />
-        <Route path="/farmer/buyer-requests" element={<BuyerRequests />} />
-        <Route path="/farmer/orders" element={<FarmerOrders />} />
-        <Route path="/farmer/logistics" element={<FarmerLogistics />} />
-        <Route path="/farmer/earnings" element={<FarmerEarnings />} />
+          {/* Profile (any authenticated user) */}
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
-        {/* Business Routes */}
-        <Route path="/business" element={<BusinessDashboard />} />
-        <Route path="/business/browse" element={<Marketplace />} />
-        <Route path="/business/product/:id" element={<ProductDetails />} />
-        <Route path="/business/bulk-order" element={<BulkOrder />} />
-        <Route path="/business/insights" element={<MarketInsights />} />
-        <Route path="/business/logistics" element={<BusinessLogistics />} />
-        <Route path="/business/orders" element={<BusinessOrders />} />
-        <Route path="/business/find-farmers" element={<FindFarmers />} />
-        <Route path="/business/suppliers" element={<SavedSuppliers />} />
-        <Route path="/business/analytics" element={<BusinessAnalytics />} />
-      </Routes>
+          {/* Farmer Routes — protected by role */}
+          <Route path="/farmer" element={<FarmerLayout />}>
+            <Route index element={<FarmerDashboard />} />
+            <Route path="produce" element={<FarmerProducts />} />
+            <Route path="add-produce" element={<AddProduce />} />
+            <Route path="price-advisor" element={<PriceAdvisorPage />} />
+            <Route path="buyer-requests" element={<BuyerRequests />} />
+            <Route path="orders" element={<FarmerOrders />} />
+            <Route path="logistics" element={<FarmerLogistics />} />
+            <Route path="earnings" element={<FarmerEarnings />} />
+          </Route>
+
+          {/* Business Routes — protected by role */}
+          <Route path="/business" element={<ProtectedRoute role="business"><Outlet /></ProtectedRoute>}>
+            <Route index element={<BusinessDashboard />} />
+            <Route path="browse" element={<Marketplace />} />
+            <Route path="product/:id" element={<ProductDetails />} />
+            <Route path="bulk-order" element={<BulkOrder />} />
+            <Route path="insights" element={<MarketInsights />} />
+            <Route path="logistics" element={<BusinessLogistics />} />
+            <Route path="orders" element={<BusinessOrders />} />
+            <Route path="find-farmers" element={<FindFarmers />} />
+            <Route path="suppliers" element={<SavedSuppliers />} />
+            <Route path="analytics" element={<BusinessAnalytics />} />
+          </Route>
+
+          {/* Catch-all → landing */}
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
