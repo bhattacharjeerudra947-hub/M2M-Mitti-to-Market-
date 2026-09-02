@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { FarmerProvider } from './context/FarmerContext';
@@ -9,14 +8,6 @@ import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
-=======
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
->>>>>>> 8842d0d097e028a5bf77b37e25309ec8041f382c
 import FarmerDashboard from './pages/FarmerDashboard';
 import FarmerProducts from './pages/FarmerProducts';
 import AddProduce from './pages/AddProduce';
@@ -54,7 +45,6 @@ export default function App() {
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
-<<<<<<< HEAD
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -90,31 +80,6 @@ export default function App() {
 
           {/* Catch-all → landing */}
           <Route path="*" element={<Landing />} />
-=======
-          <Route path="/signup" element={<Signup />} />
-
-          {/* Farmer Routes — protected, require FARMER role */}
-          <Route path="/farmer" element={<ProtectedRoute requiredRole="farmer"><FarmerDashboard /></ProtectedRoute>} />
-          <Route path="/farmer/produce" element={<ProtectedRoute requiredRole="farmer"><FarmerProducts /></ProtectedRoute>} />
-          <Route path="/farmer/add-produce" element={<ProtectedRoute requiredRole="farmer"><AddProduce /></ProtectedRoute>} />
-          <Route path="/farmer/price-advisor" element={<ProtectedRoute requiredRole="farmer"><PriceAdvisorPage /></ProtectedRoute>} />
-          <Route path="/farmer/buyer-requests" element={<ProtectedRoute requiredRole="farmer"><BuyerRequests /></ProtectedRoute>} />
-          <Route path="/farmer/orders" element={<ProtectedRoute requiredRole="farmer"><FarmerOrders /></ProtectedRoute>} />
-          <Route path="/farmer/logistics" element={<ProtectedRoute requiredRole="farmer"><FarmerLogistics /></ProtectedRoute>} />
-          <Route path="/farmer/earnings" element={<ProtectedRoute requiredRole="farmer"><FarmerEarnings /></ProtectedRoute>} />
-
-          {/* Business Routes — protected, require BUSINESS role */}
-          <Route path="/business" element={<ProtectedRoute requiredRole="business"><BusinessDashboard /></ProtectedRoute>} />
-          <Route path="/business/browse" element={<ProtectedRoute requiredRole="business"><Marketplace /></ProtectedRoute>} />
-          <Route path="/business/product/:id" element={<ProtectedRoute requiredRole="business"><ProductDetails /></ProtectedRoute>} />
-          <Route path="/business/bulk-order" element={<ProtectedRoute requiredRole="business"><BulkOrder /></ProtectedRoute>} />
-          <Route path="/business/insights" element={<ProtectedRoute requiredRole="business"><MarketInsights /></ProtectedRoute>} />
-          <Route path="/business/logistics" element={<ProtectedRoute requiredRole="business"><BusinessLogistics /></ProtectedRoute>} />
-          <Route path="/business/orders" element={<ProtectedRoute requiredRole="business"><BusinessOrders /></ProtectedRoute>} />
-          <Route path="/business/find-farmers" element={<ProtectedRoute requiredRole="business"><FindFarmers /></ProtectedRoute>} />
-          <Route path="/business/suppliers" element={<ProtectedRoute requiredRole="business"><SavedSuppliers /></ProtectedRoute>} />
-          <Route path="/business/analytics" element={<ProtectedRoute requiredRole="business"><BusinessAnalytics /></ProtectedRoute>} />
->>>>>>> 8842d0d097e028a5bf77b37e25309ec8041f382c
         </Routes>
       </AuthProvider>
     </Router>
