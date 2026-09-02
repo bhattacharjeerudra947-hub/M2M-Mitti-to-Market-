@@ -46,6 +46,7 @@ public class Produce {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private ProduceStatus status = ProduceStatus.AVAILABLE;
 
     @Column(nullable = false)

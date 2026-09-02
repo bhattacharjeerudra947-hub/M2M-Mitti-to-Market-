@@ -22,8 +22,8 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
-    private String password;
+    @Column(name = "password", nullable = false)
+    private String passwordHash;
 
     private String phone;
 
@@ -34,6 +34,12 @@ public class User {
     private String location;
 
     private String organizationName;
+
+    @Builder.Default
+    private Boolean verified = false;
+
+    @Builder.Default
+    private Double rating = 0.0;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
