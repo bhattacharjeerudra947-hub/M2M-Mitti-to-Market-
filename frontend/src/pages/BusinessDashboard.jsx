@@ -5,6 +5,7 @@ import PriceChart from '../components/PriceChart';
 import OrderTracker from '../components/OrderTracker';
 import { ShoppingCart, Truck, Wallet, Heart, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { priceChartData, businessOrders } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const marketInsights = [
   { name: 'Tomato', emoji: '🍅', price: 28, change: 4.2, trend: 'up' },
@@ -16,13 +17,16 @@ const marketInsights = [
 ];
 
 export default function BusinessDashboard() {
+  const { user } = useAuth();
+  const displayName = user?.name?.split(' ')[0] || 'Business';
+
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
       <Sidebar role="business" />
       <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">Good morning, FreshMart 👋</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">Good morning, {displayName} 👋</h1>
             <p className="text-navy-500 mt-1">Here's your purchasing and sourcing overview.</p>
           </div>
 

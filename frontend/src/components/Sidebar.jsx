@@ -1,7 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Store, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import M2MLogo from './M2MLogo';
+import { useAuth } from '../context/AuthContext';
 
 const farmerLinks = [
   { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
@@ -35,10 +36,17 @@ const bottomLinks = [
 
 export default function Sidebar({ role = 'farmer' }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const links = role === 'farmer' ? farmerLinks : businessLinks;
-  const profile = role === 'farmer' ? 'Rajesh Kumar' : 'FreshMart';
+  const profile = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
   const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const NavLink = ({ to, icon: Icon, label }) => {
     const isActive = location.pathname === to || (to !== `/${role}` && location.pathname.startsWith(to));
@@ -80,9 +88,20 @@ export default function Sidebar({ role = 'farmer' }) {
       </div>
 
       <div className="border-t border-navy-100 p-3 space-y-0.5">
-        {bottomLinks.map((link) => (
-          <NavLink key={link.label} {...link} />
-        ))}
+        {bottomLinks.map((link) =>
+          link.label === 'Logout' ? (
+            <button
+              key={link.label}
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all w-full text-left"
+            >
+              <link.icon className="w-5 h-5 text-navy-400" />
+              {link.label}
+            </button>
+          ) : (
+            <NavLink key={link.label} {...link} />
+          )
+        )}
       </div>
     </div>
   );
