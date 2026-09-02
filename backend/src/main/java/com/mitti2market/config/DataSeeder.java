@@ -1,5 +1,6 @@
 package com.mitti2market.config;
 
+import com.mitti2market.config.TokenService;
 import com.mitti2market.model.Produce;
 import com.mitti2market.model.Produce.ProduceStatus;
 import com.mitti2market.model.User;
@@ -39,7 +40,7 @@ public class DataSeeder implements CommandLineRunner {
         User farmer1 = userRepository.save(User.builder()
                 .name("Ramesh Kumar")
                 .email("ramesh@farmer.com")
-                .password("password123")
+                .passwordHash(TokenService.hashPassword("password123"))
                 .phone("9876543210")
                 .role(Role.FARMER)
                 .location("Pune, Maharashtra")
@@ -49,7 +50,7 @@ public class DataSeeder implements CommandLineRunner {
         User farmer2 = userRepository.save(User.builder()
                 .name("Sunita Devi")
                 .email("sunita@farmer.com")
-                .password("password123")
+                .passwordHash(TokenService.hashPassword("password123"))
                 .phone("9876543211")
                 .role(Role.FARMER)
                 .location("Nashik, Maharashtra")
@@ -60,7 +61,7 @@ public class DataSeeder implements CommandLineRunner {
         User business1 = userRepository.save(User.builder()
                 .name("FreshMart Procurement")
                 .email("procurement@freshmart.com")
-                .password("password123")
+                .passwordHash(TokenService.hashPassword("password123"))
                 .phone("9876543220")
                 .role(Role.BUSINESS)
                 .location("Mumbai, Maharashtra")

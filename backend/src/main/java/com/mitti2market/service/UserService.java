@@ -1,5 +1,6 @@
 package com.mitti2market.service;
 
+import com.mitti2market.config.TokenService;
 import com.mitti2market.dto.user.LoginRequest;
 import com.mitti2market.dto.user.RegisterRequest;
 import com.mitti2market.dto.user.UserResponse;
@@ -27,9 +28,7 @@ public class UserService {
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
-                // NOTE: Storing plaintext password for hackathon simplicity.
-                // Pre-production: hash with BCryptPasswordEncoder.
-                .password(request.getPassword())
+                .passwordHash(TokenService.hashPassword(request.getPassword()))
                 .phone(request.getPhone())
                 .role(request.getRole())
                 .location(request.getLocation())
@@ -41,8 +40,6 @@ public class UserService {
     }
 
     public UserResponse login(LoginRequest request) {
-        // NOTE: Plaintext password verification for hackathon.
-        // Pre-production: use BCryptPasswordEncoder.matches().
         User user = null;
 
         // Try email first, then phone
@@ -59,7 +56,7 @@ public class UserService {
             throw new ResourceNotFoundException("User", "email or phone", identifier);
         }
 
-        if (!user.getPassword().equals(request.getPassword())) {
+        if (!user.getPasswordHash().equals(TokenService.hashPassword(request.getPassword()))) {
             throw new ResourceNotFoundException("User", "credentials", "invalid");
         }
 

@@ -1,11 +1,54 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { marketProduce } from '../data/mockData';
-import { MapPin, Star, ShieldCheck, Calendar, Truck, Package, ArrowLeft, Clock, ShoppingBag } from 'lucide-react';
+import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, Loader2 } from 'lucide-react';
+import { apiGet } from '../api';
+
+const categoryEmoji = {
+  Fruits: '🍎', Vegetables: '🥬', Spices: '🌶️', Grains: '🌾', Dairy: '🥛',
+};
 
 export default function ProductDetails() {
   const { id } = useParams();
-  const product = marketProduce.find((p) => p.id === parseInt(id)) || marketProduce[0];
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    apiGet(`/api/produce/${id}`)
+      .then((data) => setProduct(data))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="business" />
+        <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-navy-900 mx-auto mb-4" />
+            <p className="text-sm text-gray-500">Loading product details...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="business" />
+        <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg text-gray-500 mb-4">{error || 'Product not found'}</p>
+            <Link to="/business/browse" className="text-navy-700 font-semibold hover:underline">← Back to Marketplace</Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -21,23 +64,29 @@ export default function ProductDetails() {
             {/* Left: Product Image / Visual */}
             <div className="bg-white rounded-3xl border border-navy-100 shadow-sm overflow-hidden">
               <div className="h-72 bg-gradient-to-br from-mustard-50 to-white flex items-center justify-center">
-                <span className="text-9xl">{product.emoji}</span>
+                {product.imageUrl ? (
+                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-9xl">{categoryEmoji[product.category] || '📦'}</span>
+                )}
               </div>
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-2">
-                  {product.verified && (                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-50 text-primary-700 text-xs font-medium rounded-full border border-primary-200">
-                      <ShieldCheck className="w-3 h-3" />
-                      Verified Farmer
+                  <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
+                    product.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700' :
+                    product.status === 'LOW_STOCK' ? 'bg-amber-50 text-amber-700' :
+                    'bg-gray-100 text-gray-500'
+                  }`}>
+                    {product.status === 'LOW_STOCK' ? 'Low Stock' : product.status?.charAt(0) + product.status?.slice(1).toLowerCase()}
+                  </span>
+                  {product.category && (
+                    <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-navy-50 text-navy-700">
+                      {product.category}
                     </span>
                   )}
-                  <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
-                    product.grade === 'A' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                  }`}>
-                    Grade {product.grade}
-                  </span>
                 </div>
                 <h1 className="text-2xl font-bold text-navy-900 mb-1">{product.name}</h1>
-                <p className="text-navy-500 text-sm">{product.description}</p>
+                <p className="text-navy-500 text-sm">{product.description || 'Fresh produce from verified farmer'}</p>
               </div>
             </div>
 
@@ -45,13 +94,13 @@ export default function ProductDetails() {
             <div className="space-y-5">
               <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-6">
                 <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-3xl font-extrabold text-navy-900">₹{product.price}</span>
+                  <span className="text-3xl font-extrabold text-navy-900">₹{product.pricePerUnit}</span>
                   <span className="text-base text-gray-500">/ {product.unit}</span>
-                  <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    product.priceChange >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {product.priceChange >= 0 ? '↑' : '↓'} {Math.abs(product.priceChange)}%
-                  </span>
+                  {product.aiSuggestedMinPrice && (
+                    <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                      AI: ₹{product.aiSuggestedMinPrice}–₹{product.aiSuggestedMaxPrice}
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -59,35 +108,21 @@ export default function ProductDetails() {
                     <Package className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="text-xs text-gray-500">Available Quantity</p>
-                      <p className="text-sm font-semibold text-gray-900">{product.quantity.toLocaleString()} {product.unit}</p>
+                      <p className="text-sm font-semibold text-gray-900">{product.quantity?.toLocaleString()} {product.unit}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                     <MapPin className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="text-xs text-gray-500">Location</p>
-                      <p className="text-sm font-semibold text-gray-900">{product.location}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                    <Calendar className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Harvest Date</p>
-                      <p className="text-sm font-semibold text-gray-900">{product.harvestDate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                    <Truck className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Estimated Delivery</p>
-                      <p className="text-sm font-semibold text-gray-900">2-3 business days</p>
+                      <p className="text-sm font-semibold text-gray-900">{product.location || 'India'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                     <Clock className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-xs text-gray-500">Distance</p>
-                      <p className="text-sm font-semibold text-gray-900">{product.distance} km from your location</p>
+                      <p className="text-xs text-gray-500">Listed</p>
+                      <p className="text-sm font-semibold text-gray-900">{product.createdAt ? new Date(product.createdAt).toLocaleDateString() : 'Recently'}</p>
                     </div>
                   </div>
                 </div>
@@ -98,20 +133,14 @@ export default function ProductDetails() {
                 <h3 className="text-sm font-semibold text-navy-700 mb-3">Farmer Information</h3>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-navy-100 rounded-full flex items-center justify-center text-lg font-bold text-navy-700">
-                    {product.farmer.charAt(0)}
+                    {(product.farmerName || 'F').charAt(0)}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-navy-900">{product.farmer}</p>
-                      {product.verified && <ShieldCheck className="w-4 h-4 text-primary-500" />}
+                      <p className="text-sm font-semibold text-navy-900">{product.farmerName || 'Farmer'}</p>
+                      <ShieldCheck className="w-4 h-4 text-primary-500" />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className="flex items-center gap-0.5">
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        {product.farmerRating}
-                      </span>
-                      <span>{product.location}</span>
-                    </div>
+                    <p className="text-xs text-gray-500">{product.location || 'India'}</p>
                   </div>
                 </div>
               </div>
