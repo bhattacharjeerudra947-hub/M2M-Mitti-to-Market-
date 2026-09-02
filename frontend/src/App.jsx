@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import FarmerDashboard from './pages/FarmerDashboard';
 import FarmerProducts from './pages/FarmerProducts';
 import AddProduce from './pages/AddProduce';
@@ -23,32 +26,36 @@ import BusinessAnalytics from './pages/BusinessAnalytics';
 export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        {/* Farmer Routes */}
-        <Route path="/farmer" element={<FarmerDashboard />} />
-        <Route path="/farmer/produce" element={<FarmerProducts />} />
-        <Route path="/farmer/add-produce" element={<AddProduce />} />
-        <Route path="/farmer/price-advisor" element={<PriceAdvisorPage />} />
-        <Route path="/farmer/buyer-requests" element={<BuyerRequests />} />
-        <Route path="/farmer/orders" element={<FarmerOrders />} />
-        <Route path="/farmer/logistics" element={<FarmerLogistics />} />
-        <Route path="/farmer/earnings" element={<FarmerEarnings />} />
+          {/* Farmer Routes — protected, require FARMER role */}
+          <Route path="/farmer" element={<ProtectedRoute requiredRole="farmer"><FarmerDashboard /></ProtectedRoute>} />
+          <Route path="/farmer/produce" element={<ProtectedRoute requiredRole="farmer"><FarmerProducts /></ProtectedRoute>} />
+          <Route path="/farmer/add-produce" element={<ProtectedRoute requiredRole="farmer"><AddProduce /></ProtectedRoute>} />
+          <Route path="/farmer/price-advisor" element={<ProtectedRoute requiredRole="farmer"><PriceAdvisorPage /></ProtectedRoute>} />
+          <Route path="/farmer/buyer-requests" element={<ProtectedRoute requiredRole="farmer"><BuyerRequests /></ProtectedRoute>} />
+          <Route path="/farmer/orders" element={<ProtectedRoute requiredRole="farmer"><FarmerOrders /></ProtectedRoute>} />
+          <Route path="/farmer/logistics" element={<ProtectedRoute requiredRole="farmer"><FarmerLogistics /></ProtectedRoute>} />
+          <Route path="/farmer/earnings" element={<ProtectedRoute requiredRole="farmer"><FarmerEarnings /></ProtectedRoute>} />
 
-        {/* Business Routes */}
-        <Route path="/business" element={<BusinessDashboard />} />
-        <Route path="/business/browse" element={<Marketplace />} />
-        <Route path="/business/product/:id" element={<ProductDetails />} />
-        <Route path="/business/bulk-order" element={<BulkOrder />} />
-        <Route path="/business/insights" element={<MarketInsights />} />
-        <Route path="/business/logistics" element={<BusinessLogistics />} />
-        <Route path="/business/orders" element={<BusinessOrders />} />
-        <Route path="/business/find-farmers" element={<FindFarmers />} />
-        <Route path="/business/suppliers" element={<SavedSuppliers />} />
-        <Route path="/business/analytics" element={<BusinessAnalytics />} />
-      </Routes>
+          {/* Business Routes — protected, require BUSINESS role */}
+          <Route path="/business" element={<ProtectedRoute requiredRole="business"><BusinessDashboard /></ProtectedRoute>} />
+          <Route path="/business/browse" element={<ProtectedRoute requiredRole="business"><Marketplace /></ProtectedRoute>} />
+          <Route path="/business/product/:id" element={<ProtectedRoute requiredRole="business"><ProductDetails /></ProtectedRoute>} />
+          <Route path="/business/bulk-order" element={<ProtectedRoute requiredRole="business"><BulkOrder /></ProtectedRoute>} />
+          <Route path="/business/insights" element={<ProtectedRoute requiredRole="business"><MarketInsights /></ProtectedRoute>} />
+          <Route path="/business/logistics" element={<ProtectedRoute requiredRole="business"><BusinessLogistics /></ProtectedRoute>} />
+          <Route path="/business/orders" element={<ProtectedRoute requiredRole="business"><BusinessOrders /></ProtectedRoute>} />
+          <Route path="/business/find-farmers" element={<ProtectedRoute requiredRole="business"><FindFarmers /></ProtectedRoute>} />
+          <Route path="/business/suppliers" element={<ProtectedRoute requiredRole="business"><SavedSuppliers /></ProtectedRoute>} />
+          <Route path="/business/analytics" element={<ProtectedRoute requiredRole="business"><BusinessAnalytics /></ProtectedRoute>} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
