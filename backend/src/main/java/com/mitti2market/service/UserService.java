@@ -43,8 +43,21 @@ public class UserService {
     public UserResponse login(LoginRequest request) {
         // NOTE: Plaintext password verification for hackathon.
         // Pre-production: use BCryptPasswordEncoder.matches().
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+        User user = null;
+
+        // Try email first, then phone
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        }
+        if (user == null && request.getPhone() != null && !request.getPhone().isBlank()) {
+            user = userRepository.findByPhone(request.getPhone()).orElse(null);
+        }
+
+        if (user == null) {
+            String identifier = (request.getEmail() != null && !request.getEmail().isBlank())
+                    ? request.getEmail() : request.getPhone();
+            throw new ResourceNotFoundException("User", "email or phone", identifier);
+        }
 
         if (!user.getPassword().equals(request.getPassword())) {
             throw new ResourceNotFoundException("User", "credentials", "invalid");
