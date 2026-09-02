@@ -2,6 +2,7 @@ package com.mitti2market.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,48 +17,57 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String orderNumber;
+    @ManyToOne
+    @JoinColumn(name = "produce_id", nullable = false)
+    private Produce produce;
 
     @ManyToOne
     @JoinColumn(name = "buyer_id", nullable = false)
     private User buyer;
 
     @ManyToOne
-    @JoinColumn(name = "produce_id", nullable = false)
-    private Produce produce;
+    @JoinColumn(name = "farmer_id", nullable = false)
+    private User farmer;
 
     @Column(nullable = false)
     private Integer quantity;
 
     @Column(nullable = false)
-    private Double pricePerKg;
+    private Double totalPrice;
 
-    private Double totalAmount;
-
-    @Enumerated(EnumType.STRING)
-    private OrderStatus status = OrderStatus.CONFIRMED;
+    private String deliveryAddress;
 
     @Enumerated(EnumType.STRING)
-    private DeliveryStage currentStage = DeliveryStage.CONFIRMED;
+    @Column(nullable = false)
+    private OrderStatus status = OrderStatus.PENDING;
 
-    private String deliveryLocation;
+    private String logisticsPartner;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private String trackingNumber;
 
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDate expectedDeliveryDate;
+
+    @Column(nullable = false)
+    private LocalDateTime orderDate;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.orderDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 
     public enum OrderStatus {
+        PENDING,
         CONFIRMED,
+        PACKED,
         IN_TRANSIT,
         DELIVERED,
         CANCELLED
-    }
-
-    public enum DeliveryStage {
-        CONFIRMED,
-        PICKUP,
-        IN_TRANSIT,
-        DELIVERED
     }
 }

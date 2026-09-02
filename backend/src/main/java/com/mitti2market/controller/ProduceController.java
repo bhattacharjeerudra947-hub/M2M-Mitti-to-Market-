@@ -1,8 +1,13 @@
 package com.mitti2market.controller;
 
-import com.mitti2market.model.Produce;
-import com.mitti2market.repository.ProduceRepository;
+import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.dto.produce.ProduceRequest;
+import com.mitti2market.dto.produce.ProduceResponse;
+import com.mitti2market.model.Produce.ProduceStatus;
+import com.mitti2market.service.ProduceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,42 +18,57 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProduceController {
 
-    private final ProduceRepository produceRepository;
+    private final ProduceService produceService;
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<ProduceResponse>> createProduce(
+            @Valid @RequestBody ProduceRequest request) {
+        ProduceResponse produced = produceService.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Produce created successfully", produced));
+    }
 
     @GetMapping
-    public ResponseEntity<List<Produce>> getAllProduce() {
-        return ResponseEntity.ok(produceRepository.findAll());
+    public ResponseEntity<ApiResponse<List<ProduceResponse>>> getAllProduce(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Boolean availableOnly) {
+        List<ProduceResponse> produceList = produceService.listAll(category, keyword, location, availableOnly);
+        return ResponseEntity.ok(ApiResponse.ok(produceList));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Produce> getProduceById(@PathVariable Long id) {
-        return produceRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ApiResponse<ProduceResponse>> getProduceById(@PathVariable Long id) {
+        ProduceResponse produce = produceService.getById(id);
+        return ResponseEntity.ok(ApiResponse.ok(produce));
     }
 
-    @PostMapping
-    public ResponseEntity<Produce> createProduce(@RequestBody Produce produce) {
-        Produce saved = produceRepository.save(produce);
-        return ResponseEntity.ok(saved);
+    @GetMapping("/farmer/{farmerId}")
+    public ResponseEntity<ApiResponse<List<ProduceResponse>>> getProduceByFarmer(@PathVariable Long farmerId) {
+        List<ProduceResponse> produceList = produceService.getByFarmer(farmerId);
+        return ResponseEntity.ok(ApiResponse.ok(produceList));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Produce> updateProduce(@PathVariable Long id, @RequestBody Produce updated) {
-        return produceRepository.findById(id).map(produce -> {
-            produce.setName(updated.getName());
-            produce.setQuantity(updated.getQuantity());
-            produce.setPricePerKg(updated.getPricePerKg());
-            produce.setStatus(updated.getStatus());
-            produce.setGrade(updated.getGrade());
-            produce.setDescription(updated.getDescription());
-            return ResponseEntity.ok(produceRepository.save(produce));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ApiResponse<ProduceResponse>> updateProduce(
+            @PathVariable Long id,
+            @Valid @RequestBody ProduceRequest request) {
+        ProduceResponse updated = produceService.update(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Produce updated successfully", updated));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<ProduceResponse>> updateProduceStatus(
+            @PathVariable Long id,
+            @RequestParam ProduceStatus status) {
+        ProduceResponse updated = produceService.updateStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.ok("Status updated successfully", updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduce(@PathVariable Long id) {
-        produceRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<ApiResponse<Void>> deleteProduce(@PathVariable Long id) {
+        produceService.delete(id);
+        return ResponseEntity.ok(ApiResponse.ok("Produce deleted successfully", null));
     }
 }
