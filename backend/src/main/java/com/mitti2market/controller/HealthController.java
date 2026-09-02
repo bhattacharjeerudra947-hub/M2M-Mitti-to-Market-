@@ -1,5 +1,6 @@
 package com.mitti2market.controller;
 
+import com.mitti2market.dto.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,11 +14,12 @@ import java.util.Map;
 public class HealthController {
 
     @GetMapping("/health")
-    public ResponseEntity<Map<String, Object>> health() {
-        return ResponseEntity.ok(Map.of(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> health() {
+        Map<String, Object> data = Map.of(
                 "status", "UP",
                 "app", "Mitti2Market",
                 "timestamp", LocalDateTime.now().toString()
-        ));
+        );
+        return ResponseEntity.ok(ApiResponse.ok(data));
     }
 }

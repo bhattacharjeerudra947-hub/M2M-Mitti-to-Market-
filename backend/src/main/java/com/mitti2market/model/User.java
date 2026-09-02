@@ -22,9 +22,10 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    private String phone;
+    @Column(nullable = false)
+    private String password;
 
-    private String passwordHash;
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -32,11 +33,15 @@ public class User {
 
     private String location;
 
-    private Boolean verified = false;
+    private String organizationName;
 
-    private Double rating = 0.0;
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     public enum Role {
         FARMER,
