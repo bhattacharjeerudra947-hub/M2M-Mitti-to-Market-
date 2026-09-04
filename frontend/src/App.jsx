@@ -1,9 +1,13 @@
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { FarmerProvider } from './context/FarmerContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
+import HowItWorks from './pages/HowItWorks';
 import ExploreMarketplace from './pages/ExploreMarketplace';
+import Pricing from './pages/Pricing';
+import AboutUs from './pages/AboutUs';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
@@ -31,6 +35,17 @@ import FarmerRegistration from './pages/FarmerRegistration';
 import BusinessRegistration from './pages/BusinessRegistration';
 import Chat from './pages/Chat';
 
+// Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function FarmerLayout() {
   return (
     <ProtectedRoute role="farmer">
@@ -44,6 +59,7 @@ function FarmerLayout() {
 export default function App() {
   return (
     <Router>
+      <ScrollToTop />
       <AuthProvider>
         <Routes>
           {/* Public routes */}
@@ -53,6 +69,9 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/marketplace" element={<ExploreMarketplace />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/about-us" element={<AboutUs />} />
 
           {/* Registration wizards (authenticated) */}
           <Route path="/register/farmer" element={<ProtectedRoute role="farmer"><FarmerRegistration /></ProtectedRoute>} />

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, MapPin, Package, RotateCcw, Search, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
 
@@ -292,6 +293,9 @@ export default function ExploreMarketplace() {
           )}
         </div>
       </main>
+
+      {/* ═══════════════ FOOTER ═══════════════ */}
+      <Footer />
     </div>
   );
 }
