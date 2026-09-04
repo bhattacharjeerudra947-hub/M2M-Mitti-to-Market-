@@ -1,15 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-<<<<<<< HEAD
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
-=======
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Store, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
-import M2MLogo from './M2MLogo';
->>>>>>> 8842d0d097e028a5bf77b37e25309ec8041f382c
 import { useAuth } from '../context/AuthContext';
+import { getMyDocuments } from '../services/api';
 
 const farmerLinks = [
   { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,6 +15,7 @@ const farmerLinks = [
   { to: '/farmer/orders', icon: ClipboardList, label: 'Orders' },
   { to: '/farmer/logistics', icon: Truck, label: 'Logistics' },
   { to: '/farmer/earnings', icon: Wallet, label: 'Earnings' },
+  { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
 ];
 
 const businessLinks = [
@@ -32,6 +28,7 @@ const businessLinks = [
   { to: '/business/insights', icon: TrendingUp, label: 'Market Insights' },
   { to: '/business/logistics', icon: Truck, label: 'Logistics' },
   { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
 ];
 
 export default function Sidebar({ role = 'farmer' }) {
@@ -41,21 +38,26 @@ export default function Sidebar({ role = 'farmer' }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
 
   const links = role === 'farmer' ? farmerLinks : businessLinks;
-<<<<<<< HEAD
   const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
-=======
-  const profile = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
->>>>>>> 8842d0d097e028a5bf77b37e25309ec8041f382c
   const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
+
+  useEffect(() => {
+    async function loadPhoto() {
+      const result = await getMyDocuments();
+      if (result.ok && result.data?.data) {
+        const photo = result.data.data.find(d => d.documentType === 'PROFILE_PHOTO' && d.verificationStatus !== 'REJECTED');
+        if (photo?.cloudinaryUrl) setProfilePhotoUrl(photo.cloudinaryUrl);
+      }
+    }
+    loadPhoto();
+  }, []);
 
   const handleLogout = () => {
     logout();
-<<<<<<< HEAD
     setShowLogoutModal(false);
-=======
->>>>>>> 8842d0d097e028a5bf77b37e25309ec8041f382c
     navigate('/login', { replace: true });
   };
 
@@ -74,7 +76,11 @@ export default function Sidebar({ role = 'farmer' }) {
       <div className="p-4">
         <Link to="/" className="flex items-center mb-6"><M2MLogo size="sm" /></Link>
         <div className="flex items-center gap-3 mb-6 p-3 bg-mustard-50 border border-mustard-200 rounded-xl">
-          <span className="text-2xl">{profileIcon}</span>
+          {profilePhotoUrl ? (
+            <img src={profilePhotoUrl} alt="Profile" className="w-10 h-10 rounded-xl object-cover border border-mustard-300" />
+          ) : (
+            <span className="text-2xl">{profileIcon}</span>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-navy-900 truncate">{profileName}</p>
             <p className="text-xs text-navy-500 capitalize">{role} Account</p>
@@ -87,7 +93,6 @@ export default function Sidebar({ role = 'farmer' }) {
       </div>
 
       <div className="border-t border-navy-100 p-3 space-y-0.5">
-<<<<<<< HEAD
         <Link to="/profile" onClick={() => setMobileOpen(false)}>
           <NavLink to="/profile" icon={User} label="Profile" />
         </Link>
@@ -99,22 +104,6 @@ export default function Sidebar({ role = 'farmer' }) {
           <LogOut className="w-5 h-5 text-navy-400" />
           Logout
         </button>
-=======
-        {bottomLinks.map((link) =>
-          link.label === 'Logout' ? (
-            <button
-              key={link.label}
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all w-full text-left"
-            >
-              <link.icon className="w-5 h-5 text-navy-400" />
-              {link.label}
-            </button>
-          ) : (
-            <NavLink key={link.label} {...link} />
-          )
-        )}
->>>>>>> 8842d0d097e028a5bf77b37e25309ec8041f382c
       </div>
     </div>
   );

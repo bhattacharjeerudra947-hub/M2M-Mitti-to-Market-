@@ -1,24 +1,22 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, TrendingUp, Users, Shield, Brain, Truck, Leaf, ChevronRight, Star, CheckCircle2, Zap, Globe, BarChart3, Heart } from 'lucide-react';
+import { ArrowRight, TrendingUp, Users, Shield, Brain, Truck, Leaf, Star } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import TransparentPricing from '../components/TransparentPricing';
-import M2MLogo from '../components/M2MLogo';
 
 const features = [
-  { icon: TrendingUp, title: 'Better Prices', desc: 'Farmers earn more by selling directly to verified buyers without middlemen.', color: 'bg-emerald-50 text-emerald-600' },
-  { icon: Users, title: 'Direct Access', desc: 'Connect directly with buyers and negotiate fair prices for your produce.', color: 'bg-blue-50 text-blue-600' },
-  { icon: Shield, title: 'Transparent Pricing', desc: 'No hidden fees. See exactly what you earn and what buyers pay.', color: 'bg-purple-50 text-purple-600' },
-  { icon: Brain, title: 'AI Price Insights', desc: 'Get AI-powered recommendations for optimal pricing and demand forecasting.', color: 'bg-amber-50 text-amber-600' },
-  { icon: Truck, title: 'Smart Logistics', desc: 'AI-optimized delivery routes to reduce transport costs and food waste.', color: 'bg-rose-50 text-rose-600' },
-  { icon: Leaf, title: 'Less Food Wastage', desc: 'Direct connections mean faster transactions, fresher produce, and less waste.', color: 'bg-teal-50 text-teal-600' },
+  { icon: TrendingUp, title: 'Better Prices', desc: 'Farmers earn more by selling directly to verified buyers without middlemen.' },
+  { icon: Users, title: 'Direct Access', desc: 'Connect directly with buyers and negotiate fair prices for your produce.' },
+  { icon: Shield, title: 'Transparent Pricing', desc: 'No hidden fees. See exactly what you earn and what buyers pay.' },
+  { icon: Brain, title: 'AI Price Insights', desc: 'Get AI-powered recommendations for optimal pricing and demand forecasting.' },
+  { icon: Truck, title: 'Smart Logistics', desc: 'AI-optimized delivery routes to reduce transport costs and food waste.' },
+  { icon: Leaf, title: 'Less Food Wastage', desc: 'Direct connections mean faster transactions, fresher produce, and less waste.' },
 ];
 
 const steps = [
-  { num: '01', title: 'List Produce', desc: 'Farmers list their harvest with quality details and pricing.' },
-  { num: '02', title: 'Discover Buyers', desc: 'Verified businesses browse and discover fresh produce near them.' },
-  { num: '03', title: 'Get a Fair Price', desc: 'Negotiate directly and agree on a fair, transparent price.' },
-  { num: '04', title: 'Arrange Delivery', desc: 'AI-optimized logistics ensure fast, cost-effective delivery.' },
-  { num: '05', title: 'Complete Transaction', desc: 'Secure payment and delivery confirmation. Done! 🎉' },
+  { num: '01', title: 'List Your Produce', desc: 'Add your crops and set your price.', icon: Leaf },
+  { num: '02', title: 'Connect Directly', desc: 'Buyers connect with you directly.', icon: Users },
+  { num: '03', title: 'Confirm & Deliver', desc: 'Finalize orders and deliver with ease.', icon: Truck },
+  { num: '04', title: 'Get Paid', desc: 'Receive payments securely and on time.', icon: TrendingUp },
 ];
 
 const testimonials = [
@@ -29,193 +27,259 @@ const testimonials = [
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <div className="min-h-screen bg-cream">
+      {/* ═══════════════ HEADER ═══════════════ */}
+      <Navbar dark />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-navy-900 via-navy-800 to-navy-950 text-white">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-mustard-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-400 rounded-full blur-3xl" />
-        </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-sm font-medium mb-6 backdrop-blur-sm border border-white/20">
-                <M2MLogo size="sm" noLink />
-                
-                SIH 26033 — Direct Agri Marketplace
+      {/* ═══════════════ HERO SECTION ═══════════════ */}
+      <section className="relative bg-navy-900 overflow-hidden">
+        {/* Organic curved shape separating navy from farmer photo */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-0">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-4 items-start relative">
+            {/* Left — text content */}
+            <div className="relative z-10 pt-4 sm:pt-8 lg:pt-12 pb-16 sm:pb-20 lg:pb-28">
+              {/* Pill */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-agri-700/30 border border-agri-500/30 rounded-full mb-6">
+                <span className="text-sm">🌿</span>
+                <span className="text-[13px] font-medium text-agri-200">Direct Agri Marketplace</span>
               </div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-                From Farm to Market,{' '}
-                <span className="text-mustard-300">Without the Middlemen.</span>
+
+              {/* Headline */}
+              <h1 className="font-display text-[2.5rem] sm:text-[3rem] lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight text-white mb-6">
+                From Farm to Market,<br />
+                <span className="text-mustard-400">Without the Middlemen.</span>
               </h1>
-              <p className="text-lg sm:text-xl text-navy-200 mb-8 max-w-lg leading-relaxed">
-                Connect directly with buyers, discover fair prices, and move your produce smarter.
+
+              {/* Subtext */}
+              <p className="text-base sm:text-lg text-navy-200 mb-8 max-w-md leading-relaxed">
+                Mitti2Market connects farmers directly with buyers. Get fair prices, save more, and grow together.
               </p>
+
+              {/* CTAs */}
               <div className="flex flex-wrap gap-4">
                 <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-2xl hover:bg-mustard-300 transition shadow-lg"
+                  to="/signup"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20"
                 >
                   Get Started
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" />
                 </Link>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 text-white font-semibold rounded-2xl hover:bg-white/20 transition border border-white/20"
+                <Link
+                  to="/marketplace"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition border border-white/25"
                 >
                   Explore Marketplace
-                </a>
+                </Link>
               </div>
             </div>
 
-            {/* Visual */}
-            <div className="hidden lg:block relative">
-              <div className="relative bg-white/10 backdrop-blur-sm rounded-3xl p-8 border border-white/20">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-4xl mb-3 mx-auto">
-                      👨‍🌾
-                    </div>
-                    <p className="text-sm font-semibold">Farmer</p>
-                  </div>
-                  <div className="flex-1 flex flex-col items-center gap-2">
-                    <div className="w-full h-0.5 bg-gradient-to-r from-mustard-300 via-white to-mustard-300" />
-                    <span className="text-xs text-mustard-200 font-medium">Direct Marketplace</span>
-                    <div className="w-full h-0.5 bg-gradient-to-r from-mustard-300 via-white to-mustard-300" />
-                  </div>
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-4xl mb-3 mx-auto">
-                      🏪
-                    </div>
-                    <p className="text-sm font-semibold">Business</p>
-                  </div>
+            {/* Right — farmer image with organic curve */}
+            <div className="relative hidden lg:block">
+              {/* Organic shape container */}
+              <div className="relative w-full h-[480px] xl:h-[540px]">
+                {/* SVG organic curve background */}
+                <svg
+                  className="absolute inset-0 w-full h-full"
+                  viewBox="0 0 500 540"
+                  fill="none"
+                  preserveAspectRatio="xMidYMid slice"
+                >
+                  <path
+                    d="M120 0 C120 0, 500 0, 500 0 L500 540 C500 540, 500 540, 380 540 C280 540, 180 480, 100 400 C20 320, 0 240, 0 180 C0 120, 40 40, 120 0Z"
+                    fill="url(#farmerGrad)"
+                    opacity="0.15"
+                  />
+                  <defs>
+                    <linearGradient id="farmerGrad" x1="0" y1="0" x2="500" y2="540">
+                      <stop offset="0%" stopColor="#E9B522" />
+                      <stop offset="100%" stopColor="#304D2B" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* Farmer photograph */}
+                <div
+                  className="absolute top-8 right-0 w-[85%] h-[88%] rounded-[2rem] overflow-hidden shadow-2xl"
+                  style={{
+                    clipPath: 'polygon(15% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 25%)',
+                  }}
+                >
+                  <img
+                    src="/farmer-hero.jpg"
+                    alt="Indian farmer in a green field"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Subtle gradient overlay for depth */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-navy-900/30 via-transparent to-transparent" />
                 </div>
-                <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-lg font-bold">₹28</p>
-                    <p className="text-xs text-mustard-200">Farmer gets</p>
+
+                {/* Decorative floating card */}
+                <div className="absolute bottom-12 left-0 bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-white/50 max-w-[200px]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-primary-600" />
+                    </div>
+                    <span className="text-[11px] font-semibold text-navy-900">Fair Prices</span>
                   </div>
-                  <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-lg font-bold">17%</p>
-                    <p className="text-xs text-mustard-200">More income</p>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3">
-                    <p className="text-lg font-bold">₹31</p>
-                    <p className="text-xs text-mustard-200">Buyer pays</p>
-                  </div>
+                  <p className="text-[11px] text-navy-600 leading-snug">Farmers earn 17% more on average</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Bottom curve into cream */}
+        <div className="hero-curve-bottom">
+          <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
+            <path d="M0,60 L0,20 C240,60 480,0 720,20 C960,40 1200,0 1440,30 L1440,60 Z" fill="#F5F0E6" />
+          </svg>
+        </div>
       </section>
 
-      {/* Stats bar */}
-      <section className="bg-white border-b border-navy-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      {/* ═══════════════ STATISTICS SECTION ═══════════════ */}
+      <section className="relative bg-cream pt-8 pb-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-3 gap-4 sm:gap-8">
             {[
-              { value: '5,200+', label: 'Farmers Onboarded' },
-              { value: '1,800+', label: 'Verified Buyers' },
-              { value: '₹42Cr+', label: 'Total Transactions' },
-              { value: '14%', label: 'Average Savings' },
-            ].map((s, i) => (
-              <div key={i}>
-                <p className="text-2xl sm:text-3xl font-extrabold text-navy-900">{s.value}</p>
-                <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+              { value: '10K+', label: 'Farmers Onboarded', icon: '👨‍🌾', iconBg: 'bg-agri-700' },
+              { value: '2.5K+', label: 'Active Buyers', icon: '🏪', iconBg: 'bg-earth-500' },
+              { value: '₹15Cr+', label: 'Worth of Produce Sold', icon: '📊', iconBg: 'bg-mustard-400' },
+            ].map((stat, i) => (
+              <div key={i} className={`flex flex-col items-center text-center ${i < 2 ? 'border-r border-navy-200/30' : ''}`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${stat.iconBg} rounded-full flex items-center justify-center mb-3`}>
+                  <span className="text-lg sm:text-xl">{stat.icon}</span>
+                </div>
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-navy-900">{stat.value}</p>
+                <p className="text-xs sm:text-sm text-navy-500 mt-1 font-medium">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Why Choose Us */}
-      <section className="py-20 bg-gray-50/50">
+      {/* ═══════════════ SUPPORTING FARMERS CARD ═══════════════ */}
+      <section className="relative bg-cream pb-16 -mt-2">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="bg-earth-500 rounded-3xl p-8 sm:p-10 lg:p-12 flex flex-col sm:flex-row items-center gap-6 sm:gap-8 shadow-xl shadow-earth-500/15">
+            {/* Leaf icon */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-agri-700/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <Leaf className="w-8 h-8 sm:w-10 sm:h-10 text-agri-200" />
+            </div>
+            <div className="text-center sm:text-left">
+              <h3 className="font-display text-2xl sm:text-3xl font-bold text-cream leading-tight">
+                Supporting Farmers,<br />Strengthening Bharat
+              </h3>
+              <p className="text-earth-200 mt-2 text-sm sm:text-base">Better income. Better future.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ HOW IT WORKS ═══════════════ */}
+      <section id="how-it-works" className="relative bg-agri-700 py-20 sm:py-24 overflow-hidden">
+        {/* Curve top */}
+        <div className="how-curve-top">
+          <svg viewBox="0 0 1440 50" preserveAspectRatio="none">
+            <path d="M0,0 L0,30 C360,0 720,50 1080,20 C1260,10 1380,25 1440,15 L1440,0 Z" fill="#F5F0E6" />
+          </svg>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-8">
+          {/* Section label */}
+          <div className="text-center mb-4">
+            <span className="inline-block px-4 py-1.5 bg-white/15 text-agri-100 text-[11px] font-semibold tracking-widest uppercase rounded-full">
+              How It Works
+            </span>
+          </div>
+
+          {/* Heading */}
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-center mb-14 leading-tight">
+            Simple steps,<br />strong impact.
+          </h2>
+
+          {/* Steps */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 relative">
+            {/* Connecting dotted line (desktop) */}
+            <div className="hidden lg:block absolute top-10 left-[12%] right-[12%] h-px border-t-2 border-dashed border-white/20" />
+
+            {steps.map((step, i) => (
+              <div key={i} className="relative text-center group">
+                {/* Icon circle */}
+                <div className="relative z-10 w-20 h-20 bg-cream rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg group-hover:scale-105 transition-transform">
+                  <step.icon className="w-8 h-8 text-agri-700" />
+                </div>
+
+                {/* Step number */}
+                <span className="text-[11px] font-bold text-mustard-400 tracking-widest uppercase mb-2 block">
+                  Step {step.num}
+                </span>
+
+                <h3 className="text-base font-bold text-white mb-2">{step.title}</h3>
+                <p className="text-sm text-agri-100/70 leading-relaxed max-w-[220px] mx-auto">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ FEATURES ═══════════════ */}
+      <section className="py-20 sm:py-24 bg-cream">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <span className="inline-block px-3 py-1 bg-mustard-50 text-navy-900 text-xs font-semibold rounded-full mb-4 border border-mustard-200">
-              WHY CHOOSE US
+            <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-[11px] font-semibold tracking-widest uppercase rounded-full mb-4">
+              Why Choose Us
             </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
               Built for the Future of Agriculture
             </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+            <p className="text-base text-navy-500 max-w-2xl mx-auto">
               A platform designed to empower farmers and businesses alike through technology.
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map((f, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition group">
-                <div className={`w-12 h-12 ${f.color} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition`}>
-                  <f.icon className="w-6 h-6" />
+              <div key={i} className="bg-white rounded-2xl p-6 border border-navy-100/50 shadow-sm hover:shadow-md transition group">
+                <div className="w-11 h-11 bg-mustard-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-mustard-100 transition">
+                  <f.icon className="w-5 h-5 text-mustard-600" />
                 </div>
-                <h3 className="text-base font-bold text-gray-900 mb-2">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+                <h3 className="text-sm font-bold text-navy-900 mb-1.5">{f.title}</h3>
+                <p className="text-[13px] text-navy-500 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <span className="inline-block px-3 py-1 bg-mustard-50 text-navy-900 text-xs font-semibold rounded-full mb-4 border border-mustard-200">
-              HOW IT WORKS
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Five Simple Steps to Fair Trade
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
-            {steps.map((step, i) => (
-              <div key={i} className="relative text-center">
-                <div className="w-14 h-14 bg-navy-900 text-white rounded-2xl flex items-center justify-center text-lg font-bold mx-auto mb-4 shadow-lg shadow-navy-200">
-                  {step.num}
-                </div>
-                <h3 className="text-sm font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{step.desc}</p>
-                {i < steps.length - 1 && (
-                  <ChevronRight className="hidden lg:block absolute top-5 -right-3 w-5 h-5 text-gray-300" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
+      {/* ═══════════════ TRANSPARENT PRICING ═══════════════ */}
       <TransparentPricing />
 
-      {/* Testimonials */}
-      <section className="py-20 bg-gray-50/50">
+      {/* ═══════════════ TESTIMONIALS ═══════════════ */}
+      <section className="py-20 sm:py-24 bg-cream">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <span className="inline-block px-3 py-1 bg-mustard-50 text-navy-900 text-xs font-semibold rounded-full mb-4 border border-mustard-200">
-              TESTIMONIALS
+            <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-[11px] font-semibold tracking-widest uppercase rounded-full mb-4">
+              Testimonials
             </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
               Trusted by Thousands
             </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-5">
             {testimonials.map((t, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div className="flex gap-1 mb-3">
+              <div key={i} className="bg-white rounded-2xl p-6 border border-navy-100/50 shadow-sm">
+                <div className="flex gap-0.5 mb-3">
                   {Array.from({ length: t.rating }).map((_, j) => (
-                    <Star key={j} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    <Star key={j} className="w-4 h-4 text-mustard-400 fill-mustard-400" />
                   ))}
                 </div>
-                <p className="text-sm text-gray-600 mb-4 leading-relaxed">"{t.text}"</p>
+                <p className="text-[13px] text-navy-600 mb-5 leading-relaxed">"{t.text}"</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-navy-100 rounded-full flex items-center justify-center text-sm font-bold text-navy-700">
+                  <div className="w-9 h-9 bg-navy-900 rounded-full flex items-center justify-center text-sm font-bold text-white">
                     {t.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{t.name}</p>
-                    <p className="text-xs text-gray-500">{t.role}</p>
+                    <p className="text-sm font-semibold text-navy-900">{t.name}</p>
+                    <p className="text-[11px] text-navy-400">{t.role}</p>
                   </div>
                 </div>
               </div>
@@ -224,19 +288,19 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-navy-800 to-navy-900">
+      {/* ═══════════════ CTA ═══════════════ */}
+      <section className="py-20 sm:py-24 bg-navy-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mb-4">
             Ready to Transform Your Agricultural Trade?
           </h2>
-          <p className="text-lg text-navy-200 mb-8 max-w-2xl mx-auto">
+          <p className="text-base text-navy-300 mb-8 max-w-xl mx-auto">
             Join thousands of farmers and businesses already trading directly on Mitti2Market.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
-              to="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-mustard-400 text-navy-900 font-bold rounded-2xl hover:bg-mustard-300 transition shadow-lg text-lg"
+              to="/signup"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-mustard-400 text-navy-900 font-bold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20 text-base"
             >
               Get Started — It's Free
               <ArrowRight className="w-5 h-5" />
@@ -245,19 +309,17 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-navy-950 text-navy-300 py-12">
+      {/* ═══════════════ FOOTER ═══════════════ */}
+      <footer className="bg-navy-950 text-navy-400 py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-mustard-400 rounded-xl flex items-center justify-center">
-                <span className="text-xs font-extrabold text-navy-900">M2M</span>
-              </div>
-              <span className="text-white font-bold">Mitti2Market</span>
+              <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-8 h-8 object-contain" />
+              <span className="text-white font-bold text-sm">Mitti2Market</span>
             </div>
-            <p className="text-sm">SIH 26033 — Direct Agri Marketplace</p>
+            <p className="text-xs text-navy-500">SIH 26033 — Direct Agri Marketplace</p>
           </div>
-          <div className="border-t border-navy-800 mt-6 pt-6 text-center text-sm">
+          <div className="border-t border-navy-800/50 mt-6 pt-6 text-center text-xs text-navy-600">
             © 2026 Mitti2Market. All rights reserved. Built for Smart India Hackathon.
           </div>
         </div>

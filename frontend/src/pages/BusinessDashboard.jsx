@@ -1,11 +1,13 @@
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
 import NotificationPanel from '../components/NotificationPanel';
 import PriceChart from '../components/PriceChart';
 import OrderTracker from '../components/OrderTracker';
-import { ShoppingCart, Truck, Wallet, Heart, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { priceChartData, businessOrders } from '../data/mockData';
+import { ShoppingCart, Truck, Wallet, Heart, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { priceChartData } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import { apiGet } from '../api';
 
 const marketInsights = [
   { name: 'Tomato', emoji: '🍅', price: 28, change: 4.2, trend: 'up' },
@@ -19,6 +21,20 @@ const marketInsights = [
 export default function BusinessDashboard() {
   const { user } = useAuth();
   const displayName = user?.name?.split(' ')[0] || 'Business';
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    apiGet(`/api/orders/buyer/${user.id}`)
+      .then((data) => setOrders(data || []))
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const activeOrders = orders.filter(o => !['DELIVERED','CANCELLED'].includes(o.status));
+  const pendingDeliveries = orders.filter(o => ['CONFIRMED','PACKED','IN_TRANSIT'].includes(o.status));
+  const totalSpent = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -31,9 +47,9 @@ export default function BusinessDashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard icon={<ShoppingCart className="w-5 h-5" />} label="Active Orders" value="12" change="+3" changeType="up" color="primary" />
-            <StatCard icon={<Truck className="w-5 h-5" />} label="Pending Deliveries" value="4" change="-2" changeType="down" color="blue" />
-            <StatCard icon={<Wallet className="w-5 h-5" />} label="Total Purchases" value="₹1,84,500" change="+15%" changeType="up" color="emerald" />
+            <StatCard icon={<ShoppingCart className="w-5 h-5" />} label="Active Orders" value={String(activeOrders.length)} change={`+${activeOrders.length}`} changeType="up" color="primary" />
+            <StatCard icon={<Truck className="w-5 h-5" />} label="Pending Deliveries" value={String(pendingDeliveries.length)} change="-2" changeType="down" color="blue" />
+            <StatCard icon={<Wallet className="w-5 h-5" />} label="Total Purchases" value={`₹${totalSpent.toLocaleString()}`} change="+15%" changeType="up" color="emerald" />
             <StatCard icon={<Heart className="w-5 h-5" />} label="Saved Suppliers" value="18" change="+2" changeType="up" color="accent" />
           </div>
 
@@ -81,11 +97,17 @@ export default function BusinessDashboard() {
             />
             <div>
               <h3 className="text-sm font-semibold text-navy-700 mb-3">Recent Orders</h3>
-              <div className="space-y-4">
-                {businessOrders.map((order) => (
-                  <OrderTracker key={order.id} order={order} />
-                ))}
-              </div>
+              {loading ? (
+                <div className="text-center py-8"><div className="animate-spin w-6 h-6 border-4 border-navy-900 border-t-transparent rounded-full mx-auto" /></div>
+              ) : orders.length === 0 ? (
+                <p className="text-sm text-gray-500 py-8">No orders yet. Browse the marketplace to place your first order.</p>
+              ) : (
+                <div className="space-y-4">
+                  {orders.slice(0, 5).map((order) => (
+                    <OrderTracker key={order.id} order={order} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

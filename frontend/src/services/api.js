@@ -7,7 +7,7 @@
  * so the frontend remains functional during development.
  */
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 /* ───────── Token management ───────── */
 
@@ -57,7 +57,9 @@ async function request(method, path, body, includeAuth = true) {
 
     const data = await res.json().catch(() => ({}));
 
-    if (res.ok) return { ok: true, data };
+    // Backend wraps responses in ApiResponse: { success, message, data }
+    // Unwrap the inner data field for convenience
+    if (res.ok) return { ok: true, data: data.data !== undefined ? data.data : data };
 
     // If 401 and we have a refresh token, try refreshing
     if (res.status === 401 && path !== '/auth/refresh' && path !== '/auth/login') {
@@ -78,7 +80,7 @@ async function request(method, path, body, includeAuth = true) {
       return { ok: false, error: 'Session expired. Please sign in again.' };
     }
 
-    return { ok: false, error: data.error || `Request failed (${res.status})` };
+    return { ok: false, error: data.error || data.message || `Request failed (${res.status})` };
   } catch {
     // Backend unreachable — try mock fallback
     return { ok: false, error: 'Backend unavailable', offline: true };
@@ -157,18 +159,40 @@ function mockLogin(email, password) {
   return { ok: true, data };
 }
 
-/* ───────── Public API ───────── */
+/* ───────── Firebase Phone Authentication ───────── */
+
+/**
+ * Authenticate with Firebase ID token (obtained after phone OTP verification).
+ * Backend verifies the token, finds/creates user in MySQL, returns auth tokens.
+ */
+export async function firebaseAuth(idToken, role) {
+  const result = await request('POST', '/auth/firebase', { idToken, role }, false);
+  if (result.ok) storeTokens(result.data);
+  return result;
+}
+
+/**
+ * Update user profile after Firebase phone auth (name, role, location, etc.)
+ */
+export async function updateFirebaseProfile(profileData) {
+  const result = await request('POST', '/auth/update-profile', profileData);
+  if (result.ok && result.data?.user) {
+    const stored = getStoredTokens();
+    if (stored) { stored.user = result.data.user; localStorage.setItem('m2m_auth', JSON.stringify(stored)); }
+  }
+  return result;
+}
+
+/* ───────── Legacy Email/Password (kept for backward compatibility) ───────── */
 
 export async function register(name, email, phone, password, role, location) {
   const result = await request('POST', '/auth/register', { name, email, phone, password, role, location }, false);
-  if (result.offline) return mockRegister(name, email, phone, password, role, location);
   if (result.ok) storeTokens(result.data);
   return result;
 }
 
 export async function login(email, password) {
   const result = await request('POST', '/auth/login', { email, password }, false);
-  if (result.offline) return mockLogin(email, password);
   if (result.ok) storeTokens(result.data);
   return result;
 }
@@ -181,31 +205,30 @@ export async function refreshToken() {
   return result;
 }
 
-export async function forgotPassword(email) {
-  const result = await request('POST', '/auth/forgot-password', { email }, false);
-  if (result.offline) {
-    // Simulate success for offline mode
-    return { ok: true, data: { message: 'If an account with that email exists, a password reset link has been sent' } };
-  }
+/** Send OTP to email or phone */
+export async function sendOtp(identifier) {
+  const result = await request('POST', '/auth/forgot-password', { identifier }, false);
   return result;
 }
 
-export async function resetPassword(token, newPassword) {
-  const result = await request('POST', '/auth/reset-password', { token, newPassword }, false);
-  if (result.offline) {
-    const users = getUsersDb();
-    const resetTokens = JSON.parse(localStorage.getItem('m2m_reset_tokens') || '{}');
-    const userId = resetTokens[token];
-    if (!userId) return { ok: false, error: 'Invalid or expired reset token' };
-    const user = users.find((u) => u.id === userId);
-    if (!user) return { ok: false, error: 'User not found' };
-    user.password = newPassword;
-    saveUsersDb(users);
-    delete resetTokens[token];
-    localStorage.setItem('m2m_reset_tokens', JSON.stringify(resetTokens));
-    return { ok: true, data: { message: 'Password reset successful. You can now sign in.' } };
-  }
+/** Verify OTP code */
+export async function verifyOtp(identifier, otp) {
+  const result = await request('POST', '/auth/verify-otp', { identifier, otp }, false);
   return result;
+}
+
+/** Reset password using verified OTP */
+export async function resetPasswordWithOtp(identifier, otp, newPassword) {
+  const result = await request('POST', '/auth/reset-password', { identifier, otp, newPassword }, false);
+  return result;
+}
+
+export async function forgotPassword(email) {
+  return sendOtp(email);
+}
+
+export async function resetPassword(token, newPassword) {
+  return { ok: false, error: 'Please use the OTP-based reset flow.' };
 }
 
 export async function getProfile() {
@@ -249,4 +272,64 @@ export function getStoredUserData() {
 
 export function isLoggedIn() {
   return !!getStoredToken();
+}
+
+
+
+/* ───────── Farmer Profile ───────── */
+
+export async function saveFarmerProfile(profileData) {
+  return request('POST', '/farmers/profile', profileData);
+}
+
+export async function getFarmerProfile() {
+  return request('GET', '/farmers/profile');
+}
+
+/* ───────── Business Profile ───────── */
+
+export async function saveBusinessProfile(profileData) {
+  return request('POST', '/business/profile', profileData);
+}
+
+export async function getBusinessProfile() {
+  return request('GET', '/business/profile');
+}
+
+/* ───────── Documents ───────── */
+
+/**
+ * Upload a document (PDF or image) to the backend.
+ * @param {File} file - the file to upload
+ * @param {string} documentType - e.g. PROFILE_PHOTO, IDENTITY_DOC, BUSINESS_REGISTRATION
+ */
+export async function uploadDocument(file, documentType) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('documentType', documentType);
+
+  const token = getStoredToken();
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  try {
+    const res = await fetch(`${API_BASE}/documents/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, data };
+    return { ok: false, error: data.message || data.error || 'Upload failed' };
+  } catch {
+    return { ok: false, error: 'Backend unavailable' };
+  }
+}
+
+export async function getMyDocuments() {
+  return request('GET', '/documents/my-documents');
+}
+
+export async function deleteDocument(documentId) {
+  return request('DELETE', `/documents/${documentId}`);
 }

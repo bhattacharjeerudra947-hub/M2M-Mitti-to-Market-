@@ -8,6 +8,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Playfair Display', 'Georgia', 'serif'],
       },
       colors: {
         navy: {
@@ -20,7 +21,7 @@ export default {
           600: '#2e4f8e',
           700: '#233d6e',
           800: '#192c50',
-          900: '#0f2a4a',
+          900: '#102A43',
           950: '#081a30',
         },
         mustard: {
@@ -28,7 +29,7 @@ export default {
           100: '#faeec5',
           200: '#f5dc8a',
           300: '#efca4f',
-          400: '#e8b81f',
+          400: '#E9B522',
           500: '#d4a017',
           600: '#b88a13',
           700: '#916d10',
@@ -36,6 +37,32 @@ export default {
           900: '#473608',
           950: '#2a2005',
         },
+        earth: {
+          50: '#f5f0e6',
+          100: '#E8E0D0',
+          200: '#d4c8b0',
+          300: '#bfa88a',
+          400: '#a88a64',
+          500: '#795548',
+          600: '#6d4c41',
+          700: '#5d4037',
+          800: '#4e342e',
+          900: '#3e2723',
+        },
+        agri: {
+          50: '#f0f5ee',
+          100: '#dce8d8',
+          200: '#b8d1af',
+          300: '#8fb882',
+          400: '#6a9e5a',
+          500: '#4a7f3c',
+          600: '#3a6630',
+          700: '#304D2B',
+          800: '#2a4225',
+          900: '#1e321c',
+        },
+        cream: '#F5F0E6',
+        beige: '#E8E0D0',
         primary: {
           50: '#f0fdf4',
           100: '#dcfce7',

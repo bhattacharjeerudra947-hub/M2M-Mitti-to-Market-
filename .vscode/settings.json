@@ -1,4 +1,15 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
-    "java.compile.nullAnalysis.mode": "automatic"
+  "java.jdt.ls.java.home": "c:/Program Files/Java/jdk-25.0.3",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-17",
+      "path": "c:/Program Files/Java/jdk-25.0.3",
+      "default": true
+    }
+  ],
+  "spring-boot.ls.java.home": "c:/Program Files/Java/jdk-25.0.3",
+  "java.import.maven.compiler.source": "17",
+  "java.import.maven.compiler.target": "17",
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "interactive"
 }
