@@ -109,7 +109,11 @@ export default function Marketplace() {
                   >
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-3">
-                        <span className="text-4xl">{categoryEmoji[product.category] || '📦'}</span>
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="w-14 h-14 rounded-xl object-cover" />
+                        ) : (
+                          <span className="text-4xl">{categoryEmoji[product.category] || '📦'}</span>
+                        )}
                         {product.status && (
                           <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
                             product.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700' :

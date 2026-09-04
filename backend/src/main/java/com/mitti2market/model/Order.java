@@ -42,6 +42,14 @@ public class Order {
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
+    /** Transport type: PLATFORM or SELF */
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private TransportType transportType = TransportType.PLATFORM;
+
+    /** Transport cost in ₹ */
+    private Double transportCost;
+
     private String logisticsPartner;
 
     private String trackingNumber;
@@ -70,5 +78,10 @@ public class Order {
         IN_TRANSIT,
         DELIVERED,
         CANCELLED
+    }
+
+    public enum TransportType {
+        PLATFORM,
+        SELF
     }
 }
