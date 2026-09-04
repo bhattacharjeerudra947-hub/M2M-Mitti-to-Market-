@@ -1,9 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
 import { useAuth } from '../context/AuthContext';
+import { getMyDocuments } from '../services/api';
 
 const farmerLinks = [
   { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
@@ -35,10 +36,22 @@ export default function Sidebar({ role = 'farmer' }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
 
   const links = role === 'farmer' ? farmerLinks : businessLinks;
   const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
   const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
+
+  useEffect(() => {
+    async function loadPhoto() {
+      const result = await getMyDocuments();
+      if (result.ok && result.data?.data) {
+        const photo = result.data.data.find(d => d.documentType === 'PROFILE_PHOTO' && d.verificationStatus !== 'REJECTED');
+        if (photo?.cloudinaryUrl) setProfilePhotoUrl(photo.cloudinaryUrl);
+      }
+    }
+    loadPhoto();
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -61,7 +74,11 @@ export default function Sidebar({ role = 'farmer' }) {
       <div className="p-4">
         <Link to="/" className="flex items-center mb-6"><M2MLogo size="sm" /></Link>
         <div className="flex items-center gap-3 mb-6 p-3 bg-mustard-50 border border-mustard-200 rounded-xl">
-          <span className="text-2xl">{profileIcon}</span>
+          {profilePhotoUrl ? (
+            <img src={profilePhotoUrl} alt="Profile" className="w-10 h-10 rounded-xl object-cover border border-mustard-300" />
+          ) : (
+            <span className="text-2xl">{profileIcon}</span>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-semibold text-navy-900 truncate">{profileName}</p>
             <p className="text-xs text-navy-500 capitalize">{role} Account</p>

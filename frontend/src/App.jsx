@@ -26,6 +26,8 @@ import BusinessOrders from './pages/BusinessOrders';
 import FindFarmers from './pages/FindFarmers';
 import SavedSuppliers from './pages/SavedSuppliers';
 import BusinessAnalytics from './pages/BusinessAnalytics';
+import FarmerRegistration from './pages/FarmerRegistration';
+import BusinessRegistration from './pages/BusinessRegistration';
 
 function FarmerLayout() {
   return (
@@ -48,6 +50,10 @@ export default function App() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Registration wizards (authenticated) */}
+          <Route path="/register/farmer" element={<ProtectedRoute role="farmer"><FarmerRegistration /></ProtectedRoute>} />
+          <Route path="/register/business" element={<ProtectedRoute role="business"><BusinessRegistration /></ProtectedRoute>} />
 
           {/* Profile (any authenticated user) */}
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
