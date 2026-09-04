@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { Send, ArrowLeft, MessageCircle, Package } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet, apiPost } from '../api';
+import DealLockPanel from '../components/DealLockPanel';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -220,6 +221,14 @@ export default function Chat() {
               </div>
             )}
           </div>
+
+          {/* Deal Lock Panel */}
+          <DealLockPanel
+            conversationId={conversationId}
+            otherUserId={otherUserId}
+            produceId={conversations.find(c => c.conversationId === conversationId)?.produceId}
+            produceName={conversations.find(c => c.conversationId === conversationId)?.produceName}
+          />
 
           {/* Message input */}
           <form onSubmit={handleSend} className="bg-white rounded-b-2xl border border-navy-100 p-3 flex items-center gap-2">
