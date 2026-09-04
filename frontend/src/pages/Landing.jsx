@@ -314,9 +314,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-mustard-400 rounded-xl flex items-center justify-center">
-                <span className="text-[10px] font-extrabold text-navy-900">M2M</span>
-              </div>
+              <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-8 h-8 object-contain" />
               <span className="text-white font-bold text-sm">Mitti2Market</span>
             </div>
             <p className="text-xs text-navy-500">SIH 26033 — Direct Agri Marketplace</p>
