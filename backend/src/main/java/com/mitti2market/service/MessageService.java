@@ -2,6 +2,7 @@ package com.mitti2market.service;
 
 import com.mitti2market.exception.ResourceNotFoundException;
 import com.mitti2market.model.Message;
+import com.mitti2market.model.Notification;
 import com.mitti2market.model.Produce;
 import com.mitti2market.model.User;
 import com.mitti2market.repository.MessageRepository;
@@ -21,6 +22,7 @@ public class MessageService {
     private final MessageRepository messages;
     private final UserRepository users;
     private final ProduceRepository produceRepository;
+    private final NotificationService notificationService;
 
     /** Send a message from sender to receiver, optionally about a produce */
     public Message sendMessage(Long senderId, Long receiverId, String content, Long produceId) {
@@ -46,7 +48,16 @@ public class MessageService {
                 .read(false)
                 .build();
 
-        return messages.save(msg);
+        msg = messages.save(msg);
+
+        // Notify the receiver
+        String preview = content.length() > 60 ? content.substring(0, 60) + "..." : content;
+        notificationService.createNotification(receiverId,
+                Notification.NotificationType.NEW_MESSAGE,
+                "New message from " + sender.getName(),
+                preview);
+
+        return msg;
     }
 
     /** Get all messages in a conversation */
