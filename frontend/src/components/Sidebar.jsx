@@ -13,9 +13,9 @@ const farmerLinks = [
   { to: '/farmer/price-advisor', icon: Brain, label: 'AI Price Advisor' },
   { to: '/farmer/buyer-requests', icon: ShoppingCart, label: 'Buyer Requests' },
   { to: '/farmer/orders', icon: ClipboardList, label: 'Orders' },
-  { to: '/farmer/logistics', icon: Truck, label: 'Logistics' },
   { to: '/farmer/earnings', icon: Wallet, label: 'Earnings' },
   { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
+  { to: '/farmer/deals', icon: Package, label: 'My Deals' },
 ];
 
 const businessLinks = [
@@ -26,9 +26,9 @@ const businessLinks = [
   { to: '/business/orders', icon: ClipboardList, label: 'My Orders' },
   { to: '/business/suppliers', icon: Heart, label: 'Saved Suppliers' },
   { to: '/business/insights', icon: TrendingUp, label: 'Market Insights' },
-  { to: '/business/logistics', icon: Truck, label: 'Logistics' },
   { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
+  { to: '/business/deals', icon: Package, label: 'My Purchases' },
 ];
 
 export default function Sidebar({ role = 'farmer' }) {
@@ -130,11 +130,11 @@ export default function Sidebar({ role = 'farmer' }) {
         </div>
       )}
 
-      {/* Notifications overlay */}
+      {/* Notifications modal — works on all screen sizes */}
       {showNotifications && (
-        <div className="lg:hidden fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 flex items-start justify-end p-4 pt-20">
           <div className="absolute inset-0 bg-navy-900/20" onClick={() => setShowNotifications(false)} />
-          <div className="absolute right-4 top-16 w-80 max-w-[calc(100vw-2rem)] z-50">
+          <div className="relative w-96 max-w-[calc(100vw-2rem)] z-50">
             <NotificationPanel />
           </div>
         </div>

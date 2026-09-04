@@ -55,6 +55,12 @@ public class Notification {
         NEW_MESSAGE,
         ORDER_PLACED,
         ORDER_STATUS_CHANGED,
-        DEAL_AGREED
+        DEAL_AGREED,
+        DEAL_LOCK_REQUESTED,
+        DEAL_LOCKED,
+        DEAL_CANCELLED,
+        LOGISTICS_SELECTED,
+        LOGISTICS_UPDATE,
+        DELIVERY_CONFIRMED
     }
 }
