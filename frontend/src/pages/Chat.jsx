@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Send, ArrowLeft, MessageCircle, Package } from 'lucide-react';
+import { Send, ArrowLeft, MessageCircle, Package, Radio } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet, apiPost } from '../api';
 import DealLockPanel from '../components/DealLockPanel';
@@ -22,10 +22,10 @@ export default function Chat() {
   const role = user?.role?.toLowerCase() || 'farmer';
   const sidebarRole = role === 'farmer' ? 'farmer' : 'business';
 
-  // Load conversations list — refresh whenever conversationId changes (entering/leaving inbox)
-  const loadConversations = async () => {
+  // Load conversations list
+  const loadConversations = async (showLoading = true) => {
     if (!user) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await apiGet('/api/messages/conversations');
       setConversations(data || []);
@@ -35,19 +35,29 @@ export default function Chat() {
         return;
       }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
+  // Load conversations on mount and when conversationId changes
   useEffect(() => {
     loadConversations();
   }, [user, conversationId]);
 
-  // Load messages when conversation is selected
+  // Poll conversations list even while in a chat (to show unread badges)
+  useEffect(() => {
+    const interval = setInterval(() => loadConversations(false), 10000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Load messages when conversation is selected — poll every 2s for real-time
   useEffect(() => {
     if (!conversationId || !user) return;
     loadMessages();
-    const interval = setInterval(loadMessages, 3000); // Poll every 3s
+    const interval = setInterval(() => {
+      loadMessages();
+      loadConversations(false); // Also refresh conversation list for unread badges
+    }, 2000);
     return () => clearInterval(interval);
   }, [conversationId, user]);
 
@@ -68,23 +78,26 @@ export default function Chat() {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
 
+    const messageText = newMessage.trim();
+    setNewMessage(''); // Clear input immediately for instant feedback
     setSending(true);
     try {
       const produceId = activeConv?.produceId || null;
       await apiPost('/api/messages', {
         receiverId: Number(otherUserId),
-        content: newMessage.trim(),
+        content: messageText,
         produceId,
       });
-      setNewMessage('');
+      // Immediately reload messages and conversations
       await loadMessages();
-      // Refresh conversations list to update lastMessage and time
-      await loadConversations();
+      await loadConversations(false);
     } catch (err) {
       if (err.message?.includes('Session expired')) {
         navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat` } } });
         return;
       }
+      // Put the message back in the input if sending failed
+      setNewMessage(messageText);
       alert('Failed to send message');
     } finally {
       setSending(false);
@@ -178,7 +191,7 @@ export default function Chat() {
             <div className="w-10 h-10 bg-navy-100 rounded-full flex items-center justify-center font-bold text-navy-700">
               {conversations.find(c => c.conversationId === conversationId)?.otherUserName?.charAt(0) || '?'}
             </div>
-            <div>
+            <div className="flex-1">
               <p className="font-semibold text-navy-900 text-sm">
                 {conversations.find(c => c.conversationId === conversationId)?.otherUserName || 'Chat'}
               </p>
@@ -188,6 +201,10 @@ export default function Chat() {
                   {conversations.find(c => c.conversationId === conversationId)?.produceName}
                 </p>
               )}
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-full">
+              <Radio className="w-3 h-3 text-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-semibold text-emerald-600">Live</span>
             </div>
           </div>
 
