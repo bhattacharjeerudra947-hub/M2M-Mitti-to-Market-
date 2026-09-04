@@ -1,13 +1,23 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import M2MLogo from './M2MLogo';
 import { useAuth } from '../context/AuthContext';
+
+const navItems = [
+  { label: 'Home', to: '/' },
+  { label: 'How It Works', to: '/how-it-works' },
+  { label: 'Marketplace', to: '/marketplace' },
+  { label: 'Pricing', to: '/pricing' },
+  { label: 'About Us', to: '/about-us' },
+];
 
 export default function Navbar({ dark = false }) {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
+  const { pathname } = useLocation();
   const role = user?.role?.toLowerCase();
+
+  const isActive = (to) => (to === '/' ? pathname === '/' : pathname === to);
 
   const navBg = dark
     ? 'bg-navy-900/95 backdrop-blur-md border-b border-white/5'
@@ -16,6 +26,22 @@ export default function Navbar({ dark = false }) {
   const linkColor = dark
     ? 'text-white/70 hover:text-white'
     : 'text-navy-600 hover:text-navy-900';
+
+  const desktopLink = (to) => {
+    const active = isActive(to);
+    const color = dark
+      ? active ? 'text-white font-semibold' : 'text-white/70 hover:text-white font-medium'
+      : active ? 'text-navy-900 font-semibold' : 'text-navy-600 hover:text-navy-900 font-medium';
+    return `text-[13px] transition ${color} ${active ? 'underline decoration-mustard-400 decoration-2 underline-offset-[6px]' : ''}`;
+  };
+
+  const mobileLink = (to) => {
+    const active = isActive(to);
+    const color = dark
+      ? active ? 'text-white font-semibold' : 'text-white/70 hover:text-white font-medium'
+      : active ? 'text-navy-900 font-semibold' : 'text-navy-600 hover:text-navy-900 font-medium';
+    return `block py-2.5 text-sm transition ${color} ${active ? 'underline decoration-mustard-400 decoration-2 underline-offset-4' : ''}`;
+  };
 
   return (
     <nav className={`${navBg} sticky top-0 z-50 transition-colors`}>
@@ -30,11 +56,11 @@ export default function Navbar({ dark = false }) {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/" className={`text-[13px] font-medium ${linkColor} transition`}>Home</Link>
-            <a href="#how-it-works" className={`text-[13px] font-medium ${linkColor} transition`}>How It Works</a>
-            <Link to="/marketplace" className={`text-[13px] font-medium ${linkColor} transition`}>Marketplace</Link>
-            <a href="#pricing" className={`text-[13px] font-medium ${linkColor} transition`}>Pricing</a>
-            <a href="#about" className={`text-[13px] font-medium ${linkColor} transition`}>About Us</a>
+            {navItems.map((item) => (
+              <Link key={item.to} to={item.to} className={desktopLink(item.to)}>
+                {item.label}
+              </Link>
+            ))}
           </div>
 
           {/* Desktop CTA */}
@@ -71,11 +97,16 @@ export default function Navbar({ dark = false }) {
       {/* Mobile menu */}
       {open && (
         <div className={`md:hidden px-4 pb-4 space-y-1 ${dark ? 'bg-navy-900 border-t border-white/10' : 'bg-white border-t border-navy-100'}`}>
-          <Link to="/" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Home</Link>
-          <a href="#how-it-works" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>How It Works</a>
-          <Link to="/marketplace" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Marketplace</Link>
-          <a href="#pricing" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Pricing</a>
-          <a href="#about" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>About Us</a>
+          {navItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={mobileLink(item.to)}
+              onClick={() => setOpen(false)}
+            >
+              {item.label}
+            </Link>
+          ))}
           <div className="pt-2 border-t border-navy-100 space-y-2">
             {isAuthenticated ? (
               <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>My Dashboard</Link>
