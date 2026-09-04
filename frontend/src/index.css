@@ -110,3 +110,25 @@ body {
   width: calc(100% + 1.3px);
   height: 50px;
 }
+
+/* Subtle fade between routes (auto-rotation and manual navigation) */
+.route-enter {
+  animation: route-fade-in 0.45s ease-out both;
+}
+
+@keyframes route-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-enter {
+    animation: none;
+  }
+}

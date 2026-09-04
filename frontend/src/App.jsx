@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { FarmerProvider } from './context/FarmerContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -47,6 +47,67 @@ function ScrollToTop() {
   return null;
 }
 
+// Public landing sections, rotated automatically every 10 seconds
+const ROTATING_SECTIONS = ['/', '/how-it-works', '/marketplace', '/pricing', '/about-us'];
+const ROTATION_INTERVAL_MS = 6000;
+
+// Rotates through the public landing pages every 10s. The countdown resets
+// whenever the route changes, so manual navigation continues the rotation
+// from the currently selected section. The timer pauses while a form field
+// is focused so the transition never destroys user input.
+function AutoRotateSections() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const timerRef = useRef(null);
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+    const isRotatingPage = ROTATING_SECTIONS.includes(pathnameRef.current);
+
+    const isFormControl = (el) =>
+      !!el &&
+      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+
+    const scheduleNext = () => {
+      if (!isRotatingPage) return;
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        const idx = ROTATING_SECTIONS.indexOf(pathnameRef.current);
+        navigate(ROTATING_SECTIONS[(idx + 1) % ROTATING_SECTIONS.length]);
+      }, ROTATION_INTERVAL_MS);
+    };
+
+    const pauseWhileTyping = (e) => {
+      if (isFormControl(e.target)) clearTimeout(timerRef.current);
+    };
+    const resumeAfterTyping = (e) => {
+      if (isFormControl(e.target)) scheduleNext();
+    };
+
+    scheduleNext();
+    document.addEventListener('focusin', pauseWhileTyping);
+    document.addEventListener('focusout', resumeAfterTyping);
+    return () => {
+      clearTimeout(timerRef.current);
+      document.removeEventListener('focusin', pauseWhileTyping);
+      document.removeEventListener('focusout', resumeAfterTyping);
+    };
+  }, [pathname, navigate]);
+
+  return null;
+}
+
+// Subtle fade between routes (used by the auto-rotation and manual navigation)
+function RouteFade({ children }) {
+  const { pathname } = useLocation();
+  return (
+    <div key={pathname} className="route-enter">
+      {children}
+    </div>
+  );
+}
+
 function FarmerLayout() {
   return (
     <ProtectedRoute role="farmer">
@@ -61,7 +122,9 @@ export default function App() {
   return (
     <Router>
       <ScrollToTop />
+      <AutoRotateSections />
       <AuthProvider>
+        <RouteFade>
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
@@ -115,6 +178,7 @@ export default function App() {
           {/* Catch-all → landing */}
           <Route path="*" element={<Landing />} />
         </Routes>
+        </RouteFade>
       </AuthProvider>
     </Router>
   );
