@@ -12,11 +12,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/**
- * Seeds demo data in the dev profile only.
- * Guards with count() > 0 to prevent duplication on restart.
- * Must never run against production.
- */
 @Slf4j
 @Component
 @Profile("dev")
@@ -33,13 +28,12 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        log.info("Seeding demo data for dev profile...");
+        log.info("Seeding demo data...");
 
-        // --- Farmers ---
         User farmer1 = userRepository.save(User.builder()
                 .name("Ramesh Kumar")
                 .email("ramesh@farmer.com")
-                .password("password123")
+                .passwordHash("password123")
                 .phone("9876543210")
                 .role(Role.FARMER)
                 .location("Pune, Maharashtra")
@@ -49,25 +43,23 @@ public class DataSeeder implements CommandLineRunner {
         User farmer2 = userRepository.save(User.builder()
                 .name("Sunita Devi")
                 .email("sunita@farmer.com")
-                .password("password123")
+                .passwordHash("password123")
                 .phone("9876543211")
                 .role(Role.FARMER)
                 .location("Nashik, Maharashtra")
                 .organizationName("Devi Farm Collective")
                 .build());
 
-        // --- Business Buyer ---
         User business1 = userRepository.save(User.builder()
                 .name("FreshMart Procurement")
                 .email("procurement@freshmart.com")
-                .password("password123")
+                .passwordHash("password123")
                 .phone("9876543220")
                 .role(Role.BUSINESS)
                 .location("Mumbai, Maharashtra")
                 .organizationName("FreshMart Pvt Ltd")
                 .build());
 
-        // --- Produce Listings ---
         produceRepository.save(Produce.builder()
                 .farmer(farmer1)
                 .name("Alphonso Mango")

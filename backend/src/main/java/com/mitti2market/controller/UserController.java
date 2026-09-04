@@ -1,58 +1,55 @@
 package com.mitti2market.controller;
 
 import com.mitti2market.dto.ApiResponse;
-import com.mitti2market.dto.user.LoginRequest;
-import com.mitti2market.dto.user.RegisterRequest;
-import com.mitti2market.dto.user.UserResponse;
+import com.mitti2market.model.User;
 import com.mitti2market.model.User.Role;
-import com.mitti2market.service.UserService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import com.mitti2market.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
-@RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
+    private final UserRepository users;
 
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> register(
-            @Valid @RequestBody RegisterRequest request) {
-        UserResponse user = userService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("User registered successfully", user));
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<UserResponse>> login(
-            @Valid @RequestBody LoginRequest request) {
-        UserResponse user = userService.login(request);
-        return ResponseEntity.ok(ApiResponse.ok("Login successful", user));
+    public UserController(UserRepository users) {
+        this.users = users;
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUser(@PathVariable Long id) {
-        UserResponse user = userService.getUser(id);
-        return ResponseEntity.ok(ApiResponse.ok(user));
+    public ResponseEntity<?> getUser(@PathVariable Long id) {
+        return users.findById(id)
+                .map(user -> ResponseEntity.ok(ApiResponse.ok(toDto(user))))
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("User not found")));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserResponse>>> listUsers(
-            @RequestParam(required = false) Role role) {
-        List<UserResponse> users = userService.listUsers(role);
-        return ResponseEntity.ok(ApiResponse.ok(users));
+    public ResponseEntity<?> listUsers(@RequestParam(required = false) Role role) {
+        List<User> list = (role != null) ? users.findByRole(role) : users.findAll();
+        return ResponseEntity.ok(ApiResponse.ok(list.stream().map(this::toDto).toList()));
     }
 
     @GetMapping("/farmers")
-    public ResponseEntity<ApiResponse<List<UserResponse>>> findFarmers(
-            @RequestParam(required = false) String location) {
-        List<UserResponse> farmers = userService.findFarmers(location);
-        return ResponseEntity.ok(ApiResponse.ok(farmers));
+    public ResponseEntity<?> findFarmers(@RequestParam(required = false) String location) {
+        List<User> farmers = (location != null && !location.isBlank())
+                ? users.findByRoleAndLocationContainingIgnoreCase(Role.FARMER, location)
+                : users.findByRole(Role.FARMER);
+        return ResponseEntity.ok(ApiResponse.ok(farmers.stream().map(this::toDto).toList()));
+    }
+
+    private Map<String, Object> toDto(User user) {
+        return Map.of(
+                "id", user.getId(),
+                "name", user.getName() != null ? user.getName() : "",
+                "email", user.getEmail() != null ? user.getEmail() : "",
+                "phone", user.getPhone() != null ? user.getPhone() : "",
+                "role", user.getRole().name(),
+                "location", user.getLocation() != null ? user.getLocation() : "",
+                "organizationName", user.getOrganizationName() != null ? user.getOrganizationName() : ""
+        );
     }
 }

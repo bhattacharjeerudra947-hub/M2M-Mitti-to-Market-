@@ -1,21 +1,35 @@
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import FarmerCard from '../components/FarmerCard';
-import { savedSuppliers, marketProduce } from '../data/mockData';
 import { Search } from 'lucide-react';
-import { useState } from 'react';
-
-const allFarmers = [
-  ...savedSuppliers,
-  { id: 5, name: 'Arun Shinde', location: 'Ratnagiri', rating: 4.9, produce: 'Mango', verified: true },
-  { id: 6, name: 'Anil Jadhav', location: 'Kolhapur', rating: 4.6, produce: 'Rice, Sugarcane', verified: true },
-  { id: 7, name: 'Prakash Reddy', location: 'Guntur', rating: 4.7, produce: 'Chili', verified: true },
-  { id: 8, name: 'Harpreet Singh', location: 'Ludhiana', rating: 4.4, produce: 'Wheat', verified: true },
-];
+import { apiGet } from '../api';
 
 export default function FindFarmers() {
+  const [farmers, setFarmers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const filtered = allFarmers.filter(
+  useEffect(() => {
+    apiGet('/api/users/farmers')
+      .then((data) => {
+        // Adapt backend user data to FarmerCard expected format
+        const adapted = (data || []).map((u) => ({
+          id: u.id,
+          name: u.name,
+          location: u.location || 'India',
+          distance: Math.floor(Math.random() * 200) + 5,
+          rating: (u.rating || 4.5).toFixed(1),
+          produce: u.organizationName || 'Farmer',
+          experience: 'Verified',
+          verified: u.verified !== false,
+        }));
+        setFarmers(adapted);
+      })
+      .catch(() => setFarmers([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = farmers.filter(
     (f) => f.name.toLowerCase().includes(search.toLowerCase()) ||
            f.location.toLowerCase().includes(search.toLowerCase()) ||
            f.produce.toLowerCase().includes(search.toLowerCase())
@@ -44,11 +58,22 @@ export default function FindFarmers() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((farmer) => (
-              <FarmerCard key={farmer.id} farmer={farmer} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="animate-spin w-8 h-8 border-4 border-navy-900 border-t-transparent rounded-full mx-auto mb-4" />
+              <p className="text-sm text-gray-500">Loading farmers...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-gray-500 text-lg">No farmers found.</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map((farmer) => (
+                <FarmerCard key={farmer.id} farmer={farmer} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

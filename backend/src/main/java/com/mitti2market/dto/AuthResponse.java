@@ -12,6 +12,8 @@ public class AuthResponse {
     private String refreshToken;
     private String message;
     private UserDto user;
+    @Builder.Default
+    private Boolean isNewUser = false;
 
     @Data
     @Builder
