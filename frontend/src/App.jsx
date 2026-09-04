@@ -28,6 +28,7 @@ import SavedSuppliers from './pages/SavedSuppliers';
 import BusinessAnalytics from './pages/BusinessAnalytics';
 import FarmerRegistration from './pages/FarmerRegistration';
 import BusinessRegistration from './pages/BusinessRegistration';
+import Chat from './pages/Chat';
 
 function FarmerLayout() {
   return (
@@ -68,6 +69,8 @@ export default function App() {
             <Route path="orders" element={<FarmerOrders />} />
             <Route path="logistics" element={<FarmerLogistics />} />
             <Route path="earnings" element={<FarmerEarnings />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
           </Route>
 
           {/* Business Routes — protected by role */}
@@ -82,6 +85,8 @@ export default function App() {
             <Route path="find-farmers" element={<FindFarmers />} />
             <Route path="suppliers" element={<SavedSuppliers />} />
             <Route path="analytics" element={<BusinessAnalytics />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
           </Route>
 
           {/* Catch-all → landing */}
