@@ -99,6 +99,7 @@ export default function Sidebar({ role = 'farmer' }) {
         <button onClick={() => setShowNotifications(!showNotifications)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all relative">
           <NotificationPanel compact />
           <span>Notifications</span>
+          {showNotifications && <span className="ml-1 text-[10px] text-navy-400">(open)</span>}
         </button>
         <button onClick={() => setShowLogoutModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-red-50 hover:text-red-600 transition-all">
           <LogOut className="w-5 h-5 text-navy-400" />
@@ -132,9 +133,9 @@ export default function Sidebar({ role = 'farmer' }) {
 
       {/* Notifications modal — works on all screen sizes */}
       {showNotifications && (
-        <div className="fixed inset-0 z-50 flex items-start justify-end p-4 pt-20">
+        <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-navy-900/20" onClick={() => setShowNotifications(false)} />
-          <div className="relative w-96 max-w-[calc(100vw-2rem)] z-50">
+          <div className="absolute right-4 top-16 w-96 max-w-[calc(100vw-2rem)] z-50">
             <NotificationPanel />
           </div>
         </div>

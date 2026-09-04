@@ -60,8 +60,8 @@ export default function NotificationPanel({ compact = false }) {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll for new notifications every 15 seconds
-    const interval = setInterval(fetchNotifications, 15000);
+    // Poll for new notifications every 10 seconds for real-time feel
+    const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
