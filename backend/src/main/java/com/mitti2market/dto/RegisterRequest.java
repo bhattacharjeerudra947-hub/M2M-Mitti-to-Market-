@@ -22,7 +22,7 @@ public class RegisterRequest {
     private String password;
 
     @NotBlank(message = "Role is required")
-    private String role; // FARMER or BUSINESS
+    private String role;
 
     private String location;
 }

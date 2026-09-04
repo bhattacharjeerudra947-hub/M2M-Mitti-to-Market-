@@ -19,5 +19,34 @@ frontend/.cache/
 .DS_Store
 Thumbs.db
 
+# === Firebase ===
+backend/firebase-service-account.json
+*-service-account.json
+
+# === Secrets / API Keys ===
+# Backend secrets
+backend/.env
+backend/.env.local
+backend/.env.*
+
+# Frontend secrets
+frontend/.env
+frontend/.env.local
+frontend/.env.*
+
+# Root (in case someone puts it here)
+.env
+.env.local
+.env.*.local
+.env.*
+
+# Firebase service account
+*-service-account.json
+
 # === Freebuff IDE ===
 .freebuff/
+
+# === Uploads & Storage ===
+backend/uploads/
+backend/storage/
+storage/

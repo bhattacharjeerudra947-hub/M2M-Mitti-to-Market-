@@ -15,6 +15,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByPhone(String phone);
 
+    Optional<User> findByFirebaseUid(String firebaseUid);
+
     List<User> findByRole(Role role);
 
     List<User> findByRoleAndLocationContainingIgnoreCase(Role role, String location);
