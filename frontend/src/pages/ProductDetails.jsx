@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, Loader2 } from 'lucide-react';
-import { apiGet } from '../api';
+import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCircle, Loader2, Heart, Check } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { apiGet, apiPost } from '../api';
 
 const categoryEmoji = {
   Fruits: '🍎', Vegetables: '🥬', Spices: '🌶️', Grains: '🌾', Dairy: '🥛',
@@ -10,9 +11,16 @@ const categoryEmoji = {
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [interestLoading, setInterestLoading] = useState(false);
+  const [interestSent, setInterestSent] = useState(false);
+  const [showInterestForm, setShowInterestForm] = useState(false);
+  const [offerPrice, setOfferPrice] = useState('');
+  const [offerQuantity, setOfferQuantity] = useState('');
+  const [offerMessage, setOfferMessage] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -146,18 +154,108 @@ export default function ProductDetails() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2">
-                  <ShoppingBag className="w-5 h-5" />
-                  Buy Now
-                </button>
+              {user && product.farmerId && product.farmerId !== user.id ? (
+                <>
+                  {!showInterestForm && !interestSent ? (
+                    <button
+                      onClick={() => setShowInterestForm(true)}
+                      className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <Heart className="w-5 h-5" />
+                      Show Interest / Contact Farmer
+                    </button>
+                  ) : interestSent ? (
+                    <div className="w-full py-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold rounded-xl flex items-center justify-center gap-2">
+                      <Check className="w-5 h-5" /> Interest Sent! Farmer will respond soon.
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-2xl border border-navy-100 p-4 space-y-3">
+                      <h3 className="text-sm font-bold text-navy-900">Make an Offer</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-gray-500">Your Price (₹/{product.unit})</label>
+                          <input type="number" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)}
+                            placeholder={product.pricePerUnit?.toString()}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm mt-1" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Quantity ({product.unit})</label>
+                          <input type="number" value={offerQuantity} onChange={(e) => setOfferQuantity(e.target.value)}
+                            placeholder={product.quantity?.toString()}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm mt-1" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Message (optional)</label>
+                        <textarea value={offerMessage} onChange={(e) => setOfferMessage(e.target.value)}
+                          placeholder="Hi, I'm interested in purchasing your produce..."
+                          rows={2}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm mt-1 resize-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setShowInterestForm(false)}
+                          className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setInterestLoading(true);
+                            try {
+                              await apiPost('/api/interests', {
+                                produceId: product.id,
+                                offeredPrice: offerPrice ? Number(offerPrice) : null,
+                                offeredQuantity: offerQuantity ? Number(offerQuantity) : null,
+                                message: offerMessage || null,
+                              });
+                              setInterestSent(true);
+                              setShowInterestForm(false);
+                            } catch (err) {
+                              setError(err.message);
+                            } finally {
+                              setInterestLoading(false);
+                            }
+                          }}
+                          disabled={interestLoading}
+                          className="flex-1 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
+                          {interestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
+                          Send Interest
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <Link
+                    to={`/business/chat/new/${product.farmerId}?produceId=${product.id}`}
+                    className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Message Farmer
+                  </Link>
+                </>
+              ) : (
+                <div className="flex gap-3">
+                  <button className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2">
+                    <ShoppingBag className="w-5 h-5" />
+                    Buy Now
+                  </button>
+                  <Link
+                    to="/business/bulk-order"
+                    className="flex-1 py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                  >
+                    Request Bulk Order
+                  </Link>
+                </div>
+              )}
+
+              {/* Message Farmer */}
+              {user && product.farmerId && product.farmerId !== user.id && (
                 <Link
-                  to="/business/bulk-order"
-                  className="flex-1 py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                  to={`/business/chat/new/${product.farmerId}?produceId=${product.id}`}
+                  className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
                 >
-                  Request Bulk Order
+                  <MessageCircle className="w-5 h-5" />
+                  Message Farmer
                 </Link>
-              </div>
+              )}
             </div>
           </div>
         </div>
