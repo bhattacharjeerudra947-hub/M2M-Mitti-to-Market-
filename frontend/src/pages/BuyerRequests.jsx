@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { ShoppingCart, Filter, MessageCircle, Check, X, RefreshCw, Clock, Star, ShieldCheck, Calendar, Package } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPost } from '../api';
+import { apiGet, apiPost, apiPut } from '../api';
 
 export default function BuyerRequests() {
   const { user } = useAuth();
@@ -22,6 +22,10 @@ export default function BuyerRequests() {
       const data = await apiGet(`/api/interests/farmer/${user.id}`);
       setInterests(data || []);
     } catch (err) {
+      if (err.message.includes('Session expired')) {
+        navigate('/login', { state: { from: { pathname: '/farmer/buyer-requests' } } });
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);
@@ -35,12 +39,15 @@ export default function BuyerRequests() {
   const handleAccept = async (interestId) => {
     setActionLoading(interestId);
     try {
-      const result = await apiPost(`/api/interests/${interestId}/accept`, {});
-      // Update the interest status locally
+      const result = await apiPut(`/api/interests/${interestId}/accept`, {});
       setInterests(prev => prev.map(i =>
         i.id === interestId ? { ...i, status: 'ACCEPTED', conversationId: result.conversationId } : i
       ));
     } catch (err) {
+      if (err.message.includes('Session expired')) {
+        navigate('/login', { state: { from: { pathname: '/farmer/buyer-requests' } } });
+        return;
+      }
       setError(err.message || 'Failed to accept interest');
     } finally {
       setActionLoading(null);
@@ -50,11 +57,15 @@ export default function BuyerRequests() {
   const handleReject = async (interestId) => {
     setActionLoading(interestId);
     try {
-      await apiPost(`/api/interests/${interestId}/reject`, {});
+      await apiPut(`/api/interests/${interestId}/reject`, {});
       setInterests(prev => prev.map(i =>
         i.id === interestId ? { ...i, status: 'REJECTED' } : i
       ));
     } catch (err) {
+      if (err.message.includes('Session expired')) {
+        navigate('/login', { state: { from: { pathname: '/farmer/buyer-requests' } } });
+        return;
+      }
       setError(err.message || 'Failed to reject interest');
     } finally {
       setActionLoading(null);

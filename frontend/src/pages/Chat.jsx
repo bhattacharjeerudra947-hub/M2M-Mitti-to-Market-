@@ -21,14 +21,26 @@ export default function Chat() {
   const role = user?.role?.toLowerCase() || 'farmer';
   const sidebarRole = role === 'farmer' ? 'farmer' : 'business';
 
-  // Load conversations list
-  useEffect(() => {
+  // Load conversations list — refresh whenever conversationId changes (entering/leaving inbox)
+  const loadConversations = async () => {
     if (!user) return;
-    apiGet('/api/messages/conversations')
-      .then(data => setConversations(data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [user]);
+    setLoading(true);
+    try {
+      const data = await apiGet('/api/messages/conversations');
+      setConversations(data || []);
+    } catch (err) {
+      if (err.message?.includes('Session expired')) {
+        navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat` } } });
+        return;
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConversations();
+  }, [user, conversationId]);
 
   // Load messages when conversation is selected
   useEffect(() => {
@@ -44,7 +56,11 @@ export default function Chat() {
       const data = await apiGet(`/api/messages/${conversationId}`);
       setMessages(data || []);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    } catch {}
+    } catch (err) {
+      if (err.message?.includes('Session expired')) {
+        navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat/${conversationId}/${otherUserId}` } } });
+      }
+    }
   };
 
   const handleSend = async (e) => {
@@ -61,7 +77,13 @@ export default function Chat() {
       });
       setNewMessage('');
       await loadMessages();
+      // Refresh conversations list to update lastMessage and time
+      await loadConversations();
     } catch (err) {
+      if (err.message?.includes('Session expired')) {
+        navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat` } } });
+        return;
+      }
       alert('Failed to send message');
     } finally {
       setSending(false);
@@ -107,7 +129,7 @@ export default function Chat() {
                 {conversations.map((conv) => (
                   <button
                     key={conv.conversationId}
-                    onClick={() => navigate(`/chat/${conv.conversationId}/${conv.otherUserId}`)}
+                    onClick={() => navigate(`/${sidebarRole}/chat/${conv.conversationId}/${conv.otherUserId}`)}
                     className="w-full bg-white rounded-xl border border-navy-100 p-4 flex items-center gap-4 hover:shadow-md transition text-left"
                   >
                     <div className="w-12 h-12 bg-navy-100 rounded-full flex items-center justify-center text-lg font-bold text-navy-700 flex-shrink-0">
@@ -149,7 +171,7 @@ export default function Chat() {
         <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-4rem)]">
           {/* Chat header */}
           <div className="bg-white rounded-t-2xl border border-navy-100 p-4 flex items-center gap-3 mb-0">
-            <button onClick={() => navigate('/chat')} className="p-1 hover:bg-gray-100 rounded-lg transition">
+            <button onClick={() => navigate(`/${sidebarRole}/chat`)} className="p-1 hover:bg-gray-100 rounded-lg transition">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div className="w-10 h-10 bg-navy-100 rounded-full flex items-center justify-center font-bold text-navy-700">
