@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, TrendingUp, Users, Shield, Brain, Truck, Leaf, Star } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import TransparentPricing from '../components/TransparentPricing';
 
 const features = [
@@ -310,20 +311,7 @@ export default function Landing() {
       </section>
 
       {/* ═══════════════ FOOTER ═══════════════ */}
-      <footer className="bg-navy-950 text-navy-400 py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-8 h-8 object-contain" />
-              <span className="text-white font-bold text-sm">Mitti2Market</span>
-            </div>
-            <p className="text-xs text-navy-500">SIH 26033 — Direct Agri Marketplace</p>
-          </div>
-          <div className="border-t border-navy-800/50 mt-6 pt-6 text-center text-xs text-navy-600">
-            © 2026 Mitti2Market. All rights reserved. Built for Smart India Hackathon.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
