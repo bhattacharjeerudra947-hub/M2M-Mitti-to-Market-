@@ -114,7 +114,11 @@ export default function FarmerProducts() {
                 <div key={item.id} className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 hover:shadow-md transition">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-3xl">{categoryEmoji[item.category] || '📦'}</span>
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                      ) : (
+                        <span className="text-3xl">{categoryEmoji[item.category] || '📦'}</span>
+                      )}
                       <div>
                         <h3 className="text-base font-semibold text-navy-900">{item.name}</h3>
                         <p className="text-xs text-gray-500">{item.quantity} {item.unit}</p>

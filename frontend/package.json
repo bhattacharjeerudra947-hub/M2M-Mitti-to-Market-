@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "autoprefixer": "^10.5.4",
+    "firebase": "^12.18.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.37.0",
     "postcss": "^8.5.26",

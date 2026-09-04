@@ -11,7 +11,7 @@ import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
 import { Package, ShoppingCart, Wallet, FileText, Mic, BarChart3, Navigation } from 'lucide-react';
 import { priceChartData, orders } from '../data/mockData';
-
+import { useAuth } from '../context/AuthContext';
 import { useFarmerLanguage } from '../context/FarmerContext';
 import { t_key } from '../data/farmerTranslations';
 
@@ -29,36 +29,30 @@ const QUICK_ACTIONS = [
 ];
 
 export default function FarmerDashboard() {
+  const { user } = useAuth();
+  const firstName = user?.name?.split(' ')[0] || 'Farmer';
   const { language } = useFarmerLanguage();
   const greetKey = getGreetingKey();
   const [activeView, setActiveView] = useState('dashboard');
-
-import { useAuth } from '../context/AuthContext';
-
-export default function FarmerDashboard() {
-  const { user } = useAuth();
-  const firstName = user?.name?.split(' ')[0] || 'Farmer';
-8842d0d097e028a5bf77b37e25309ec8041f382c
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
       <Sidebar role="farmer" />
       <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
         <div className="max-w-7xl mx-auto">
-          {/* ─── Header row with language selector ─── */}
+          {/* Header row with language selector */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">
-                {t_key(language, greetKey)}, Rajesh 👋
+                {t_key(language, greetKey)}, {firstName} 👋
               </h1>
-              <p className="text-navy-500 mt-1">{t_key(language, 'dashboardSub')}</p>
+              <p className="text-navy-500 mt-1">{t_key(language, 'dashboardSub') || 'Here\'s an overview of your marketplace activity.'}</p>
             </div>
             <LanguageSelector />
           </div>
 
-          {/* ─── Quick Actions ─── */}
+          {/* Quick Actions */}
           <div className="mb-8">
-
             <h2 className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-3">
               {t_key(language, 'quickActions') || 'Quick Actions'}
             </h2>
@@ -88,64 +82,16 @@ export default function FarmerDashboard() {
                         </p>
                       </div>
                     </div>
-                    {/* Decorative gradient overlay */}
                     <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full ${
                       isActive ? 'bg-white/10' : 'bg-navy-50'
                     } group-hover:scale-110 transition-transform`} />
                   </button>
                 );
               })}
-
-            <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">Good morning, {firstName} 👋</h1>
-            <p className="text-navy-500 mt-1">Here's an overview of your marketplace activity.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard
-              icon={<Package className="w-5 h-5" />}
-              label="Produce Listed"
-              value="1,250 kg"
-              change="+12%"
-              changeType="up"
-              color="primary"
-            />
-            <StatCard
-              icon={<ShoppingCart className="w-5 h-5" />}
-              label="Active Orders"
-              value="8"
-              change="+2"
-              changeType="up"
-              color="blue"
-            />
-            <StatCard
-              icon={<Wallet className="w-5 h-5" />}
-              label="This Month's Earnings"
-              value="₹42,500"
-              change="+8.5%"
-              changeType="up"
-              color="emerald"
-            />
-            <StatCard
-              icon={<FileText className="w-5 h-5" />}
-              label="Buyer Requests"
-              value="5"
-              change="3 new"
-              changeType="up"
-              color="accent"
-            />
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6 mb-8">
-            <div className="lg:col-span-2">
-              <PriceAdvisor />
-            </div>
-            <div>
-              <NotificationPanel />
- 8842d0d097e028a5bf77b37e25309ec8041f382c
             </div>
           </div>
 
-          {/* ─── Active Feature View ─── */}
+          {/* Active Feature View */}
           {activeView === 'voice' && (
             <div className="mb-8">
               <VoiceAssistant />
@@ -164,14 +110,14 @@ export default function FarmerDashboard() {
             </div>
           )}
 
-          {/* ─── Default Dashboard View ─── */}
+          {/* Default Dashboard View */}
           {activeView === 'dashboard' && (
             <>
-              {/* ─── Stat Cards ─── */}
+              {/* Stat Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   icon={<Package className="w-5 h-5" />}
-                  label={t_key(language, 'produceListed')}
+                  label={t_key(language, 'produceListed') || 'Produce Listed'}
                   value="1,250 kg"
                   change="+12%"
                   changeType="up"
@@ -179,7 +125,7 @@ export default function FarmerDashboard() {
                 />
                 <StatCard
                   icon={<ShoppingCart className="w-5 h-5" />}
-                  label={t_key(language, 'activeOrders')}
+                  label={t_key(language, 'activeOrders') || 'Active Orders'}
                   value="8"
                   change="+2"
                   changeType="up"
@@ -187,7 +133,7 @@ export default function FarmerDashboard() {
                 />
                 <StatCard
                   icon={<Wallet className="w-5 h-5" />}
-                  label={t_key(language, 'monthlyEarnings')}
+                  label={t_key(language, 'monthlyEarnings') || "This Month's Earnings"}
                   value="₹42,500"
                   change="+8.5%"
                   changeType="up"
@@ -195,7 +141,7 @@ export default function FarmerDashboard() {
                 />
                 <StatCard
                   icon={<FileText className="w-5 h-5" />}
-                  label={t_key(language, 'buyerRequestCount')}
+                  label={t_key(language, 'buyerRequestCount') || 'Buyer Requests'}
                   value="5"
                   change="3 new"
                   changeType="up"
@@ -203,7 +149,7 @@ export default function FarmerDashboard() {
                 />
               </div>
 
-              {/* ─── Market Snapshot (quick TrendInsights preview) ─── */}
+              {/* Market Snapshot */}
               <div className="mb-8">
                 <h3 className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-3">
                   {t_key(language, 'marketSnapshot') || 'Market Snapshot'}
@@ -243,7 +189,7 @@ export default function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* ─── Voice Assistant + Recommendations ─── */}
+              {/* Voice Assistant + Recommendations */}
               <div className="grid lg:grid-cols-2 gap-6 mb-8">
                 <VoiceAssistant />
                 <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
@@ -280,7 +226,7 @@ export default function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* ─── Price Advisor + Notifications ─── */}
+              {/* Price Advisor + Notifications */}
               <div className="grid lg:grid-cols-3 gap-6 mb-8">
                 <div className="lg:col-span-2">
                   <PriceAdvisor />
@@ -290,7 +236,7 @@ export default function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* ─── Price Chart + Recent Orders ─── */}
+              {/* Price Chart + Recent Orders */}
               <div className="grid lg:grid-cols-2 gap-6 mb-8">
                 <PriceChart
                   data={priceChartData}
@@ -299,13 +245,13 @@ export default function FarmerDashboard() {
                     { name: 'tomato', label: 'Tomato' },
                     { name: 'onion', label: 'Onion' },
                   ]}
-                  title={`${t_key(language, 'recentOrders')} (₹/kg)`}
+                  title={`${t_key(language, 'recentOrders') || 'Recent Orders'} (₹/kg)`}
                   colors={['#0f2a4a', '#d4a017']}
                   height={250}
                 />
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                    {t_key(language, 'recentOrders')}
+                    {t_key(language, 'recentOrders') || 'Recent Orders'}
                   </h3>
                   <div className="space-y-4">
                     {orders.map((order) => (
