@@ -39,48 +39,6 @@ export default function AboutUs() {
     <div className="min-h-screen bg-cream">
       <Navbar dark />
 
-      {/* ═══════════════ HERO ═══════════════ */}
-      <section className="relative bg-navy-900 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-20 sm:pb-24 lg:pb-28">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-agri-700/30 border border-agri-500/30 rounded-full mb-6">
-              <span className="text-sm">🌿</span>
-              <span className="text-[13px] font-medium text-agri-200">About Mitti2Market</span>
-            </div>
-            <h1 className="font-display text-[2.5rem] sm:text-[3rem] lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight text-white mb-6">
-              From Farm to Market,<br />
-              <span className="text-mustard-400">Without the Middlemen.</span>
-            </h1>
-            <p className="text-base sm:text-lg text-navy-200 mb-8 max-w-xl leading-relaxed">
-              Mitti2Market is a direct agri-marketplace that connects farmers and FPOs straight to
-              verified buyers — with fair prices, transparent trade and technology on the farmer&apos;s side.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link
-                to="/marketplace"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20"
-              >
-                Explore Marketplace
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                to="/how-it-works"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition border border-white/25"
-              >
-                See How It Works
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom curve into cream */}
-        <div className="hero-curve-bottom">
-          <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
-            <path d="M0,60 L0,20 C240,60 480,0 720,20 C960,40 1200,0 1440,30 L1440,60 Z" fill="#F5F0E6" />
-          </svg>
-        </div>
-      </section>
-
       {/* ═══════════════ WHO WE ARE ═══════════════ */}
       <section className="py-20 sm:py-24 bg-cream">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

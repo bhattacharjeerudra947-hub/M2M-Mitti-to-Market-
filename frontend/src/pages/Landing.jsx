@@ -33,7 +33,15 @@ export default function Landing() {
       <Navbar dark />
 
       {/* ═══════════════ HERO SECTION ═══════════════ */}
-      <section className="relative bg-navy-900 overflow-hidden">
+      <section
+        className="relative overflow-hidden"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(16, 42, 67, 0.55), rgba(16, 42, 67, 0.55)), url(https://imgh.in/host/dcomde)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         {/* Organic curved shape separating navy from farmer photo */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-0">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-4 items-start relative">

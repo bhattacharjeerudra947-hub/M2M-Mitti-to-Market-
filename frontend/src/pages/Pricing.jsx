@@ -16,7 +16,14 @@ export default function Pricing() {
       <Navbar dark />
 
       {/* ═══════════════ HERO ═══════════════ */}
-      <section className="bg-navy-900">
+      <section
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(16, 42, 67, 0.55), rgba(16, 42, 67, 0.55)), url(https://i.ibb.co/zhQ4vWmp/farmersmiling.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-20">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-mustard-400/10 border border-mustard-400/25 rounded-full mb-6">
