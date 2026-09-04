@@ -34,6 +34,7 @@ import BusinessAnalytics from './pages/BusinessAnalytics';
 import FarmerRegistration from './pages/FarmerRegistration';
 import BusinessRegistration from './pages/BusinessRegistration';
 import Chat from './pages/Chat';
+import MyDeals from './pages/MyDeals';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="analytics" element={<BusinessAnalytics />} />
             <Route path="chat" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
+            <Route path="deals" element={<MyDeals />} />
           </Route>
 
           {/* Catch-all → landing */}
