@@ -1,7 +1,9 @@
 package com.mitti2market.service;
 
 import com.mitti2market.model.Notification;
+import com.mitti2market.model.User;
 import com.mitti2market.repository.NotificationRepository;
+import com.mitti2market.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,18 @@ import java.util.*;
 public class NotificationService {
 
     private final NotificationRepository notifications;
+    private final UserRepository users;
+
+    public void createNotification(Long userId, Notification.NotificationType type, String title, String body) {
+        User user = users.findById(userId).orElse(null);
+        if (user == null) return;
+        notifications.save(Notification.builder()
+                .user(user)
+                .type(type)
+                .title(title)
+                .body(body)
+                .build());
+    }
 
     public List<Map<String, Object>> getForUser(Long userId) {
         return notifications.findByUserIdOrderByCreatedAtDesc(userId).stream()
