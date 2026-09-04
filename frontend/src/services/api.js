@@ -57,7 +57,9 @@ async function request(method, path, body, includeAuth = true) {
 
     const data = await res.json().catch(() => ({}));
 
-    if (res.ok) return { ok: true, data };
+    // Backend wraps responses in ApiResponse: { success, message, data }
+    // Unwrap the inner data field for convenience
+    if (res.ok) return { ok: true, data: data.data !== undefined ? data.data : data };
 
     // If 401 and we have a refresh token, try refreshing
     if (res.status === 401 && path !== '/auth/refresh' && path !== '/auth/login') {
@@ -78,7 +80,7 @@ async function request(method, path, body, includeAuth = true) {
       return { ok: false, error: 'Session expired. Please sign in again.' };
     }
 
-    return { ok: false, error: data.error || `Request failed (${res.status})` };
+    return { ok: false, error: data.error || data.message || `Request failed (${res.status})` };
   } catch {
     // Backend unreachable — try mock fallback
     return { ok: false, error: 'Backend unavailable', offline: true };

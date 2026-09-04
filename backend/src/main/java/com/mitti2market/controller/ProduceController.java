@@ -4,14 +4,17 @@ import com.mitti2market.dto.ApiResponse;
 import com.mitti2market.dto.produce.ProduceRequest;
 import com.mitti2market.dto.produce.ProduceResponse;
 import com.mitti2market.model.Produce.ProduceStatus;
+import com.mitti2market.service.CloudinaryService;
 import com.mitti2market.service.ProduceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/produce")
@@ -19,6 +22,7 @@ import java.util.List;
 public class ProduceController {
 
     private final ProduceService produceService;
+    private final CloudinaryService cloudinaryService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<ProduceResponse>> createProduce(
@@ -70,5 +74,39 @@ public class ProduceController {
     public ResponseEntity<ApiResponse<Void>> deleteProduce(@PathVariable Long id) {
         produceService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok("Produce deleted successfully", null));
+    }
+
+    /**
+     * POST /api/produce/upload-image
+     * Upload a produce image to Cloudinary and return the URL.
+     * The URL can then be passed as imageUrl when creating/updating produce.
+     */
+    @PostMapping("/upload-image")
+    public ResponseEntity<?> uploadProduceImage(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Please select an image"));
+            }
+
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("File must be an image (JPG, PNG, WebP)"));
+            }
+
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Image must be under 5MB"));
+            }
+
+            String folder = "mitti2market/produce";
+            Map<String, String> result = cloudinaryService.uploadImage(file, folder);
+
+            return ResponseEntity.ok(ApiResponse.ok("Image uploaded successfully", Map.of(
+                    "imageUrl", result.get("url"),
+                    "publicId", result.get("publicId")
+            )));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("Failed to upload image: " + e.getMessage()));
+        }
     }
 }

@@ -20,6 +20,7 @@ public class ProduceService {
 
     private final ProduceRepository produceRepository;
     private final UserRepository userRepository;
+    private final MarketDataService marketDataService;
 
     public ProduceResponse create(ProduceRequest request) {
         User farmer = userRepository.findById(request.getFarmerId())
@@ -42,7 +43,7 @@ public class ProduceService {
                 .status(ProduceStatus.AVAILABLE)
                 .build();
 
-        // AI Price Advisor: compute suggested price band (±10% of asking price)
+        // AI Price Advisor: compute suggested price based on market demand data
         computeAiPriceBand(produce);
 
         Produce saved = produceRepository.save(produce);
@@ -125,14 +126,22 @@ public class ProduceService {
     }
 
     /**
-     * AI Price Advisor — computes a suggested price band around the farmer's asking price.
-     * Currently stubbed as ±10%. Designed to be swapped for a real pricing model later.
+     * AI Price Advisor — uses MarketDataService to compute suggested price based on
+     * market demand, supply, seasonality, and regional factors.
      */
     private void computeAiPriceBand(Produce produce) {
-        if (produce.getPricePerUnit() != null) {
-            double price = produce.getPricePerUnit();
-            produce.setAiSuggestedMinPrice(Math.round(price * 0.9 * 100.0) / 100.0);
-            produce.setAiSuggestedMaxPrice(Math.round(price * 1.1 * 100.0) / 100.0);
+        if (produce.getPricePerUnit() != null && produce.getName() != null) {
+            double suggested = marketDataService.getAiSuggestedPrice(
+                    produce.getName(), produce.getLocation(), produce.getPricePerUnit());
+            if (suggested > 0) {
+                produce.setAiSuggestedMinPrice(Math.round(suggested * 0.92 * 100.0) / 100.0);
+                produce.setAiSuggestedMaxPrice(Math.round(suggested * 1.08 * 100.0) / 100.0);
+            } else {
+                // Fallback for unknown crops
+                double price = produce.getPricePerUnit();
+                produce.setAiSuggestedMinPrice(Math.round(price * 0.9 * 100.0) / 100.0);
+                produce.setAiSuggestedMaxPrice(Math.round(price * 1.1 * 100.0) / 100.0);
+            }
         }
     }
 
