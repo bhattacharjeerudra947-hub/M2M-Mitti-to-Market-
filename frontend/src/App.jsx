@@ -47,51 +47,57 @@ function ScrollToTop() {
   return null;
 }
 
-// Public landing sections, rotated automatically every 10 seconds
+// Public landing pages, advanced automatically after 10s of continuous
+// user inactivity. Any detected activity (scroll, wheel, mouse movement /
+// clicks / hover, keyboard, touch) restarts the countdown, so the page
+// never switches while the user is interacting.
 const ROTATING_SECTIONS = ['/', '/how-it-works', '/marketplace', '/pricing', '/about-us'];
-const ROTATION_INTERVAL_MS = 6000;
+const INACTIVITY_MS = 10000;
+const ACTIVITY_EVENTS = [
+  'scroll',
+  'wheel',
+  'mousemove',
+  'mouseover',
+  'mousedown',
+  'mouseup',
+  'click',
+  'keydown',
+  'keyup',
+  'touchstart',
+  'touchmove',
+  'touchend',
+];
 
-// Rotates through the public landing pages every 10s. The countdown resets
-// whenever the route changes, so manual navigation continues the rotation
-// from the currently selected section. The timer pauses while a form field
-// is focused so the transition never destroys user input.
+// Advances through the public pages only after INACTIVITY_MS of continuous
+// inactivity. Every user activity clears and restarts the single countdown;
+// the countdown also restarts on route change (manual navigation) and is
+// always cleared when the route leaves the rotation or the component unmounts.
 function AutoRotateSections() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const timerRef = useRef(null);
-  const pathnameRef = useRef(pathname);
 
   useEffect(() => {
-    pathnameRef.current = pathname;
-    const isRotatingPage = ROTATING_SECTIONS.includes(pathnameRef.current);
-
-    const isFormControl = (el) =>
-      !!el &&
-      (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+    if (!ROTATING_SECTIONS.includes(pathname)) return undefined;
 
     const scheduleNext = () => {
-      if (!isRotatingPage) return;
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        const idx = ROTATING_SECTIONS.indexOf(pathnameRef.current);
+        const idx = ROTATING_SECTIONS.indexOf(pathname);
         navigate(ROTATING_SECTIONS[(idx + 1) % ROTATING_SECTIONS.length]);
-      }, ROTATION_INTERVAL_MS);
-    };
-
-    const pauseWhileTyping = (e) => {
-      if (isFormControl(e.target)) clearTimeout(timerRef.current);
-    };
-    const resumeAfterTyping = (e) => {
-      if (isFormControl(e.target)) scheduleNext();
+      }, INACTIVITY_MS);
     };
 
     scheduleNext();
-    document.addEventListener('focusin', pauseWhileTyping);
-    document.addEventListener('focusout', resumeAfterTyping);
+    ACTIVITY_EVENTS.forEach((event) =>
+      document.addEventListener(event, scheduleNext, { passive: true }),
+    );
+
     return () => {
       clearTimeout(timerRef.current);
-      document.removeEventListener('focusin', pauseWhileTyping);
-      document.removeEventListener('focusout', resumeAfterTyping);
+      ACTIVITY_EVENTS.forEach((event) =>
+        document.removeEventListener(event, scheduleNext),
+      );
     };
   }, [pathname, navigate]);
 
