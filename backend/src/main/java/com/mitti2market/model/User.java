@@ -93,7 +93,8 @@ public class User {
 
     public enum Role {
         FARMER,
-        BUSINESS
+        BUSINESS,
+        DRIVER
     }
 
     public enum AuthProvider {

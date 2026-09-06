@@ -39,6 +39,11 @@ public class BuyerRequirementService {
         Integer quantity = body.get("quantity") != null ? Integer.valueOf(body.get("quantity").toString()) : null;
         if (quantity == null || quantity <= 0) throw new BadRequestException("Quantity must be greater than zero");
 
+        // Empty/blank requiredBy must be treated as "not set", not parsed as a date.
+        Object requiredByRaw = body.get("requiredBy");
+        LocalDate requiredBy = (requiredByRaw != null && !requiredByRaw.toString().isBlank())
+                ? LocalDate.parse(requiredByRaw.toString()) : null;
+
         BuyerRequirement req = BuyerRequirement.builder()
                 .buyer(buyer)
                 .crop(crop.trim())
@@ -47,7 +52,7 @@ public class BuyerRequirementService {
                 .minPrice(body.get("minPrice") != null ? Double.valueOf(body.get("minPrice").toString()) : null)
                 .maxPrice(body.get("maxPrice") != null ? Double.valueOf(body.get("maxPrice").toString()) : null)
                 .quality((String) body.getOrDefault("quality", ""))
-                .requiredBy(body.get("requiredBy") != null ? LocalDate.parse(body.get("requiredBy").toString()) : null)
+                .requiredBy(requiredBy)
                 .deliveryLocation((String) body.getOrDefault("deliveryLocation", ""))
                 .notes((String) body.getOrDefault("notes", ""))
                 .status(RequirementStatus.OPEN)

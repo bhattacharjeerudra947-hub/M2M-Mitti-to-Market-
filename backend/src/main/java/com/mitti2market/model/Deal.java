@@ -40,6 +40,10 @@ public class Deal {
     private Double totalAmount;
     private String pickupLocation;
     private String deliveryLocation;
+    private Double pickupLatitude;
+    private Double pickupLongitude;
+    private Double deliveryLatitude;
+    private Double deliveryLongitude;
     private String conditions;
 
     @Enumerated(EnumType.STRING)

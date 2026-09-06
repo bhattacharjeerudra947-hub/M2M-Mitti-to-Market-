@@ -36,7 +36,7 @@ public class AuthController {
         try {
             role = User.Role.valueOf(req.getRole().toUpperCase());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid role. Must be FARMER or BUSINESS"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid role. Must be FARMER, BUSINESS or DRIVER"));
         }
 
         User user = User.builder()
