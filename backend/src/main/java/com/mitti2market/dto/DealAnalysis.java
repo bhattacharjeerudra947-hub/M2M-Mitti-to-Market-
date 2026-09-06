@@ -30,6 +30,9 @@ public class DealAnalysis {
 
     // Distance & logistics
     private Double distanceKm;         // estimated
+    private Double estimatedDurationMinutes; // estimated travel time
+    private String routeProvider;      // which engine produced the estimate
+    private String routeCaveat;        // warning about estimate quality
     private Double logisticsCostPerUnit; // ₹ per unit
     private Double logisticsCost;      // total ₹
     private Double otherCosts;         // platform fee + handling ₹

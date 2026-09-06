@@ -42,11 +42,16 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
     agreedPrice: '',
     pickupLocation: '',
     deliveryLocation: '',
+    pickupLatitude: '',
+    pickupLongitude: '',
+    deliveryLatitude: '',
+    deliveryLongitude: '',
     conditions: '',
     farmerId: '',
     buyerId: '',
     produceId: produceId || ''
   });
+  const [locBusy, setLocBusy] = useState(''); // 'pickup' | 'delivery'
 
   // Logistics details form
   const [logisticsForm, setLogisticsForm] = useState({
@@ -113,7 +118,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
       const result = await initiateDealLock(conversationId, data);
       setDeal(result);
       setShowLockForm(false);
-      setLockForm({ cropName: produceName || '', quantity: '', unit: 'kg', agreedPrice: '', pickupLocation: '', deliveryLocation: '', conditions: '', farmerId: '', buyerId: '', produceId: produceId || '' });
+      setLockForm({ cropName: produceName || '', quantity: '', unit: 'kg', agreedPrice: '', pickupLocation: '', deliveryLocation: '', pickupLatitude: '', pickupLongitude: '', deliveryLatitude: '', deliveryLongitude: '', conditions: '', farmerId: '', buyerId: '', produceId: produceId || '' });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -161,6 +166,33 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         setError('Could not select logistics. Please try again.');
       }
     } finally { setActionLoading(false); }
+  };
+
+  /** Use the browser's location for pickup (farmer side) or delivery (buyer side). */
+  const useMyLocation = async (side) => {
+    setError('');
+    if (!navigator.geolocation) {
+      setError('Geolocation not available on this device — enter coordinates manually below.');
+      return;
+    }
+    setLocBusy(side);
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 15000 });
+      });
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      if (side === 'pickup') {
+        setLockForm((f) => ({ ...f, pickupLatitude: lat, pickupLongitude: lng }));
+      } else {
+        setLockForm((f) => ({ ...f, deliveryLatitude: lat, deliveryLongitude: lng }));
+      }
+      setError('');
+    } catch (e) {
+      setError('Could not get your location — enter coordinates manually instead.');
+    } finally {
+      setLocBusy('');
+    }
   };
 
   const handleUpdateLogisticsDetails = async () => {
@@ -213,8 +245,18 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         {showLockForm && (
           <div className="mt-4 space-y-3">
             {error && <p className="text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
-            <input value={lockForm.cropName} onChange={e => setLockForm({...lockForm, cropName: e.target.value})}
-              placeholder="Crop name" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
+            {produceId ? (
+              <div className="w-full px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-800">🌾 {produceName || 'This listing'}</span>
+                  <span className="text-[10px] font-semibold text-emerald-600 bg-white border border-emerald-200 rounded-full px-2 py-0.5">LISTING LOCKED</span>
+                </div>
+                <p className="text-[11px] text-emerald-700 mt-1">This deal will be locked against your <b>{produceName || 'attached'}</b> listing and its available stock.</p>
+              </div>
+            ) : (
+              <input value={lockForm.cropName} onChange={e => setLockForm({...lockForm, cropName: e.target.value})}
+                placeholder="Crop name" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
+            )}
             <div className="flex gap-2">
               <input value={lockForm.quantity} onChange={e => setLockForm({...lockForm, quantity: e.target.value})}
                 type="number" placeholder="Quantity" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
@@ -225,10 +267,45 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
             </div>
             <input value={lockForm.agreedPrice} onChange={e => setLockForm({...lockForm, agreedPrice: e.target.value})}
               type="number" placeholder="Agreed price per unit (₹)" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
-            <input value={lockForm.pickupLocation} onChange={e => setLockForm({...lockForm, pickupLocation: e.target.value})}
-              placeholder="Pickup location" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
-            <input value={lockForm.deliveryLocation} onChange={e => setLockForm({...lockForm, deliveryLocation: e.target.value})}
-              placeholder="Delivery location" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
+            {/* ── Pickup location (farmer side) ── */}
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
+                <input value={lockForm.pickupLocation} onChange={e => setLockForm({...lockForm, pickupLocation: e.target.value})}
+                  placeholder="Pickup location (name/address)" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
+                <button type="button" onClick={() => useMyLocation('pickup')} disabled={locBusy === 'pickup'}
+                  className="px-3 py-2 bg-navy-900 text-white rounded-xl text-xs font-semibold hover:bg-navy-800 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap">
+                  <MapPin className="w-3 h-3" /> {locBusy === 'pickup' ? 'Getting…' : 'Use my location'}
+                </button>
+              </div>
+              {(lockForm.pickupLatitude || lockForm.pickupLongitude) && (
+                <div className="flex gap-2">
+                  <input value={lockForm.pickupLatitude} onChange={e => setLockForm({...lockForm, pickupLatitude: e.target.value})}
+                    placeholder="Pickup lat" className="flex-1 px-3 py-2 bg-emerald-50/50 border border-emerald-200 rounded-xl text-xs" />
+                  <input value={lockForm.pickupLongitude} onChange={e => setLockForm({...lockForm, pickupLongitude: e.target.value})}
+                    placeholder="Pickup lng" className="flex-1 px-3 py-2 bg-emerald-50/50 border border-emerald-200 rounded-xl text-xs" />
+                </div>
+              )}
+            </div>
+            {/* ── Delivery location (buyer side) ── */}
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
+                <input value={lockForm.deliveryLocation} onChange={e => setLockForm({...lockForm, deliveryLocation: e.target.value})}
+                  placeholder="Delivery location (name/address)" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
+                <button type="button" onClick={() => useMyLocation('delivery')} disabled={locBusy === 'delivery'}
+                  className="px-3 py-2 bg-blue-700 text-white rounded-xl text-xs font-semibold hover:bg-blue-800 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap">
+                  <MapPin className="w-3 h-3" /> {locBusy === 'delivery' ? 'Getting…' : 'Use my location'}
+                </button>
+              </div>
+              {(lockForm.deliveryLatitude || lockForm.deliveryLongitude) && (
+                <div className="flex gap-2">
+                  <input value={lockForm.deliveryLatitude} onChange={e => setLockForm({...lockForm, deliveryLatitude: e.target.value})}
+                    placeholder="Delivery lat" className="flex-1 px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-xl text-xs" />
+                  <input value={lockForm.deliveryLongitude} onChange={e => setLockForm({...lockForm, deliveryLongitude: e.target.value})}
+                    placeholder="Delivery lng" className="flex-1 px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-xl text-xs" />
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-400">📍 Coordinates are shared only with the other party for this deal — never shown publicly.</p>
             <input value={lockForm.conditions} onChange={e => setLockForm({...lockForm, conditions: e.target.value})}
               placeholder="Any conditions (optional)" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
             {lockForm.quantity && lockForm.agreedPrice && (

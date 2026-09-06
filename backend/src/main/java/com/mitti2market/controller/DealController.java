@@ -192,6 +192,24 @@ public class DealController {
         }
     }
 
+    /** Assign a registered DRIVER account to operate this trip (deal party only) */
+    @PostMapping("/logistics/{logisticsId}/assign-driver")
+    public ResponseEntity<?> assignDriver(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId,
+            @RequestBody Map<String, Object> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Long driverUserId = Long.valueOf(body.get("driverUserId").toString());
+            Logistics logistics = logisticsService.assignDriver(logisticsId, driverUserId, userId);
+            return ResponseEntity.ok(ApiResponse.ok("Driver assigned", logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     /** Update logistics details (transporter info) */
     @PutMapping("/logistics/{logisticsId}/details")
     public ResponseEntity<?> updateLogisticsDetails(
@@ -236,18 +254,139 @@ public class DealController {
         }
     }
 
-    /** Update live location */
+    /** Update live location (authorized user, ACTIVE tracking session) */
     @PutMapping("/logistics/{logisticsId}/location")
     public ResponseEntity<?> updateLocation(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable Long logisticsId,
-            @RequestBody Map<String, Double> body) {
+            @RequestBody Map<String, Object> body) {
         Long userId = extractUserId(authHeader);
         if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
 
         try {
-            logisticsService.updateLocation(logisticsId, body.get("latitude"), body.get("longitude"));
-            return ResponseEntity.ok(ApiResponse.ok("Location updated"));
+            Logistics logistics = logisticsService.updateLocation(logisticsId, userId, body);
+            return ResponseEntity.ok(ApiResponse.ok("Location updated", logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Start the live tracking session */
+    @PostMapping("/logistics/{logisticsId}/start-tracking")
+    public ResponseEntity<?> startTracking(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Logistics logistics = logisticsService.startTracking(logisticsId, userId);
+            return ResponseEntity.ok(ApiResponse.ok("Tracking started", logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Pause the live tracking session */
+    @PostMapping("/logistics/{logisticsId}/pause-tracking")
+    public ResponseEntity<?> pauseTracking(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Logistics logistics = logisticsService.pauseTracking(logisticsId, userId);
+            return ResponseEntity.ok(ApiResponse.ok("Tracking paused", logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Resume the live tracking session */
+    @PostMapping("/logistics/{logisticsId}/resume-tracking")
+    public ResponseEntity<?> resumeTracking(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Logistics logistics = logisticsService.resumeTracking(logisticsId, userId);
+            return ResponseEntity.ok(ApiResponse.ok("Tracking resumed", logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Complete the trip — location sharing stops */
+    @PostMapping("/logistics/{logisticsId}/complete-tracking")
+    public ResponseEntity<?> completeTracking(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Logistics logistics = logisticsService.completeTracking(logisticsId, userId);
+            return ResponseEntity.ok(ApiResponse.ok("Tracking completed", logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Current route summary: remaining distance / ETA / cost */
+    @GetMapping("/logistics/{logisticsId}/route")
+    public ResponseEntity<?> getRoute(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Route estimate", logisticsService.getRouteSummary(logisticsId, userId)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Sampled location history for a trip (authorized deal parties only) */
+    @GetMapping("/logistics/{logisticsId}/location-history")
+    public ResponseEntity<?> getLocationHistory(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Location history", logisticsService.getLocationHistory(logisticsId, userId)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Optimize a multi-stop route (capacity-aware nearest-neighbor) */
+    @PostMapping("/logistics/optimize-route")
+    public ResponseEntity<?> optimizeRoute(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody Map<String, Object> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> stops = (List<Map<String, Object>>) body.get("stops");
+            @SuppressWarnings("unchecked")
+            List<Double> originList = (List<Double>) body.get("origin");
+            Double capacity = body.get("capacityKg") != null
+                    ? Double.valueOf(body.get("capacityKg").toString()) : null;
+
+            if (stops == null || originList == null || originList.size() < 2) {
+                throw new com.mitti2market.exception.BadRequestException("origin [lat,lng] and stops are required");
+            }
+            var result = logisticsService.optimizeRoute(
+                    new double[]{originList.get(0), originList.get(1)}, stops, capacity);
+            return ResponseEntity.ok(ApiResponse.ok("Route optimized", result));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
@@ -263,21 +402,7 @@ public class DealController {
 
         Logistics logistics = logisticsService.getLogisticsForDeal(dealId);
         if (logistics == null) return ResponseEntity.ok(ApiResponse.ok(null));
-        java.util.LinkedHashMap<String, Object> resp = new java.util.LinkedHashMap<>();
-        resp.put("id", logistics.getId());
-        resp.put("trackingId", logistics.getTrackingId());
-        resp.put("type", logistics.getType().name());
-        resp.put("status", logistics.getStatus().name());
-        resp.put("driverName", logistics.getDriverName() != null ? logistics.getDriverName() : "");
-        resp.put("vehicleNumber", logistics.getVehicleNumber() != null ? logistics.getVehicleNumber() : "");
-        resp.put("pickupLocation", logistics.getPickupLocation() != null ? logistics.getPickupLocation() : "");
-        resp.put("deliveryLocation", logistics.getDeliveryLocation() != null ? logistics.getDeliveryLocation() : "");
-        resp.put("scheduledPickup", logistics.getScheduledPickup());
-        resp.put("expectedDelivery", logistics.getExpectedDelivery());
-        resp.put("lastLocationUpdate", logistics.getLastLocationUpdate());
-        resp.put("latitude", logistics.getCurrentLatitude());
-        resp.put("longitude", logistics.getCurrentLongitude());
-        return ResponseEntity.ok(ApiResponse.ok(resp));
+        return ResponseEntity.ok(ApiResponse.ok(logisticsToMap(logistics)));
     }
 
     /** Get logistics timeline */
@@ -403,6 +528,42 @@ public class DealController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
+    }
+
+    private Map<String, Object> logisticsToMap(Logistics l) {
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("id", l.getId());
+        resp.put("trackingId", l.getTrackingId());
+        resp.put("type", l.getType().name());
+        resp.put("status", l.getStatus() != null ? l.getStatus().name() : "");
+        resp.put("trackingStatus", l.getTrackingStatus() != null ? l.getTrackingStatus().name() : "NOT_STARTED");
+        resp.put("driverUserId", l.getDriverUserId());
+        resp.put("driverName", l.getDriverName() != null ? l.getDriverName() : "");
+        resp.put("driverPhone", l.getDriverPhone() != null ? l.getDriverPhone() : "");
+        resp.put("vehicleNumber", l.getVehicleNumber() != null ? l.getVehicleNumber() : "");
+        resp.put("vehicleType", l.getVehicleType() != null ? l.getVehicleType() : "");
+        resp.put("pickupLocation", l.getPickupLocation() != null ? l.getPickupLocation() : "");
+        resp.put("deliveryLocation", l.getDeliveryLocation() != null ? l.getDeliveryLocation() : "");
+        resp.put("pickupLatitude", l.getPickupLatitude());
+        resp.put("pickupLongitude", l.getPickupLongitude());
+        resp.put("deliveryLatitude", l.getDeliveryLatitude());
+        resp.put("deliveryLongitude", l.getDeliveryLongitude());
+        resp.put("scheduledPickup", l.getScheduledPickup());
+        resp.put("expectedDelivery", l.getExpectedDelivery());
+        resp.put("lastLocationUpdate", l.getLastLocationUpdate());
+        resp.put("lastAccuracy", l.getLastAccuracy());
+        resp.put("trackingStartedAt", l.getTrackingStartedAt());
+        resp.put("trackingCompletedAt", l.getTrackingCompletedAt());
+        resp.put("latitude", l.getCurrentLatitude());
+        resp.put("longitude", l.getCurrentLongitude());
+        resp.put("routeDistanceKm", l.getRouteDistanceKm());
+        resp.put("routeDurationMinutes", l.getRouteDurationMinutes());
+        resp.put("routeEstimatedCost", l.getRouteEstimatedCost());
+        resp.put("routeProvider", l.getRouteProvider());
+        resp.put("routeSummary", l.getRouteSummary());
+        resp.put("routeCaveat", l.getRouteCaveat());
+        resp.put("routeComputedAt", l.getRouteComputedAt());
+        return resp;
     }
 
     private Long extractUserId(String authHeader) {

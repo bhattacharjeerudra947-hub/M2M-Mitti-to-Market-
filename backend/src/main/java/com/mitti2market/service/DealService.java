@@ -66,17 +66,49 @@ public class DealService {
         Long farmerId = Long.valueOf(details.get("farmerId").toString());
         Long buyerId = Long.valueOf(details.get("buyerId").toString());
         Long produceId = details.get("produceId") != null ? Long.valueOf(details.get("produceId").toString()) : null;
-        String cropName = (String) details.getOrDefault("cropName", "Produce");
         Integer quantity = Integer.valueOf(details.get("quantity").toString());
-        String unit = (String) details.getOrDefault("unit", "kg");
         Double agreedPrice = Double.valueOf(details.get("agreedPrice").toString());
         String pickupLocation = (String) details.getOrDefault("pickupLocation", "");
         String deliveryLocation = (String) details.getOrDefault("deliveryLocation", "");
         String conditions = (String) details.getOrDefault("conditions", "");
 
+        // Optional exact coordinates — default to the parties' saved user locations
+        // when the frontend does not supply them (privacy: only the deal parties
+        // ever see these; marketplace listings stay approximate).
+        Double pickupLat = num(details.get("pickupLatitude"));
+        Double pickupLng = num(details.get("pickupLongitude"));
+        Double deliveryLat = num(details.get("deliveryLatitude"));
+        Double deliveryLng = num(details.get("deliveryLongitude"));
+
         User farmer = users.findById(farmerId).orElseThrow(() -> new ResourceNotFoundException("Farmer", "id", farmerId));
         User buyer = users.findById(buyerId).orElseThrow(() -> new ResourceNotFoundException("Buyer", "id", buyerId));
+
+        if (pickupLat == null) pickupLat = farmer.getLatitude();
+        if (pickupLng == null) pickupLng = farmer.getLongitude();
+        if (deliveryLat == null) deliveryLat = buyer.getLatitude();
+        if (deliveryLng == null) deliveryLng = buyer.getLongitude();
         Produce produce = produceId != null ? produceRepo.findById(produceId).orElse(null) : null;
+
+        // When the deal is tied to a real listing, the listing is the source of truth:
+        // derive the crop name + unit from it so the display name and the reserved
+        // stock can never mismatch (e.g. typing "cabbage" in a Tomato-listing chat).
+        String cropName;
+        String unit;
+        if (produce != null) {
+            cropName = produce.getName();
+            unit = produce.getUnit();
+        } else {
+            cropName = (String) details.getOrDefault("cropName", "Produce");
+            unit = (String) details.getOrDefault("unit", "kg");
+        }
+
+        // Fail fast: never create a deal that can't be locked because the
+        // listing no longer has enough stock. The full reservation still
+        // happens atomically at lock time in reserveQuantity().
+        if (produce != null && quantity > produce.getQuantity()) {
+            throw new BadRequestException("Only " + produce.getQuantity() + " " + produce.getUnit() +
+                    " remains available for " + produce.getName() + ". Deal quantity is " + quantity + " " + unit);
+        }
 
         String dealIdStr = "M2M-" + LocalDateTime.now().getYear() + "-" + (DEAL_COUNTER.incrementAndGet());
 
@@ -92,6 +124,10 @@ public class DealService {
                 .totalAmount(quantity * agreedPrice)
                 .pickupLocation(pickupLocation)
                 .deliveryLocation(deliveryLocation)
+                .pickupLatitude(pickupLat)
+                .pickupLongitude(pickupLng)
+                .deliveryLatitude(deliveryLat)
+                .deliveryLongitude(deliveryLng)
                 .conditions(conditions)
                 .status(DealStatus.LOCK_PENDING)
                 .conversationId(conversationId)
@@ -351,6 +387,12 @@ public class DealService {
         return deals.findAllByUserId(userId);
     }
 
+    /** Parse a number from an untrusted request value, tolerating null/empty. */
+    private Double num(Object v) {
+        if (v == null) return null;
+        try { return Double.valueOf(v.toString()); } catch (Exception e) { return null; }
+    }
+
     /**
      * Build a deal response map for the frontend.
      */
@@ -369,6 +411,10 @@ public class DealService {
         resp.put("totalAmount", deal.getTotalAmount());
         resp.put("pickupLocation", deal.getPickupLocation());
         resp.put("deliveryLocation", deal.getDeliveryLocation());
+        resp.put("pickupLatitude", deal.getPickupLatitude());
+        resp.put("pickupLongitude", deal.getPickupLongitude());
+        resp.put("deliveryLatitude", deal.getDeliveryLatitude());
+        resp.put("deliveryLongitude", deal.getDeliveryLongitude());
         resp.put("conditions", deal.getConditions());
         resp.put("status", deal.getStatus().name());
         resp.put("conversationId", deal.getConversationId());
