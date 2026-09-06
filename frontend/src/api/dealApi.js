@@ -1,5 +1,27 @@
 import { apiGet, apiPost, apiPut } from '../api';
 
+// ──────── Structured Negotiation Offers ────────
+
+export async function createOffer(conversationId, body) {
+  return apiPost('/api/offers', { conversationId, ...body });
+}
+
+export async function getConversationOffers(conversationId) {
+  return apiGet(`/api/offers/conversation/${conversationId}`);
+}
+
+export async function acceptOffer(offerId) {
+  return apiPost(`/api/offers/${offerId}/accept`);
+}
+
+export async function counterOffer(offerId, body) {
+  return apiPost(`/api/offers/${offerId}/counter`, body);
+}
+
+export async function rejectOffer(offerId) {
+  return apiPost(`/api/offers/${offerId}/reject`);
+}
+
 // ──────── Deal Lock ────────
 
 export async function initiateDealLock(conversationId, details) {
@@ -54,6 +76,20 @@ export async function getLogistics(dealId) {
 
 export async function getTimeline(logisticsId) {
   return apiGet(`/api/deals/logistics/${logisticsId}/timeline`);
+}
+
+// ──────── Deal Timeline + Disputes ────────
+
+export async function getDealTimeline(dealId) {
+  return apiGet(`/api/deals/${dealId}/timeline`);
+}
+
+export async function openDispute(dealId, details) {
+  return apiPost(`/api/deals/${dealId}/disputes`, details);
+}
+
+export async function getDisputes(dealId) {
+  return apiGet(`/api/deals/${dealId}/disputes`);
 }
 
 // ──────── Delivery ────────

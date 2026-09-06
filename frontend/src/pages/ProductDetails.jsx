@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCircle, Loader2, Heart, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { optimizeImage } from '../utils/lowDataMode';
 import { apiGet, apiPost } from '../api';
 
 const categoryEmoji = {
@@ -73,7 +74,7 @@ export default function ProductDetails() {
             <div className="bg-white rounded-3xl border border-navy-100 shadow-sm overflow-hidden">
               <div className="h-72 bg-gradient-to-br from-mustard-50 to-white flex items-center justify-center">
                 {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={optimizeImage(product.imageUrl, { width: 600 })} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span className="text-9xl">{categoryEmoji[product.category] || '📦'}</span>
                 )}

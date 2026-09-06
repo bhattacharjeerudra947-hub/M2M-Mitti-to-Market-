@@ -26,6 +26,7 @@ public class LogisticsService {
     private final UserRepository users;
     private final MessageService messageService;
     private final NotificationService notificationService;
+    private final DealStateMachineService stateMachine;
 
     private final AtomicLong trkCounter = new AtomicLong(100000);
 
@@ -75,8 +76,9 @@ public class LogisticsService {
 
         logistics = logisticsRepo.save(logistics);
 
-        deal.setStatus(DealStatus.LOGISTICS_PENDING);
-        dealRepo.save(deal);
+        deal = stateMachine.transition(deal.getId(), DealStatus.LOGISTICS_PENDING, userId,
+                userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER",
+                "Logistics selected: " + (type == LogisticsType.OWN ? "Own Logistics" : "Mitti2Market Logistics"), null);
 
         addEvent(logistics, LogisticsStatus.REQUESTED, "Logistics type selected: " + type, null);
 
@@ -146,21 +148,27 @@ public class LogisticsService {
         logistics.setStatus(newStatus);
 
         Deal deal = logistics.getDeal();
-        switch (newStatus) {
-            case ASSIGNED -> deal.setStatus(DealStatus.LOGISTICS_ASSIGNED);
-            case PICKUP_SCHEDULED -> deal.setStatus(DealStatus.PICKUP_SCHEDULED);
+        DealStatus dealTarget = switch (newStatus) {
+            case ASSIGNED -> DealStatus.LOGISTICS_ASSIGNED;
+            case PICKUP_SCHEDULED -> DealStatus.PICKUP_SCHEDULED;
             case PICKED_UP -> {
-                deal.setStatus(DealStatus.PICKED_UP);
                 logistics.setActualPickup(LocalDateTime.now());
+                yield DealStatus.PICKED_UP;
             }
-            case IN_TRANSIT -> deal.setStatus(DealStatus.IN_TRANSIT);
-            case OUT_FOR_DELIVERY -> deal.setStatus(DealStatus.OUT_FOR_DELIVERY);
+            case IN_TRANSIT -> DealStatus.IN_TRANSIT;
+            case OUT_FOR_DELIVERY -> DealStatus.OUT_FOR_DELIVERY;
             case DELIVERED -> {
-                deal.setStatus(DealStatus.DELIVERED);
                 logistics.setActualDelivery(LocalDateTime.now());
+                yield DealStatus.DELIVERED;
             }
+            default -> null;
+        };
+        if (dealTarget != null) {
+            String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
+            deal = stateMachine.transition(deal.getId(), dealTarget, userId, actorRole,
+                    description != null ? description : "Logistics status: " + newStatus,
+                    location != null ? "location=" + location : null);
         }
-        dealRepo.save(deal);
 
         logistics = logisticsRepo.save(logistics);
         addEvent(logistics, newStatus, description, location);
@@ -228,10 +236,9 @@ public class LogisticsService {
 
         confirmation = deliveryRepo.save(confirmation);
 
-        // Complete the deal
-        deal.setStatus(DealStatus.COMPLETED);
-        deal.setCompletedAt(LocalDateTime.now());
-        dealRepo.save(deal);
+        // Complete the deal via the state machine
+        deal = stateMachine.transition(dealId, DealStatus.COMPLETED, userId, "BUYER",
+                "Buyer confirmed delivery — deal completed", null);
 
         // Update logistics
         logisticsRepo.findByDealId(dealId).ifPresent(l -> {

@@ -54,6 +54,13 @@ public class Deal {
     private LocalDateTime lockedAt;
     private LocalDateTime completedAt;
 
+    /** When the locked deal's terms were last amended (via re-negotiation) */
+    private LocalDateTime amendedAt;
+
+    /** How many times the deal terms have been amended after locking */
+    @Builder.Default
+    private Integer amendmentCount = 0;
+
     public enum DealStatus {
         NEGOTIATING,
         LOCK_PENDING,
