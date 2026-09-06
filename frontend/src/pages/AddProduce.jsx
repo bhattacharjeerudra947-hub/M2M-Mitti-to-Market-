@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { MapPin, Package, X, Camera, Image, FileImage, Loader2, Brain, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { MapPin, Package, X, Camera, Image, FileImage, Loader2, Brain, TrendingUp, TrendingDown, Minus, Info, WifiOff, Save, CloudUpload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiPost, apiUpload, apiGet } from '../api';
+import { saveDraft, queueDraft, deleteDraft, getDraft, useSyncStatus } from '../utils/syncQueue';
+import { idbSupported } from '../utils/idb';
 
 export default function AddProduce() {
   const navigate = useNavigate();
@@ -25,10 +27,17 @@ export default function AddProduce() {
   const [imagePreview, setImagePreview] = useState(null);
   const [showImageMenu, setShowImageMenu] = useState(false);
 
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  // Offline-first draft state
+  const [localDraftId, setLocalDraftId] = useState(null);
+  const [draftStatus, setDraftStatus] = useState(''); // '' | saved | pending | synced | failed | needsLogin
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
+  const syncStatus = useSyncStatus();
 
   // AI Price Advisor state
   const [aiAnalysis, setAiAnalysis] = useState(null);
@@ -93,6 +102,93 @@ export default function AddProduce() {
     return 'text-rose-600';
   };
 
+  // ──── Offline-first: autosave draft + offline detection ────
+
+  useEffect(() => {
+    const on = () => setOffline(false);
+    const off = () => setOffline(true);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  // Restore a draft when navigated from the Offline Drafts page (Edit)
+  useEffect(() => {
+    const d = location.state?.draft;
+    if (d) {
+      setForm({
+        name: d.name || '',
+        category: d.category || 'Vegetables',
+        quantity: d.quantity || '',
+        unit: d.unit || 'kg',
+        grade: d.grade || 'A',
+        pricePerUnit: d.pricePerUnit || '',
+        location: d.location || '',
+        description: d.description || '',
+      });
+      setLocalDraftId(d.localDraftId);
+      setDraftStatus(d.syncStatus === 'SYNCED' ? 'synced' : d.syncStatus === 'FAILED' ? 'failed' : 'saved');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const buildDraft = useCallback((id, syncStatusValue = 'LOCAL', imageUrl = null) => ({
+    localDraftId: id,
+    userId: user?.id,
+    name: form.name.trim(),
+    category: form.category,
+    quantity: form.quantity,
+    unit: form.unit,
+    grade: form.grade,
+    pricePerUnit: form.pricePerUnit,
+    location: form.location.trim(),
+    description: form.description.trim(),
+    image: imageFile ? { name: imageFile.name, type: imageFile.type, size: imageFile.size, blob: imageFile } : null,
+    imageStatus: !imageFile ? 'NONE' : imageUrl ? 'UPLOADED' : 'PENDING_UPLOAD',
+    imageUrl,
+    syncStatus: syncStatusValue,
+    lastError: null,
+  }), [form, imageFile, user]);
+
+  const autosaveDraft = useCallback(async () => {
+    if (!user?.id) return;
+    if (!form.name.trim() && !form.quantity && !form.pricePerUnit && !form.location.trim()) return;
+    const id = localDraftId || crypto.randomUUID();
+    setLocalDraftId(id);
+    const existing = await getDraft(id).catch(() => null);
+    // Preserve PENDING/SYNCING so a queued draft stays queued while being edited
+    const keepStatus = existing && ['PENDING', 'SYNCING'].includes(existing.syncStatus) ? existing.syncStatus : 'LOCAL';
+    await saveDraft(buildDraft(id, keepStatus));
+    setDraftStatus('saved');
+  }, [user, form, imageFile, localDraftId, buildDraft]);
+
+  // Debounced autosave while typing
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!form.name.trim() && !form.quantity && !form.pricePerUnit && !form.location.trim()) return;
+    const t = setTimeout(() => autosaveDraft(), 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, imageFile, user?.id]);
+
+  const handleSaveDraft = async () => {
+    if (!user?.id) { setError('You must be logged in to save a draft'); return; }
+    if (!form.name.trim() && !form.quantity && !form.pricePerUnit && !form.location.trim()) {
+      setError('Enter at least a crop name or quantity before saving a draft');
+      return;
+    }
+    if (!idbSupported()) { setError('This browser does not support offline drafts'); return; }
+    setError('');
+    await autosaveDraft();
+    setDraftStatus(offline ? 'pending' : 'saved');
+    if (offline) {
+      // Queue it so it syncs the moment connection returns
+      const id = localDraftId || crypto.randomUUID();
+      setLocalDraftId(id);
+      await queueDraft(buildDraft(id, 'PENDING'));
+    }
+  };
+
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -140,6 +236,23 @@ export default function AddProduce() {
 
     setLoading(true);
 
+    // OFFLINE → save locally, queue for auto-sync. Never lose the farmer's data.
+    if (offline) {
+      try {
+        const id = localDraftId || crypto.randomUUID();
+        setLocalDraftId(id);
+        await queueDraft(buildDraft(id, 'PENDING'));
+        setDraftStatus('pending');
+        setSubmitted(true);
+      } catch (err) {
+        setError('Could not save listing on this device: ' + (err.message || 'storage unavailable'));
+      } finally {
+        setLoading(false);
+        setUploadingImage(false);
+      }
+      return;
+    }
+
     try {
       let imageUrl = null;
       if (imageFile) {
@@ -159,11 +272,23 @@ export default function AddProduce() {
         description: form.description.trim(),
         location: form.location.trim(),
         imageUrl: imageUrl,
+        idempotencyKey: localDraftId || undefined,
       });
 
+      // Clean up the local draft — the listing now lives on the server
+      if (localDraftId) await deleteDraft(localDraftId).catch(() => {});
       setSubmitted(true);
     } catch (err) {
-      setError(err.message || 'Failed to create produce listing');
+      // Network failure (offline mid-submit, request lost) → queue locally instead of losing data
+      if (err.status === 0 && idbSupported()) {
+        const id = localDraftId || crypto.randomUUID();
+        setLocalDraftId(id);
+        await queueDraft(buildDraft(id, 'PENDING'));
+        setDraftStatus('pending');
+        setSubmitted(true);
+      } else {
+        setError(err.message || 'Failed to create produce listing');
+      }
     } finally {
       setLoading(false);
       setUploadingImage(false);
@@ -178,8 +303,19 @@ export default function AddProduce() {
           <div className="max-w-2xl mx-auto flex items-center justify-center min-h-[60vh]">
             <div className="bg-white rounded-3xl p-10 border border-gray-100 shadow-sm text-center">
               <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-navy-900 mb-2">Produce Listed Successfully!</h2>
-              <p className="text-navy-500 mb-6">Your produce is now visible to verified buyers.</p>
+              <h2 className="text-2xl font-bold text-navy-900 mb-2">
+                {draftStatus === 'pending' ? 'Listing Saved on This Device!' : 'Produce Listed Successfully!'}
+              </h2>
+              <p className="text-navy-500 mb-6">
+                {draftStatus === 'pending'
+                  ? 'You are offline. Your listing is saved and will sync to the marketplace automatically when you reconnect.'
+                  : 'Your produce is now visible to verified buyers.'}
+              </p>
+              {draftStatus === 'pending' && (
+                <p className="text-xs text-blue-600 mb-4 flex items-center justify-center gap-1">
+                  <CloudUpload className="w-3.5 h-3.5" /> Pending sync — check Offline Drafts in the sidebar
+                </p>
+              )}
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={() => { setSubmitted(false); setForm({ name: '', category: 'Vegetables', quantity: '', unit: 'kg', grade: 'A', pricePerUnit: '', location: '', description: '' }); setImageFile(null); setImagePreview(null); setAiAnalysis(null); setShowAiPanel(false); }}
@@ -211,6 +347,29 @@ export default function AddProduce() {
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+          )}
+
+          {/* ═══ Offline / Draft Status Banner ═══ */}
+          {offline && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center gap-2">
+              <WifiOff className="w-4 h-4 flex-shrink-0" />
+              You're offline. Your listing will be saved and synced when you're back online.
+            </div>
+          )}
+          {!offline && draftStatus === 'saved' && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center gap-2">
+              <Save className="w-4 h-4 flex-shrink-0" /> Saved locally on this device
+            </div>
+          )}
+          {!offline && (draftStatus === 'pending' || syncStatus.pending > 0) && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800 flex items-center gap-2">
+              <CloudUpload className="w-4 h-4 flex-shrink-0 animate-pulse" /> Pending sync — syncing when connection allows
+            </div>
+          )}
+          {draftStatus === 'failed' && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center gap-2">
+              Sync failed for this draft — open Offline Drafts to retry. Your data is safe on this device.
+            </div>
           )}
 
           {/* ═══ AI Price Advisor Panel ═══ */}
@@ -395,6 +554,29 @@ export default function AddProduce() {
                 </div>
               </div>
 
+              {/* Price — always visible, so farmers can list even if AI panel fails/slow */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Your Price (₹ per {form.unit}) *</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₹</span>
+                  <input
+                    type="number"
+                    name="pricePerUnit"
+                    value={form.pricePerUnit}
+                    onChange={handleChange}
+                    placeholder={aiAnalysis?.aiOptimalPrice ? `AI suggests ${aiAnalysis.aiOptimalPrice}` : 'e.g., 25'}
+                    min="1"
+                    step="0.01"
+                    className="pl-9"
+                  />
+                </div>
+                {aiAnalysis && aiAnalysis.aiSuggestedMinPrice && aiAnalysis.aiSuggestedMaxPrice && (
+                  <p className={`text-[10px] mt-1 ${getPriceAdviceColor()}`}>
+                    AI range: ₹{aiAnalysis.aiSuggestedMinPrice} – ₹{aiAnalysis.aiSuggestedMaxPrice}/kg
+                  </p>
+                )}
+              </div>
+
               {/* Location — triggers re-analysis */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Location *</label>
@@ -413,12 +595,18 @@ export default function AddProduce() {
                   className="w-full px-4 py-3 bg-gray-50 border border-navy-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition resize-none" />
               </div>
 
-              <button type="submit" disabled={loading}
-                className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                {loading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" />{uploadingImage ? 'Uploading image...' : 'Creating listing...'}</>
-                ) : 'List Produce'}
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={handleSaveDraft} disabled={loading}
+                  className="px-5 py-3.5 bg-white border-2 border-navy-200 text-navy-800 font-semibold rounded-xl hover:bg-navy-50 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                  <Save className="w-4 h-4" /> Save Draft
+                </button>
+                <button type="submit" disabled={loading}
+                  className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {loading ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" />{uploadingImage ? 'Uploading image...' : 'Creating listing...'}</>
+                  ) : offline ? 'Save & Queue for Sync' : 'List Produce'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

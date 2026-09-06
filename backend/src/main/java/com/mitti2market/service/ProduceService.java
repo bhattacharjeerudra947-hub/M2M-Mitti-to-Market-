@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,17 @@ public class ProduceService {
             throw new BadRequestException("User is not a farmer");
         }
 
+        // ── Offline-sync idempotency ──────────────────────────────
+        // The same idempotency key must always resolve to the same listing,
+        // so retries after network loss never create duplicate produce.
+        String key = request.getIdempotencyKey();
+        if (key != null && !key.isBlank()) {
+            java.util.Optional<Produce> existing = produceRepository.findByIdempotencyKey(key);
+            if (existing.isPresent()) {
+                return toResponse(existing.get());
+            }
+        }
+
         Produce produce = Produce.builder()
                 .farmer(farmer)
                 .name(request.getName())
@@ -40,14 +52,26 @@ public class ProduceService {
                 .description(request.getDescription())
                 .location(request.getLocation())
                 .imageUrl(request.getImageUrl())
+                .idempotencyKey(key)
                 .status(ProduceStatus.AVAILABLE)
                 .build();
 
         // AI Price Advisor: compute suggested price based on market demand data
         computeAiPriceBand(produce);
 
-        Produce saved = produceRepository.save(produce);
-        return toResponse(saved);
+        try {
+            Produce saved = produceRepository.save(produce);
+            return toResponse(saved);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Unique-constraint race: two identical requests arrived concurrently.
+            // Return the already-created record instead of failing.
+            if (key != null && !key.isBlank()) {
+                return produceRepository.findByIdempotencyKey(key)
+                        .map(this::toResponse)
+                        .orElseThrow(() -> new BadRequestException("Could not create produce listing"));
+            }
+            throw e;
+        }
     }
 
     public List<ProduceResponse> listAll(String category, String keyword, String location, Boolean availableOnly) {
@@ -72,6 +96,32 @@ public class ProduceService {
         }
 
         return produceList.stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Paged marketplace browse with filters.
+     * Returns a map with content, page, size, totalElements, totalPages.
+     */
+    public Map<String, Object> listAllPaged(String category, String keyword, String location,
+                                            Boolean availableOnly, int page, int size) {
+        List<ProduceResponse> all = listAll(category, keyword, location, availableOnly);
+
+        int total = all.size();
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 50));
+        int from = Math.min(safePage * safeSize, total);
+        int to = Math.min(from + safeSize, total);
+
+        List<ProduceResponse> content = all.subList(from, to);
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("content", content);
+        result.put("page", safePage);
+        result.put("size", safeSize);
+        result.put("totalElements", total);
+        result.put("totalPages", safeSize > 0 ? (int) Math.ceil((double) total / safeSize) : 0);
+        result.put("hasMore", to < total);
+        return result;
     }
 
     public ProduceResponse getById(Long id) {

@@ -42,6 +42,22 @@ public class ProduceController {
         return ResponseEntity.ok(ApiResponse.ok(produceList));
     }
 
+    /**
+     * GET /api/produce/paged?category=&keyword=&location=&availableOnly=true&page=0&size=20
+     * Paged marketplace browse with filters.
+     */
+    @GetMapping("/paged")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getProducePaged(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Boolean availableOnly,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Map<String, Object> paged = produceService.listAllPaged(category, keyword, location, availableOnly, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(paged));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ProduceResponse>> getProduceById(@PathVariable Long id) {
         ProduceResponse produce = produceService.getById(id);

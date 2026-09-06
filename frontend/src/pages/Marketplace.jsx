@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { Search, SlidersHorizontal, X, Package } from 'lucide-react';
 import { apiGet } from '../api';
+import { optimizeImage } from '../utils/lowDataMode';
 
 const categoryEmoji = {
   Fruits: '🍎',
@@ -16,16 +17,40 @@ export default function Marketplace() {
   const navigate = useNavigate();
   const [allProduce, setAllProduce] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(0);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
 
+  const PAGE_SIZE = 20;
+
+  const fetchPage = (pageNum, append = false) => {
+    const qs = `?availableOnly=true&page=${pageNum}&size=${PAGE_SIZE}`;
+    return apiGet(`/api/produce/paged${qs}`)
+      .then((data) => {
+        const items = data?.content ?? data ?? [];
+        setAllProduce((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(!!data?.hasMore);
+        setPage(pageNum);
+      })
+      .catch((err) => setError(err.message));
+  };
+
   useEffect(() => {
-    apiGet('/api/produce?availableOnly=true')
-      .then((data) => setAllProduce(data))
-      .catch((err) => setError(err.message))
+    fetchPage(0)
+      .catch(() => {})
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMore = () => {
+    setLoadingMore(true);
+    fetchPage(page + 1, true)
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  };
 
   // Derive categories from actual data
   const categories = ['all', ...new Set(allProduce.map((p) => p.category).filter(Boolean))];
@@ -110,7 +135,7 @@ export default function Marketplace() {
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-3">
                         {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="w-14 h-14 rounded-xl object-cover" />
+                          <img src={optimizeImage(product.imageUrl)} alt={product.name} className="w-14 h-14 rounded-xl object-cover" loading="lazy" />
                         ) : (
                           <span className="text-4xl">{categoryEmoji[product.category] || '📦'}</span>
                         )}
@@ -164,6 +189,18 @@ export default function Marketplace() {
                   <p className="text-gray-500 text-lg">No produce found matching your search.</p>
                   <button onClick={() => { setSearch(''); setActiveFilter('all'); }} className="mt-4 text-navy-700 text-sm font-semibold hover:underline">
                     Clear filters
+                  </button>
+                </div>
+              )}
+
+              {hasMore && filtered.length > 0 && (
+                <div className="text-center mt-8">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-6 py-2.5 bg-white border border-navy-200 text-navy-800 text-sm font-semibold rounded-xl hover:border-mustard-400 transition shadow-sm disabled:opacity-50"
+                  >
+                    {loadingMore ? 'Loading more...' : `Load More Produce (${filtered.length} shown)`}
                   </button>
                 </div>
               )}
