@@ -2,15 +2,20 @@ package com.mitti2market.controller;
 
 import com.mitti2market.config.TokenService;
 import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.exception.BadRequestException;
 import com.mitti2market.model.Deal;
 import com.mitti2market.model.DeliveryConfirmation;
+import com.mitti2market.model.Dispute;
 import com.mitti2market.model.Logistics;
 import com.mitti2market.model.LogisticsEvent;
+import com.mitti2market.repository.DisputeRepository;
 import com.mitti2market.service.DealService;
+import com.mitti2market.service.DealStateMachineService;
 import com.mitti2market.service.LogisticsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,11 +25,17 @@ public class DealController {
 
     private final DealService dealService;
     private final LogisticsService logisticsService;
+    private final DealStateMachineService stateMachine;
+    private final DisputeRepository disputeRepo;
     private final TokenService tokens;
 
-    public DealController(DealService dealService, LogisticsService logisticsService, TokenService tokens) {
+    public DealController(DealService dealService, LogisticsService logisticsService,
+                          DealStateMachineService stateMachine, DisputeRepository disputeRepo,
+                          TokenService tokens) {
         this.dealService = dealService;
         this.logisticsService = logisticsService;
+        this.stateMachine = stateMachine;
+        this.disputeRepo = disputeRepo;
         this.tokens = tokens;
     }
 
@@ -95,6 +106,28 @@ public class DealController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
+    }
+
+    /** Get the full audit timeline for a deal */
+    @GetMapping("/{dealId}/timeline")
+    public ResponseEntity<?> getDealTimeline(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long dealId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        List<Map<String, Object>> events = stateMachine.getTimeline(dealId).stream().map(e -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", e.getId());
+            m.put("eventType", e.getEventType());
+            m.put("actorId", e.getActorId());
+            m.put("actorRole", e.getActorRole());
+            m.put("description", e.getDescription());
+            m.put("metadata", e.getMetadata());
+            m.put("createdAt", e.getCreatedAt());
+            return m;
+        }).toList();
+        return ResponseEntity.ok(ApiResponse.ok(events));
     }
 
     /** Get deal by conversation ID */
@@ -263,6 +296,95 @@ public class DealController {
                 "location", e.getLocation() != null ? e.getLocation() : "",
                 "timestamp", e.getTimestamp()
         )).toList()));
+    }
+
+    // ──────── Dispute Endpoints ────────
+
+    /** Open a dispute on a deal */
+    @PostMapping("/{dealId}/disputes")
+    public ResponseEntity<?> openDispute(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long dealId,
+            @RequestBody Map<String, Object> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Deal deal = dealService.getDeal(dealId);
+            if (!deal.getFarmer().getId().equals(userId) && !deal.getBuyer().getId().equals(userId)) {
+                throw new BadRequestException("You are not part of this deal");
+            }
+
+            Dispute.DisputeReason reason = Dispute.DisputeReason.valueOf(String.valueOf(body.get("reason")).toUpperCase());
+            Dispute dispute = Dispute.builder()
+                    .dealId(dealId)
+                    .raisedBy(deal.getFarmer().getId().equals(userId) ? deal.getFarmer() : deal.getBuyer())
+                    .reason(reason)
+                    .description((String) body.get("description"))
+                    .build();
+            dispute = disputeRepo.save(dispute);
+
+            stateMachine.recordEvent(dealId, "DISPUTE_OPENED", userId,
+                    deal.getFarmer().getId().equals(userId) ? "FARMER" : "BUYER",
+                    "Dispute opened: " + reason + (body.get("description") != null ? " — " + body.get("description") : ""), null);
+
+            return ResponseEntity.ok(ApiResponse.ok("Dispute opened", disputeToMap(dispute)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid dispute reason"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** List disputes for a deal */
+    @GetMapping("/{dealId}/disputes")
+    public ResponseEntity<?> getDisputes(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long dealId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        List<Map<String, Object>> disputes = disputeRepo.findByDealIdOrderByCreatedAtDesc(dealId).stream()
+                .map(this::disputeToMap).toList();
+        return ResponseEntity.ok(ApiResponse.ok(disputes));
+    }
+
+    /** Update dispute status (admin/review workflow) */
+    @PutMapping("/disputes/{disputeId}/status")
+    public ResponseEntity<?> updateDisputeStatus(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long disputeId,
+            @RequestBody Map<String, String> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Dispute dispute = disputeRepo.findById(disputeId)
+                    .orElseThrow(() -> new BadRequestException("Dispute not found"));
+            Dispute.DisputeStatus status = Dispute.DisputeStatus.valueOf(String.valueOf(body.get("status")).toUpperCase());
+            dispute.setStatus(status);
+            if (status == Dispute.DisputeStatus.RESOLVED || status == Dispute.DisputeStatus.REJECTED) {
+                dispute.setResolvedAt(java.time.LocalDateTime.now());
+            }
+            dispute = disputeRepo.save(dispute);
+            return ResponseEntity.ok(ApiResponse.ok("Dispute status updated", disputeToMap(dispute)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    private Map<String, Object> disputeToMap(Dispute d) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", d.getId());
+        m.put("dealId", d.getDealId());
+        m.put("raisedById", d.getRaisedBy().getId());
+        m.put("raisedByName", d.getRaisedBy().getName());
+        m.put("reason", d.getReason().name());
+        m.put("description", d.getDescription());
+        m.put("status", d.getStatus().name());
+        m.put("createdAt", d.getCreatedAt());
+        m.put("resolvedAt", d.getResolvedAt());
+        return m;
     }
 
     /** Confirm delivery (buyer) */

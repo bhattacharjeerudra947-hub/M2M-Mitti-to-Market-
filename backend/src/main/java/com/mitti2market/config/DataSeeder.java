@@ -1,15 +1,18 @@
 package com.mitti2market.config;
 
+import com.mitti2market.model.BuyerInterest;
 import com.mitti2market.model.Produce;
 import com.mitti2market.model.Produce.ProduceStatus;
 import com.mitti2market.model.User;
 import com.mitti2market.model.User.Role;
+import com.mitti2market.repository.BuyerInterestRepository;
 import com.mitti2market.repository.ProduceRepository;
 import com.mitti2market.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -20,6 +23,8 @@ public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final ProduceRepository produceRepository;
+    private final BuyerInterestRepository interestRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
@@ -30,10 +35,12 @@ public class DataSeeder implements CommandLineRunner {
 
         log.info("Seeding demo data...");
 
+        String hashed = passwordEncoder.encode("password123");
+
         User farmer1 = userRepository.save(User.builder()
                 .name("Ramesh Kumar")
                 .email("ramesh@farmer.com")
-                .passwordHash("password123")
+                .passwordHash(hashed)
                 .phone("9876543210")
                 .role(Role.FARMER)
                 .location("Pune, Maharashtra")
@@ -43,7 +50,7 @@ public class DataSeeder implements CommandLineRunner {
         User farmer2 = userRepository.save(User.builder()
                 .name("Sunita Devi")
                 .email("sunita@farmer.com")
-                .passwordHash("password123")
+                .passwordHash(hashed)
                 .phone("9876543211")
                 .role(Role.FARMER)
                 .location("Nashik, Maharashtra")
@@ -53,11 +60,37 @@ public class DataSeeder implements CommandLineRunner {
         User business1 = userRepository.save(User.builder()
                 .name("FreshMart Procurement")
                 .email("procurement@freshmart.com")
-                .passwordHash("password123")
+                .passwordHash(hashed)
                 .phone("9876543220")
                 .role(Role.BUSINESS)
                 .location("Mumbai, Maharashtra")
                 .organizationName("FreshMart Pvt Ltd")
+                .verified(true)
+                .rating(4.2)
+                .build());
+
+        User business2 = userRepository.save(User.builder()
+                .name("CityFresh Foods")
+                .email("purchase@cityfresh.com")
+                .passwordHash(hashed)
+                .phone("9876543221")
+                .role(Role.BUSINESS)
+                .location("Pune, Maharashtra")
+                .organizationName("CityFresh Foods Pvt Ltd")
+                .verified(true)
+                .rating(4.6)
+                .build());
+
+        User business3 = userRepository.save(User.builder()
+                .name("GreenBasket Retail")
+                .email("buying@greenbasket.com")
+                .passwordHash(hashed)
+                .phone("9876543222")
+                .role(Role.BUSINESS)
+                .location("Nashik, Maharashtra")
+                .organizationName("GreenBasket Retail Chain")
+                .verified(false)
+                .rating(3.4)
                 .build());
 
         produceRepository.save(Produce.builder()
@@ -150,6 +183,59 @@ public class DataSeeder implements CommandLineRunner {
                 .aiSuggestedMaxPrice(35.2)
                 .build());
 
-        log.info("Demo data seeded: 2 farmers, 1 business, 6 produce listings.");
+        // ─── Demo listing for AI Deal Advisor ─────────────────────────
+        // 3 buyers make different offers on the SAME produce.
+        // FreshMart offers the HIGHEST price but is far (Mumbai, 150 km).
+        // CityFresh offers less but is close (Pune, ~10 km).
+        // This demonstrates: HIGHEST OFFER ≠ HIGHEST NET REALIZATION.
+        Produce tomato = produceRepository.save(Produce.builder()
+                .farmer(farmer1)
+                .name("Tomato")
+                .category("Vegetables")
+                .quantity(2000)
+                .unit("kg")
+                .pricePerUnit(25.0)
+                .description("Fresh farm tomatoes, Grade A, harvest-ready")
+                .location("Pune, Maharashtra")
+                .imageUrl("https://example.com/tomato.jpg")
+                .status(ProduceStatus.AVAILABLE)
+                .aiSuggestedMinPrice(22.5)
+                .aiSuggestedMaxPrice(27.5)
+                .build());
+
+        // Highest quoted price (₹29) but far away — higher logistics cost
+        interestRepository.save(BuyerInterest.builder()
+                .buyer(business1)
+                .farmer(farmer1)
+                .produce(tomato)
+                .offeredPrice(29.0)
+                .offeredQuantity(2000)
+                .message("We can take full quantity at ₹29/kg")
+                .status(BuyerInterest.InterestStatus.PENDING)
+                .build());
+
+        // Lower price (₹27) but very close — best estimated net realization
+        interestRepository.save(BuyerInterest.builder()
+                .buyer(business2)
+                .farmer(farmer1)
+                .produce(tomato)
+                .offeredPrice(27.0)
+                .offeredQuantity(1500)
+                .message("Pune pickup, ₹27/kg for 1500 kg")
+                .status(BuyerInterest.InterestStatus.PENDING)
+                .build());
+
+        // Mid price (₹28) but far (Nashik, 210 km)
+        interestRepository.save(BuyerInterest.builder()
+                .buyer(business3)
+                .farmer(farmer1)
+                .produce(tomato)
+                .offeredPrice(28.0)
+                .offeredQuantity(1000)
+                .message("Interested in 1000 kg at ₹28/kg")
+                .status(BuyerInterest.InterestStatus.PENDING)
+                .build());
+
+        log.info("Demo data seeded: 2 farmers, 3 buyers, 7 produce listings, 3 buyer offers for AI Deal Advisor.");
     }
 }
