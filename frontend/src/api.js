@@ -14,31 +14,48 @@ function authHeaders(extra = {}) {
   return h;
 }
 
+/** Create an Error carrying the HTTP status so callers (sync queue) can classify failures. */
+function apiError(message, status) {
+  const err = new Error(message);
+  err.status = status || 0;
+  return err;
+}
+
 async function apiGet(path) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: authHeaders(),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
+  } catch {
+    throw apiError('Network error — you may be offline', 0);
+  }
   if (res.status === 401) {
     localStorage.removeItem('m2m_auth');
-    throw new Error('Session expired. Please log in again.');
+    throw apiError('Session expired. Please log in again.', 401);
   }
-  const data = await res.json();
-  if (!data.success) throw new Error(data.message || 'API error');
+  let data;
+  try { data = await res.json(); } catch { throw apiError('Invalid server response', res.status); }
+  if (!data.success) throw apiError(data.message || 'API error', res.status);
   return data.data;
 }
 
 async function apiPost(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw apiError('Network error — you may be offline', 0);
+  }
   if (res.status === 401) {
     localStorage.removeItem('m2m_auth');
-    throw new Error('Session expired. Please log in again.');
+    throw apiError('Session expired. Please log in again.', 401);
   }
-  const data = await res.json();
-  if (!data.success) throw new Error(data.message || 'API error');
+  let data;
+  try { data = await res.json(); } catch { throw apiError('Invalid server response', res.status); }
+  if (!data.success) throw apiError(data.message || 'API error', res.status);
   return data.data;
 }
 
@@ -58,17 +75,23 @@ async function apiPatch(path, body) {
 }
 
 async function apiPut(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'PUT',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw apiError('Network error — you may be offline', 0);
+  }
   if (res.status === 401) {
     localStorage.removeItem('m2m_auth');
-    throw new Error('Session expired. Please log in again.');
+    throw apiError('Session expired. Please log in again.', 401);
   }
-  const data = await res.json();
-  if (!data.success) throw new Error(data.message || 'API error');
+  let data;
+  try { data = await res.json(); } catch { throw apiError('Invalid server response', res.status); }
+  if (!data.success) throw apiError(data.message || 'API error', res.status);
   return data.data;
 }
 
@@ -81,13 +104,23 @@ async function apiUpload(path, file, extraFields = {}) {
   formData.append('file', file);
   Object.entries(extraFields).forEach(([k, v]) => formData.append(k, v));
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: formData,
-  });
-  const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.message || 'Upload failed');
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData,
+    });
+  } catch {
+    throw apiError('Network error — you may be offline', 0);
+  }
+  if (res.status === 401) {
+    localStorage.removeItem('m2m_auth');
+    throw apiError('Session expired. Please log in again.', 401);
+  }
+  let data;
+  try { data = await res.json(); } catch { throw apiError('Invalid server response', res.status); }
+  if (!res.ok || !data.success) throw apiError(data.message || 'Upload failed', res.status);
   return data.data;
 }
 

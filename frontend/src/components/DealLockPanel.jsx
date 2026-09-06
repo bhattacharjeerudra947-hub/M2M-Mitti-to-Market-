@@ -64,6 +64,8 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
     try {
       const data = await getDealByConversation(conversationId);
       setDeal(data);
+      // A successful reload means the deal moved forward — clear any stale error
+      setError('');
       if (data) {
         loadLogistics(data.id);
       }
@@ -73,6 +75,13 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
       setLoading(false);
     }
   };
+
+  // Auto-dismiss error banners so stale messages never linger
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(''), 6000);
+    return () => clearTimeout(t);
+  }, [error]);
 
   const loadLogistics = async (dealId) => {
     try {
@@ -113,6 +122,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   };
 
   const handleConfirm = async () => {
+    setError('');
     setActionLoading(true);
     try {
       const result = await confirmDeal(deal.id);
@@ -126,6 +136,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
 
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel this deal?')) return;
+    setError('');
     setActionLoading(true);
     try {
       const result = await cancelDeal(deal.id);
@@ -135,6 +146,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   };
 
   const handleSelectLogistics = async (type) => {
+    setError('');
     setActionLoading(true);
     try {
       await selectLogistics(deal.id, type);
@@ -153,6 +165,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
 
   const handleUpdateLogisticsDetails = async () => {
     if (!logistics) return;
+    setError('');
     setActionLoading(true);
     try {
       await updateLogisticsDetails(logistics.id, logisticsForm);
@@ -163,6 +176,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   };
 
   const handleUpdateStatus = async (status, desc) => {
+    setError('');
     setActionLoading(true);
     try {
       await updateLogisticsStatus(logistics.id, status, null, desc);
@@ -173,6 +187,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   };
 
   const handleConfirmDelivery = async () => {
+    setError('');
     setActionLoading(true);
     try {
       const result = await confirmDelivery(deal.id, deliveryForm);
@@ -245,7 +260,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         }`}>{deal.status}</span>
       </div>
 
-      {/* Deal Details */}
+      {/* Deal Details — terms are immutable once locked */}
       <div className="bg-gray-50 rounded-xl p-3 mb-3 text-xs space-y-1">
         <div className="flex justify-between"><span className="text-gray-500">Product</span><span className="font-semibold">{deal.cropName}</span></div>
         <div className="flex justify-between"><span className="text-gray-500">Quantity</span><span className="font-semibold">{deal.quantity} {deal.unit}</span></div>
@@ -256,6 +271,17 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         </div>
         {deal.pickupLocation && <div className="flex justify-between"><span className="text-gray-500">Pickup</span><span>{deal.pickupLocation}</span></div>}
         {deal.deliveryLocation && <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span>{deal.deliveryLocation}</span></div>}
+        {deal.amendmentCount > 0 && (
+          <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
+            <span className="text-amber-600 font-semibold">✏️ Amended</span>
+            <span className="text-amber-600">{deal.amendmentCount}× · {deal.amendedAt ? new Date(deal.amendedAt).toLocaleDateString() : ''}</span>
+          </div>
+        )}
+        {['LOCKED','LOGISTICS_PENDING','LOGISTICS_ASSIGNED','PICKUP_SCHEDULED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED'].includes(deal.status) && (
+          <p className="border-t border-gray-200 pt-1.5 mt-1 flex items-center gap-1 text-[10px] text-gray-500">
+            <Lock className="w-3 h-3" /> Terms are locked. To change them, send a structured offer in chat — both parties must agree.
+          </p>
+        )}
       </div>
 
       {/* Status Progress */}

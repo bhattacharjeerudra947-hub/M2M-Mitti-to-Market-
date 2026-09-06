@@ -23,6 +23,7 @@ public class MessageService {
     private final UserRepository users;
     private final ProduceRepository produceRepository;
     private final NotificationService notificationService;
+    private final MessageEventService messageEventService;
 
     /** Send a message from sender to receiver, optionally about a produce */
     public Message sendMessage(Long senderId, Long receiverId, String content, Long produceId) {
@@ -56,6 +57,18 @@ public class MessageService {
                 Notification.NotificationType.NEW_MESSAGE,
                 "New message from " + sender.getName(),
                 preview);
+
+        // Push instantly to both parties over SSE so the message pops up on screen
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", msg.getId());
+        payload.put("conversationId", conversationId);
+        payload.put("senderId", senderId);
+        payload.put("senderName", sender.getName());
+        payload.put("receiverId", receiverId);
+        payload.put("content", content);
+        payload.put("createdAt", msg.getCreatedAt());
+        messageEventService.publish(receiverId, payload);
+        messageEventService.publish(senderId, payload);
 
         return msg;
     }
