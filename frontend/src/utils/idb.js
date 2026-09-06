@@ -9,8 +9,8 @@
  */
 
 const DB_NAME = 'mitti2market-offline';
-const DB_VERSION = 1;
-const STORES = ['produceDrafts', 'syncQueue'];
+const DB_VERSION = 2;
+const STORES = ['produceDrafts', 'syncQueue', 'gpsQueue'];
 
 let dbPromise = null;
 
@@ -29,6 +29,9 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('syncQueue')) {
         db.createObjectStore('syncQueue', { keyPath: 'operationId' });
+      }
+      if (!db.objectStoreNames.contains('gpsQueue')) {
+        db.createObjectStore('gpsQueue', { keyPath: 'pointId' });
       }
     };
     req.onsuccess = () => resolve(req.result);

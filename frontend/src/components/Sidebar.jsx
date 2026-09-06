@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
@@ -20,6 +20,12 @@ const farmerLinks = [
   { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/farmer/deals', icon: Package, label: 'My Deals' },
   { to: '/farmer/offline-drafts', icon: Save, label: 'Offline Drafts' },
+  { to: '/locations', icon: MapPin, label: 'Live Locations' },
+];
+
+const driverLinks = [
+  { to: '/driver', icon: LayoutDashboard, label: 'My Trips' },
+  { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
 const businessLinks = [
@@ -34,6 +40,7 @@ const businessLinks = [
   { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/business/deals', icon: Package, label: 'My Purchases' },
+  { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
 export default function Sidebar({ role = 'farmer' }) {
@@ -49,9 +56,9 @@ export default function Sidebar({ role = 'farmer' }) {
   // React to low-data-mode changes from anywhere
   useEffect(() => onLowDataModeChange(setLowData), []);
 
-  const links = role === 'farmer' ? farmerLinks : businessLinks;
-  const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
-  const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
+  const links = role === 'farmer' ? farmerLinks : role === 'driver' ? driverLinks : businessLinks;
+  const profileName = user?.name || (role === 'farmer' ? 'Farmer' : role === 'driver' ? 'Driver' : 'Business');
+  const profileIcon = role === 'farmer' ? '👨‍🌾' : role === 'driver' ? '🚚' : '🏪';
 
   useEffect(() => {
     async function loadPhoto() {

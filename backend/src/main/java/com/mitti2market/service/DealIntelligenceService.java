@@ -1,6 +1,7 @@
 package com.mitti2market.service;
 
 import com.mitti2market.dto.DealAnalysis;
+import com.mitti2market.dto.RouteEstimate;
 import com.mitti2market.exception.ResourceNotFoundException;
 import com.mitti2market.model.BuyerInterest;
 import com.mitti2market.model.Produce;
@@ -29,6 +30,7 @@ public class DealIntelligenceService {
 
     private final BuyerInterestRepository interestRepository;
     private final ProduceRepository produceRepository;
+    private final RouteService routeService;
 
     // ─── Configurable cost heuristics (₹) ─────────────────────────────
     /** Per-km per-kg transport cost — typical LTL trucking in India */
@@ -98,8 +100,10 @@ public class DealIntelligenceService {
         double offeredPrice = interest.getOfferedPrice() != null ? interest.getOfferedPrice() : produce.getPricePerUnit();
         int quantity = interest.getOfferedQuantity() != null ? interest.getOfferedQuantity() : produce.getQuantity();
 
-        // 1. Distance estimate
-        double distanceKm = estimateDistance(farmer, buyer);
+        // 1. Distance + duration estimate (same route engine as logistics)
+        RouteEstimate route = estimateRoute(farmer, buyer);
+        double distanceKm = route.getDistanceKm();
+        double durationMinutes = route.getDurationMinutes() != null ? route.getDurationMinutes() : 0.0;
 
         // 2. Cost estimates
         double logisticsCostPerUnit = distanceKm * COST_PER_KM_PER_KG + HANDLING_PER_KG;
@@ -148,6 +152,9 @@ public class DealIntelligenceService {
                 .unit(produce.getUnit())
                 .grossValue(round2(grossValue))
                 .distanceKm(round2(distanceKm))
+                .estimatedDurationMinutes(round1(durationMinutes))
+                .routeProvider(route.getProvider())
+                .routeCaveat(route.getCaveat())
                 .logisticsCostPerUnit(round2(logisticsCostPerUnit))
                 .logisticsCost(round2(logisticsCost))
                 .otherCosts(round2(otherCosts))
@@ -232,24 +239,34 @@ public class DealIntelligenceService {
 
     // ─── Distance estimation ──────────────────────────────────────────
     /**
-     * Estimates the road distance between farmer and buyer.
-     * Uses lat/long haversine when both are available, otherwise a small
-     * city lookup table, otherwise a default with a warning.
+     * Estimates the road distance + duration between farmer and buyer.
+     * Uses the shared RouteService (haversine × road factor fallback, or a
+     * live routing provider when configured). Falls back to the city lookup
+     * table when neither user has coordinates.
      */
-    private double estimateDistance(User a, User b) {
+    private RouteEstimate estimateRoute(User a, User b) {
         if (a.getLatitude() != null && a.getLongitude() != null
                 && b.getLatitude() != null && b.getLongitude() != null) {
-            return haversine(a.getLatitude(), a.getLongitude(), b.getLatitude(), b.getLongitude());
+            return routeService.estimateRoute(a.getLatitude(), a.getLongitude(), b.getLatitude(), b.getLongitude());
         }
         String locA = normalizeLocation(a.getLocation());
         String locB = normalizeLocation(b.getLocation());
+        double km = DEFAULT_DISTANCE_KM;
         if (locA != null && locB != null) {
-            if (locA.equals(locB)) return 10.0; // same city — short local pickup
-            Double d = CITY_DISTANCES.get(locA + "|" + locB);
-            if (d == null) d = CITY_DISTANCES.get(locB + "|" + locA);
-            if (d != null) return d;
+            if (locA.equals(locB)) {
+                km = 10.0; // same city — short local pickup
+            } else {
+                Double d = CITY_DISTANCES.get(locA + "|" + locB);
+                if (d == null) d = CITY_DISTANCES.get(locB + "|" + locA);
+                if (d != null) km = d;
+            }
         }
-        return DEFAULT_DISTANCE_KM;
+        return RouteEstimate.builder()
+                .distanceKm(km)
+                .durationMinutes(km / 40.0 * 60.0)
+                .provider("city-table")
+                .caveat("Estimated from general location (no exact coordinates available).")
+                .build();
     }
 
     private String normalizeLocation(String location) {
@@ -293,17 +310,7 @@ public class DealIntelligenceService {
             Map.entry("LUCKNOW|KANPUR", 90.0)
     );
 
-    private static double haversine(double lat1, double lon1, double lat2, double lon2) {
-        double R = 6371.0;
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-    }
-
     private double round(double v) { return Math.round(v * 10.0) / 10.0; }
     private double round2(double v) { return Math.round(v * 100.0) / 100.0; }
+    private double round1(double v) { return Math.round(v * 10.0) / 10.0; }
 }

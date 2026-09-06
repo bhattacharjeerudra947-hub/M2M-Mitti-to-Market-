@@ -40,6 +40,8 @@ import OfflineDrafts from './pages/OfflineDrafts';
 import DealAdvisor from './pages/DealAdvisor';
 import BuyerRequirements from './pages/BuyerRequirements';
 import MessagePopup from './components/MessagePopup';
+import Locations from './pages/Locations';
+import DriverDashboard from './pages/DriverDashboard';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -173,8 +175,14 @@ export default function App() {
             <Route path="offline-drafts" element={<OfflineDrafts />} />
           </Route>
 
+          {/* Driver Routes */}
+          <Route path="/driver" element={<ProtectedRoute role="driver"><DriverDashboard /></ProtectedRoute>} />
+
           {/* Deal Workspace — shared by farmer & buyer */}
           <Route path="/deal/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
+
+          {/* Live Locations — shared by farmer & buyer */}
+          <Route path="/locations" element={<ProtectedRoute><Locations /></ProtectedRoute>} />
 
           {/* Business Routes — protected by role */}
           <Route path="/business" element={<ProtectedRoute role="business"><Outlet /></ProtectedRoute>}>

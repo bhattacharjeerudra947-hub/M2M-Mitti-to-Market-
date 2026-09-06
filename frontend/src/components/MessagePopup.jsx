@@ -27,7 +27,9 @@ export default function MessagePopup() {
       // the message renders inline in the chat.
       if (location.pathname.includes(msg.conversationId)) return;
 
-      const role = user.role === 'FARMER' ? 'farmer' : 'business';
+      const role = user.role === 'FARMER' ? 'farmer' : user.role === 'DRIVER' ? 'driver' : 'business';
+      // Drivers have no chat page — skip the toast (messages still reach them via the stream)
+      if (role === 'driver') return;
       const popup = {
         id: msg.id || `${Date.now()}-${Math.random()}`,
         conversationId: msg.conversationId,

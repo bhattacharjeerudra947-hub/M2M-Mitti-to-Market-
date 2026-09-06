@@ -67,7 +67,7 @@ export default function Navbar({ dark = false }) {
           <div className="hidden md:flex items-center gap-4">
             {isAuthenticated ? (
               <Link
-                to={role === 'farmer' ? '/farmer' : '/business'}
+                to={role === 'farmer' ? '/farmer' : role === 'driver' ? '/driver' : '/business'}
                 className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition"
               >
                 My Dashboard
@@ -109,7 +109,7 @@ export default function Navbar({ dark = false }) {
           ))}
           <div className="pt-2 border-t border-navy-100 space-y-2">
             {isAuthenticated ? (
-              <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>My Dashboard</Link>
+              <Link to={role === 'farmer' ? '/farmer' : role === 'driver' ? '/driver' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>My Dashboard</Link>
             ) : (
               <>
                 <Link to="/login" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Sign In</Link>

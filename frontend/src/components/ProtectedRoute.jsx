@@ -32,12 +32,13 @@ export default function ProtectedRoute({ children, role, roles }) {
 
   // Check role if specified
   const userRole = user?.role?.toLowerCase();
+  const fallback = userRole === 'farmer' ? '/farmer' : userRole === 'driver' ? '/driver' : '/business';
   if (role && userRole !== role.toLowerCase()) {
     // User is authenticated but wrong role — redirect to their dashboard
-    return <Navigate to={userRole === 'farmer' ? '/farmer' : '/business'} replace />;
+    return <Navigate to={fallback} replace />;
   }
   if (roles && !roles.map((r) => r.toLowerCase()).includes(userRole)) {
-    return <Navigate to={userRole === 'farmer' ? '/farmer' : '/business'} replace />;
+    return <Navigate to={fallback} replace />;
   }
 
   return children;
