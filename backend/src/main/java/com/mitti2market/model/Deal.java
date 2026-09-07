@@ -40,6 +40,10 @@ public class Deal {
     private Double totalAmount;
     private String pickupLocation;
     private String deliveryLocation;
+    private Double pickupLatitude;
+    private Double pickupLongitude;
+    private Double deliveryLatitude;
+    private Double deliveryLongitude;
     private String conditions;
 
     @Enumerated(EnumType.STRING)
@@ -53,6 +57,13 @@ public class Deal {
 
     private LocalDateTime lockedAt;
     private LocalDateTime completedAt;
+
+    /** When the locked deal's terms were last amended (via re-negotiation) */
+    private LocalDateTime amendedAt;
+
+    /** How many times the deal terms have been amended after locking */
+    @Builder.Default
+    private Integer amendmentCount = 0;
 
     public enum DealStatus {
         NEGOTIATING,

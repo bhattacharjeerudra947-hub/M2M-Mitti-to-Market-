@@ -26,4 +26,7 @@ public interface ProduceRepository extends JpaRepository<Produce, Long> {
     List<Produce> findByFarmerAndStatus(User farmer, ProduceStatus status);
 
     List<Produce> findByCategoryAndLocationContainingIgnoreCase(String category, String location);
+
+    /** Offline-sync idempotency: same key ⇒ same logical listing */
+    java.util.Optional<Produce> findByIdempotencyKey(String idempotencyKey);
 }

@@ -1,57 +1,44 @@
 package com.mitti2market.config;
 
+import com.mitti2market.model.User;
+import com.mitti2market.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
- * Simple token service for authentication.
- * Uses UUID tokens stored in memory.
+ * Token service for authentication.
+ * Delegates to JwtUtil for cryptographically signed JWT tokens.
+ * Existing controllers call this service — API is preserved.
  */
 @Service
+@RequiredArgsConstructor
 public class TokenService {
 
-    private final Map<String, TokenData> accessTokens = new ConcurrentHashMap<>();
-    private final Map<String, TokenData> refreshTokens = new ConcurrentHashMap<>();
-
-    private static final long ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
-    private static final long REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000;
-
-    private record TokenData(Long userId, long createdAt) {}
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     public String generateAccessToken(Long userId) {
-        String token = UUID.randomUUID().toString();
-        accessTokens.put(token, new TokenData(userId, System.currentTimeMillis()));
-        return token;
+        // Look up the user's role to include in the token
+        String role = userRepository.findById(userId)
+                .map(u -> u.getRole().name())
+                .orElse("USER");
+        return jwtUtil.generateAccessToken(userId, role);
     }
 
     public String generateRefreshToken(Long userId) {
-        String token = UUID.randomUUID().toString();
-        refreshTokens.put(token, new TokenData(userId, System.currentTimeMillis()));
-        return token;
+        return jwtUtil.generateRefreshToken(userId);
     }
 
     public Long validateAccessToken(String token) {
-        return validateToken(token, accessTokens, ACCESS_TOKEN_TTL);
+        return jwtUtil.validateAccessToken(token);
     }
 
     public Long validateRefreshToken(String token) {
-        return validateToken(token, refreshTokens, REFRESH_TOKEN_TTL);
+        return jwtUtil.validateRefreshToken(token);
     }
 
     public void revokeRefreshToken(String token) {
-        refreshTokens.remove(token);
-    }
-
-    private Long validateToken(String token, Map<String, TokenData> store, long ttl) {
-        if (token == null) return null;
-        TokenData data = store.get(token);
-        if (data == null) return null;
-        if (System.currentTimeMillis() - data.createdAt() > ttl) {
-            store.remove(token);
-            return null;
-        }
-        return data.userId();
+        // JWT tokens are stateless — revocation happens by expiry.
+        // For immediate revocation, maintain a deny-list (future improvement).
     }
 }
