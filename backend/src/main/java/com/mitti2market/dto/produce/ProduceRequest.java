@@ -36,4 +36,7 @@ public class ProduceRequest {
     private String location;
 
     private String imageUrl;
+
+    /** Client-generated idempotency key for offline-first sync (prevents duplicate listings) */
+    private String idempotencyKey;
 }

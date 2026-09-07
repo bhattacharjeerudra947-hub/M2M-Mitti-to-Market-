@@ -37,7 +37,7 @@ export default function SignUp() {
     const result = await register(form.name, form.email, form.phone, form.password, form.role, form.location);
     setLoading(false);
     if (result.ok) {
-      navigate(form.role === 'farmer' ? '/farmer' : '/business', { replace: true });
+      navigate(form.role === 'farmer' ? '/farmer' : form.role === 'driver' ? '/driver' : '/business', { replace: true });
     } else {
       setError(result.error || 'Registration failed. Please try again.');
     }
@@ -63,8 +63,8 @@ export default function SignUp() {
             {/* Role selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
-              <div className="grid grid-cols-2 gap-3">
-                {[{ value: 'farmer', emoji: '👨‍🌾', label: 'Farmer' }, { value: 'business', emoji: '🏪', label: 'Business' }].map((r) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[{ value: 'farmer', emoji: '👨‍🌾', label: 'Farmer' }, { value: 'business', emoji: '🏪', label: 'Business' }, { value: 'driver', emoji: '🚚', label: 'Driver' }].map((r) => (
                   <button key={r.value} type="button" onClick={() => update('role', r.value)} className={`p-4 rounded-xl border-2 text-left transition ${form.role === r.value ? 'border-mustard-400 bg-mustard-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <span className="text-2xl block mb-1">{r.emoji}</span>
                     <span className="text-sm font-semibold text-gray-900">{r.label}</span>

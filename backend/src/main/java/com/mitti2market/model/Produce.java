@@ -40,6 +40,14 @@ public class Produce {
 
     private String imageUrl;
 
+    /**
+     * Client-generated idempotency key for offline-first sync.
+     * The same key always resolves to the same produce record,
+     * so retries never create duplicate listings.
+     */
+    @Column(unique = true, length = 64)
+    private String idempotencyKey;
+
     private Double aiSuggestedMinPrice;
 
     private Double aiSuggestedMaxPrice;
