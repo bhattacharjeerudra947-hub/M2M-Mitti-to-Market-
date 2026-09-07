@@ -91,7 +91,8 @@ export default function MyDeals() {
           ) : (
             <div className="space-y-4">
               {filtered.map(deal => (
-                <div key={deal.id} className="bg-white rounded-2xl border border-navy-100 shadow-sm hover:shadow-md transition p-5">
+                <div key={deal.id} onClick={() => navigate(`/deal/${deal.id}`)}
+                  className="bg-white rounded-2xl border border-navy-100 shadow-sm hover:shadow-md hover:border-mustard-300 transition p-5 cursor-pointer">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">

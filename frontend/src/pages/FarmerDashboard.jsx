@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
 import PriceAdvisor from '../components/PriceAdvisor';
@@ -9,11 +9,13 @@ import VoiceAssistant from '../components/VoiceAssistant';
 import TrendInsights from '../components/TrendInsights';
 import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
+import DealAdvisorSummary from '../components/DealAdvisorSummary';
 import { Package, ShoppingCart, Wallet, FileText, Mic, BarChart3, Navigation } from 'lucide-react';
 import { priceChartData, orders } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { useFarmerLanguage } from '../context/FarmerContext';
 import { t_key } from '../data/farmerTranslations';
+import { apiGet } from '../api';
 
 function getGreetingKey() {
   const hour = new Date().getHours();
@@ -34,6 +36,30 @@ export default function FarmerDashboard() {
   const { language } = useFarmerLanguage();
   const greetKey = getGreetingKey();
   const [activeView, setActiveView] = useState('dashboard');
+
+  // ─── Real stats from backend ───
+  const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0 });
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const [produceData, orderData, interestData] = await Promise.all([
+          apiGet(`/api/produce/farmer/${user.id}`).catch(() => []),
+          apiGet(`/api/orders/farmer/${user.id}`).catch(() => []),
+          apiGet(`/api/interests/farmer/${user.id}`).catch(() => []),
+        ]);
+        const produce = produceData || [];
+        const ordersList = orderData || [];
+        const interests = interestData || [];
+        setStats({
+          produceKg: produce.reduce((s, p) => s + (p.quantity || 0), 0),
+          orders: ordersList.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status)).length,
+          interests: interests.filter(i => i.status === 'PENDING').length,
+        });
+      } catch {}
+    })();
+  }, [user]);
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -113,41 +139,36 @@ export default function FarmerDashboard() {
           {/* Default Dashboard View */}
           {activeView === 'dashboard' && (
             <>
-              {/* Stat Cards */}
+              {/* Stat Cards — real backend data */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   icon={<Package className="w-5 h-5" />}
                   label={t_key(language, 'produceListed') || 'Produce Listed'}
-                  value="1,250 kg"
-                  change="+12%"
-                  changeType="up"
+                  value={stats.produceKg ? stats.produceKg.toLocaleString('en-IN') + ' kg' : '0 kg'}
                   color="primary"
                 />
                 <StatCard
                   icon={<ShoppingCart className="w-5 h-5" />}
                   label={t_key(language, 'activeOrders') || 'Active Orders'}
-                  value="8"
-                  change="+2"
-                  changeType="up"
+                  value={String(stats.orders)}
                   color="blue"
                 />
                 <StatCard
                   icon={<Wallet className="w-5 h-5" />}
                   label={t_key(language, 'monthlyEarnings') || "This Month's Earnings"}
-                  value="₹42,500"
-                  change="+8.5%"
-                  changeType="up"
+                  value="₹0"
                   color="emerald"
                 />
                 <StatCard
                   icon={<FileText className="w-5 h-5" />}
                   label={t_key(language, 'buyerRequestCount') || 'Buyer Requests'}
-                  value="5"
-                  change="3 new"
-                  changeType="up"
+                  value={String(stats.interests)}
                   color="accent"
                 />
               </div>
+
+              {/* AI Deal Advisor Summary — real deals + demand */}
+              <DealAdvisorSummary />
 
               {/* Market Snapshot */}
               <div className="mb-8">

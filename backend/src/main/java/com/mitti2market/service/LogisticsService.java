@@ -1,11 +1,13 @@
 package com.mitti2market.service;
 
+import com.mitti2market.dto.RouteEstimate;
 import com.mitti2market.exception.BadRequestException;
 import com.mitti2market.exception.ResourceNotFoundException;
 import com.mitti2market.model.*;
 import com.mitti2market.model.Deal.DealStatus;
 import com.mitti2market.model.Logistics.LogisticsStatus;
 import com.mitti2market.model.Logistics.LogisticsType;
+import com.mitti2market.model.Logistics.TrackingStatus;
 import com.mitti2market.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,10 @@ public class LogisticsService {
     private final UserRepository users;
     private final MessageService messageService;
     private final NotificationService notificationService;
+    private final DealStateMachineService stateMachine;
+    private final RouteService routeService;
+    private final LogisticsCostService costService;
+    private final RouteOptimizationService routeOptimizer;
 
     private final AtomicLong trkCounter = new AtomicLong(100000);
 
@@ -70,13 +76,22 @@ public class LogisticsService {
                 .type(type)
                 .pickupLocation(deal.getPickupLocation())
                 .deliveryLocation(deal.getDeliveryLocation())
-                .status(type == LogisticsType.OWN ? LogisticsStatus.REQUESTED : LogisticsStatus.REQUESTED)
+                .pickupLatitude(deal.getPickupLatitude())
+                .pickupLongitude(deal.getPickupLongitude())
+                .deliveryLatitude(deal.getDeliveryLatitude())
+                .deliveryLongitude(deal.getDeliveryLongitude())
+                .status(LogisticsStatus.REQUESTED)
                 .build();
+
+        // Compute the route + cost estimate once at selection time so the
+        // workspace can show distance / ETA / cost without extra lookups.
+        computeAndStoreRoute(logistics);
 
         logistics = logisticsRepo.save(logistics);
 
-        deal.setStatus(DealStatus.LOGISTICS_PENDING);
-        dealRepo.save(deal);
+        deal = stateMachine.transition(deal.getId(), DealStatus.LOGISTICS_PENDING, userId,
+                userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER",
+                "Logistics selected: " + (type == LogisticsType.OWN ? "Own Logistics" : "Mitti2Market Logistics"), null);
 
         addEvent(logistics, LogisticsStatus.REQUESTED, "Logistics type selected: " + type, null);
 
@@ -146,21 +161,27 @@ public class LogisticsService {
         logistics.setStatus(newStatus);
 
         Deal deal = logistics.getDeal();
-        switch (newStatus) {
-            case ASSIGNED -> deal.setStatus(DealStatus.LOGISTICS_ASSIGNED);
-            case PICKUP_SCHEDULED -> deal.setStatus(DealStatus.PICKUP_SCHEDULED);
+        DealStatus dealTarget = switch (newStatus) {
+            case ASSIGNED -> DealStatus.LOGISTICS_ASSIGNED;
+            case PICKUP_SCHEDULED -> DealStatus.PICKUP_SCHEDULED;
             case PICKED_UP -> {
-                deal.setStatus(DealStatus.PICKED_UP);
                 logistics.setActualPickup(LocalDateTime.now());
+                yield DealStatus.PICKED_UP;
             }
-            case IN_TRANSIT -> deal.setStatus(DealStatus.IN_TRANSIT);
-            case OUT_FOR_DELIVERY -> deal.setStatus(DealStatus.OUT_FOR_DELIVERY);
+            case IN_TRANSIT -> DealStatus.IN_TRANSIT;
+            case OUT_FOR_DELIVERY -> DealStatus.OUT_FOR_DELIVERY;
             case DELIVERED -> {
-                deal.setStatus(DealStatus.DELIVERED);
                 logistics.setActualDelivery(LocalDateTime.now());
+                yield DealStatus.DELIVERED;
             }
+            default -> null;
+        };
+        if (dealTarget != null) {
+            String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
+            deal = stateMachine.transition(deal.getId(), dealTarget, userId, actorRole,
+                    description != null ? description : "Logistics status: " + newStatus,
+                    location != null ? "location=" + location : null);
         }
-        dealRepo.save(deal);
 
         logistics = logisticsRepo.save(logistics);
         addEvent(logistics, newStatus, description, location);
@@ -180,19 +201,348 @@ public class LogisticsService {
         return logistics;
     }
 
+    // ──────── Driver Tracking Session ────────
+
     /**
-     * Update location for live tracking.
+     * Start the live tracking session for an assigned logistics record.
+     * Only the deal's farmer or buyer may operate the session (no separate
+     * driver account exists yet — the party arranging transport acts as driver).
      */
     @Transactional
-    public void updateLocation(Long logisticsId, Double latitude, Double longitude) {
-        Logistics logistics = logisticsRepo.findById(logisticsId)
-                .orElseThrow(() -> new ResourceNotFoundException("Logistics", "id", logisticsId));
+    public Logistics startTracking(Long logisticsId, Long userId) {
+        Logistics logistics = findAndVerify(logisticsId, userId);
+
+        if (logistics.getTrackingStatus() == TrackingStatus.COMPLETED) {
+            throw new BadRequestException("Tracking session already completed for this trip");
+        }
+
+        logistics.setTrackingStatus(TrackingStatus.ACTIVE);
+        if (logistics.getTrackingStartedAt() == null) {
+            logistics.setTrackingStartedAt(LocalDateTime.now());
+        }
+        logistics.setTrackingCompletedAt(null);
+        logisticsRepo.save(logistics);
+
+        addEvent(logistics, logistics.getStatus(),
+                "Live tracking started — location sharing is now active for authorized parties", null);
+        return logistics;
+    }
+
+    /** Pause location sharing (battery/network saving, driver break, etc.). */
+    @Transactional
+    public Logistics pauseTracking(Long logisticsId, Long userId) {
+        Logistics logistics = findAndVerify(logisticsId, userId);
+        if (logistics.getTrackingStatus() != TrackingStatus.ACTIVE) {
+            throw new BadRequestException("Tracking is not active — nothing to pause");
+        }
+        logistics.setTrackingStatus(TrackingStatus.PAUSED);
+        logisticsRepo.save(logistics);
+        addEvent(logistics, logistics.getStatus(), "Live tracking paused", null);
+        return logistics;
+    }
+
+    /** Resume a paused session. */
+    @Transactional
+    public Logistics resumeTracking(Long logisticsId, Long userId) {
+        Logistics logistics = findAndVerify(logisticsId, userId);
+        if (logistics.getTrackingStatus() != TrackingStatus.PAUSED) {
+            throw new BadRequestException("Tracking is not paused — nothing to resume");
+        }
+        logistics.setTrackingStatus(TrackingStatus.ACTIVE);
+        logisticsRepo.save(logistics);
+        addEvent(logistics, logistics.getStatus(), "Live tracking resumed", null);
+        return logistics;
+    }
+
+    /** End the trip — location sharing stops permanently for this logistics record. */
+    @Transactional
+    public Logistics completeTracking(Long logisticsId, Long userId) {
+        Logistics logistics = findAndVerify(logisticsId, userId);
+        logistics.setTrackingStatus(TrackingStatus.COMPLETED);
+        logistics.setTrackingCompletedAt(LocalDateTime.now());
+        logisticsRepo.save(logistics);
+        addEvent(logistics, logistics.getStatus(), "Trip tracking completed — location sharing stopped", null);
+        return logistics;
+    }
+
+    /**
+     * Update live location (authorized user, ACTIVE session only).
+     * Records a sampled point in the location history and refreshes the
+     * current position + route/ETA against the delivery point.
+     */
+    @Transactional
+    public Logistics updateLocation(Long logisticsId, Long userId, Map<String, Object> body) {
+        Logistics logistics = findAndVerify(logisticsId, userId);
+
+        if (logistics.getTrackingStatus() != TrackingStatus.ACTIVE) {
+            throw new BadRequestException(
+                    "Live tracking is not active — start tracking before sharing location");
+        }
+
+        Double latitude = num(body.get("latitude"));
+        Double longitude = num(body.get("longitude"));
+        if (latitude == null || longitude == null) {
+            throw new BadRequestException("latitude and longitude are required");
+        }
+        Double accuracy = num(body.get("accuracy"));
+        Double speed = num(body.get("speed"));
+        Double heading = num(body.get("heading"));
 
         logistics.setCurrentLatitude(latitude);
         logistics.setCurrentLongitude(longitude);
         logistics.setLastLocationUpdate(LocalDateTime.now());
+        if (accuracy != null) logistics.setLastAccuracy(accuracy);
         logisticsRepo.save(logistics);
+
+        // Sampled point in the location history (bounded display on the frontend)
+        String locDesc = "Vehicle at " + String.format("%.5f,%.5f", latitude, longitude)
+                + (accuracy != null ? " (±" + Math.round(accuracy) + "m)" : "");
+        addEvent(logistics, logistics.getStatus(), "Location update", latitude, longitude);
+
+        // Refresh remaining distance / ETA against the destination
+        return logistics;
     }
+
+    /**
+     * Current route summary: remaining distance/duration from the vehicle's
+     * last known position to the delivery point (or full route if tracking
+     * hasn't started).
+     */
+    public Map<String, Object> getRouteSummary(Long logisticsId, Long userId) {
+        Logistics logistics = findAndVerify(logisticsId, userId);
+
+        Double fromLat = logistics.getCurrentLatitude();
+        Double fromLng = logistics.getCurrentLongitude();
+        Double toLat = logistics.getDeliveryLatitude();
+        Double toLng = logistics.getDeliveryLongitude();
+
+        if (toLat == null || toLng == null) {
+            // No coordinates — fall back to the stored summary from selection time
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("distanceKm", logistics.getRouteDistanceKm());
+            m.put("durationMinutes", logistics.getRouteDurationMinutes());
+            m.put("summary", logistics.getRouteSummary());
+            m.put("caveat", logistics.getRouteCaveat());
+            m.put("provider", logistics.getRouteProvider());
+            m.put("estimatedCost", logistics.getRouteEstimatedCost());
+            m.put("eta", null);
+            return m;
+        }
+
+        if (fromLat == null || fromLng == null) {
+            // Trip hasn't started — full pickup → delivery route
+            if (logistics.getPickupLatitude() != null) {
+                fromLat = logistics.getPickupLatitude();
+                fromLng = logistics.getPickupLongitude();
+            } else {
+                fromLat = logistics.getDeal().getFarmer().getLatitude();
+                fromLng = logistics.getDeal().getFarmer().getLongitude();
+            }
+        }
+
+        RouteEstimate est = routeService.estimateRoute(fromLat, fromLng, toLat, toLng);
+
+        // Cost estimate for the remaining leg (cargo already loaded)
+        int qty = logistics.getDeal().getQuantity() != null ? logistics.getDeal().getQuantity() : 0;
+        Map<String, Object> cost = costService.estimateCost(est, qty);
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("distanceKm", est.getDistanceKm());
+        m.put("durationMinutes", est.getDurationMinutes());
+        m.put("summary", est.getSummary());
+        m.put("eta", est.getEta());
+        m.put("provider", est.getProvider());
+        m.put("caveat", est.getCaveat());
+        m.put("estimatedCost", cost.get("total"));
+        m.put("costPerKg", cost.get("costPerKg"));
+        m.put("fromLat", fromLat);
+        m.put("fromLng", fromLng);
+        m.put("toLat", toLat);
+        m.put("toLng", toLng);
+
+        // Alternative route — a direct-route assumption (straight-line × 1.15)
+        // so the user can see whether a flatter routing would be cheaper.
+        double altKm = RouteService.haversineKm(fromLat, fromLng, toLat, toLng) * 1.15;
+        double altCost = (altKm / 12.0) * 100.0
+                + Math.max(300, 1200.0 * Math.min(1.0, (altKm / 40.0) / 8.0))
+                + altKm * 1.5 + qty * 0.25;
+        double savings = Math.max(0.0, ((Double) cost.get("total")) - altCost);
+
+        Map<String, Object> alt = new LinkedHashMap<>();
+        alt.put("distanceKm", round2(altKm));
+        alt.put("durationMinutes", round1(altKm / 40.0 * 60.0));
+        alt.put("estimatedCost", round2(altCost));
+        alt.put("savings", round2(savings));
+        alt.put("label", "Alternative route estimate (direct-route assumption)");
+        m.put("alternative", alt);
+        return m;
+    }
+
+    /** Recompute + persist the pickup → delivery route and cost estimate. */
+    private void computeAndStoreRoute(Logistics logistics) {
+        Double fromLat = logistics.getPickupLatitude();
+        Double fromLng = logistics.getPickupLongitude();
+        Double toLat = logistics.getDeliveryLatitude();
+        Double toLng = logistics.getDeliveryLongitude();
+
+        if (fromLat == null) fromLat = logistics.getDeal().getFarmer().getLatitude();
+        if (fromLng == null) fromLng = logistics.getDeal().getFarmer().getLongitude();
+        if (toLat == null) toLat = logistics.getDeal().getBuyer().getLatitude();
+        if (toLng == null) toLng = logistics.getDeal().getBuyer().getLongitude();
+
+        if (fromLat == null || toLat == null) return; // no coordinates yet — route later
+
+        RouteEstimate est = routeService.estimateRoute(fromLat, fromLng, toLat, toLng);
+        int qty = logistics.getDeal().getQuantity() != null ? logistics.getDeal().getQuantity() : 0;
+        Map<String, Object> cost = costService.estimateCost(est, qty);
+
+        logistics.setRouteDistanceKm(est.getDistanceKm());
+        logistics.setRouteDurationMinutes(est.getDurationMinutes());
+        logistics.setRouteEstimatedCost((Double) cost.get("total"));
+        logistics.setRouteProvider(est.getProvider());
+        logistics.setRouteSummary(est.getSummary());
+        logistics.setRouteCaveat(est.getCaveat());
+        logistics.setRouteComputedAt(LocalDateTime.now());
+    }
+
+    /**
+     * Multi-stop route optimization — delegates to the nearest-neighbor
+     * heuristic engine (capacity-aware).
+     */
+    public Map<String, Object> optimizeRoute(double[] origin, List<Map<String, Object>> stops, Double capacityKg) {
+        return routeOptimizer.optimize(List.of(origin), stops, capacityKg);
+    }
+
+    /**
+     * Sampled location history for a trip (from LogisticsEvent points).
+     * Bounded to the most recent points — never unbounded growth.
+     */
+    public List<Map<String, Object>> getLocationHistory(Long logisticsId, Long userId) {
+        findAndVerify(logisticsId, userId); // authorization
+        List<Map<String, Object>> points = new ArrayList<>();
+        for (LogisticsEvent ev : eventRepo.findByLogisticsIdOrderByTimestampDesc(logisticsId)) {
+            if (ev.getLatitude() == null || ev.getLongitude() == null) continue;
+            Map<String, Object> p = new LinkedHashMap<>();
+            p.put("latitude", ev.getLatitude());
+            p.put("longitude", ev.getLongitude());
+            p.put("timestamp", ev.getTimestamp());
+            points.add(p);
+            if (points.size() >= 50) break; // bounded
+        }
+        return points;
+    }
+
+    /**
+     * Assign a registered DRIVER account to operate this trip.
+     * Only the deal's farmer or buyer may assign — the driver cannot self-assign.
+     */
+    @Transactional
+    public Logistics assignDriver(Long logisticsId, Long driverUserId, Long actorUserId) {
+        Logistics logistics = logisticsRepo.findById(logisticsId)
+                .orElseThrow(() -> new ResourceNotFoundException("Logistics", "id", logisticsId));
+
+        verifyDealAccess(logistics.getDeal(), actorUserId);
+
+        User driver = users.findById(driverUserId)
+                .orElseThrow(() -> new BadRequestException("Driver account not found"));
+        if (driver.getRole() != User.Role.DRIVER) {
+            throw new BadRequestException("Selected user is not a DRIVER account");
+        }
+
+        logistics.setDriverUserId(driver.getId());
+        logistics.setDriverName(driver.getName());
+        logistics.setDriverPhone(driver.getPhone());
+        logistics = logisticsRepo.save(logistics);
+
+        addEvent(logistics, logistics.getStatus(),
+                "Driver assigned: " + driver.getName() + " (" + driver.getPhone() + ")", null);
+
+        messageService.sendMessage(logistics.getDeal().getFarmer().getId(), logistics.getDeal().getBuyer().getId(),
+                "👨\uD83C\uDFFD\u200D🚚 Driver assigned\nTracking ID: " + logistics.getTrackingId() +
+                "\nDriver: " + driver.getName() + "\nPhone: " + driver.getPhone(),
+                logistics.getDeal().getProduce() != null ? logistics.getDeal().getProduce().getId() : null);
+
+        return logistics;
+    }
+
+    /**
+     * Assigned trips for a driver account (auth-scoped by the JWT identity —
+     * never by a client-supplied id).
+     */
+    public List<Map<String, Object>> getDriverTrips(Long driverUserId) {
+        return logisticsRepo.findByDriverUserId(driverUserId).stream()
+                .map(l -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", l.getId());
+                    m.put("trackingId", l.getTrackingId());
+                    m.put("type", l.getType().name());
+                    m.put("status", l.getStatus() != null ? l.getStatus().name() : "");
+                    m.put("trackingStatus", l.getTrackingStatus() != null ? l.getTrackingStatus().name() : "NOT_STARTED");
+                    m.put("driverName", l.getDriverName() != null ? l.getDriverName() : "");
+                    m.put("driverPhone", l.getDriverPhone() != null ? l.getDriverPhone() : "");
+                    m.put("vehicleNumber", l.getVehicleNumber() != null ? l.getVehicleNumber() : "");
+                    m.put("vehicleType", l.getVehicleType() != null ? l.getVehicleType() : "");
+                    m.put("pickupLocation", l.getPickupLocation() != null ? l.getPickupLocation() : "");
+                    m.put("deliveryLocation", l.getDeliveryLocation() != null ? l.getDeliveryLocation() : "");
+                    m.put("pickupLatitude", l.getPickupLatitude());
+                    m.put("pickupLongitude", l.getPickupLongitude());
+                    m.put("deliveryLatitude", l.getDeliveryLatitude());
+                    m.put("deliveryLongitude", l.getDeliveryLongitude());
+                    m.put("scheduledPickup", l.getScheduledPickup());
+                    m.put("expectedDelivery", l.getExpectedDelivery());
+                    m.put("latitude", l.getCurrentLatitude());
+                    m.put("longitude", l.getCurrentLongitude());
+                    m.put("lastLocationUpdate", l.getLastLocationUpdate());
+                    m.put("lastAccuracy", l.getLastAccuracy());
+                    m.put("trackingStartedAt", l.getTrackingStartedAt());
+                    m.put("trackingCompletedAt", l.getTrackingCompletedAt());
+                    m.put("routeDistanceKm", l.getRouteDistanceKm());
+                    m.put("routeDurationMinutes", l.getRouteDurationMinutes());
+                    m.put("routeEstimatedCost", l.getRouteEstimatedCost());
+                    m.put("routeSummary", l.getRouteSummary());
+                    m.put("routeCaveat", l.getRouteCaveat());
+                    m.put("routeComputedAt", l.getRouteComputedAt());
+
+                    // Deal context for the driver's trip card
+                    Deal deal = l.getDeal();
+                    m.put("dealId", deal.getId());
+                    m.put("dealNumber", deal.getDealId());
+                    m.put("cropName", deal.getProduce() != null && deal.getProduce().getName() != null
+                            ? deal.getProduce().getName()
+                            : (deal.getCropName() != null ? deal.getCropName() : ""));
+                    m.put("quantity", deal.getQuantity());
+                    m.put("unit", deal.getUnit() != null ? deal.getUnit() : "kg");
+                    m.put("farmerName", deal.getFarmer() != null ? deal.getFarmer().getName() : "");
+                    m.put("buyerName", deal.getBuyer() != null ? deal.getBuyer().getName() : "");
+                    m.put("dealStatus", deal.getStatus() != null ? deal.getStatus().name() : "");
+                    return m;
+                })
+                .toList();
+    }
+
+    /**
+     * Fetch + verify a logistics record for tracking operations — the user
+     * must be a deal party OR the assigned driver.
+     */
+    private Logistics findAndVerify(Long logisticsId, Long userId) {
+        Logistics logistics = logisticsRepo.findById(logisticsId)
+                .orElseThrow(() -> new ResourceNotFoundException("Logistics", "id", logisticsId));
+        boolean isParty = logistics.getDeal().getFarmer().getId().equals(userId)
+                || logistics.getDeal().getBuyer().getId().equals(userId);
+        boolean isDriver = logistics.getDriverUserId() != null && logistics.getDriverUserId().equals(userId);
+        if (!isParty && !isDriver) {
+            throw new BadRequestException("You are not part of this deal");
+        }
+        return logistics;
+    }
+
+    private Double num(Object v) {
+        if (v == null) return null;
+        try { return Double.valueOf(v.toString()); } catch (Exception e) { return null; }
+    }
+
+    private double round2(double v) { return Math.round(v * 100.0) / 100.0; }
+    private double round1(double v) { return Math.round(v * 10.0) / 10.0; }
 
     /**
      * Confirm delivery (buyer confirms receipt).
@@ -228,10 +578,9 @@ public class LogisticsService {
 
         confirmation = deliveryRepo.save(confirmation);
 
-        // Complete the deal
-        deal.setStatus(DealStatus.COMPLETED);
-        deal.setCompletedAt(LocalDateTime.now());
-        dealRepo.save(deal);
+        // Complete the deal via the state machine
+        deal = stateMachine.transition(dealId, DealStatus.COMPLETED, userId, "BUYER",
+                "Buyer confirmed delivery — deal completed", null);
 
         // Update logistics
         logisticsRepo.findByDealId(dealId).ifPresent(l -> {
@@ -278,6 +627,17 @@ public class LogisticsService {
                 .status(status)
                 .description(description)
                 .location(location)
+                .build());
+    }
+
+    private void addEvent(Logistics logistics, Logistics.LogisticsStatus status, String description,
+                          Double latitude, Double longitude) {
+        eventRepo.save(LogisticsEvent.builder()
+                .logistics(logistics)
+                .status(status)
+                .description(description)
+                .latitude(latitude)
+                .longitude(longitude)
                 .build());
     }
 

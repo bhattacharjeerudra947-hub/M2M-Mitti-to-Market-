@@ -1,0 +1,21 @@
+{
+  "name": "Mitti2Market — Direct Agri Marketplace",
+  "short_name": "Mitti2Market",
+  "description": "Farmer deal intelligence + marketplace + logistics. Offline-first produce listing for rural networks.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F9F6EE",
+  "theme_color": "#112233",
+  "icons": [
+    {
+      "src": "/logo-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
