@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Phone, Lock, MapPin, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Lock, MapPin, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import M2MLogo from '../components/M2MLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -49,7 +49,6 @@ export default function SignUp() {
     <div className="min-h-screen bg-gradient-to-br from-mustard-50 via-white to-navy-50">
       <div className="max-w-xl mx-auto px-4 py-12">
         <Link to="/" className="inline-flex items-center mb-8"><M2MLogo /></Link>
-        <Link to="/login" className="inline-flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 mb-6 transition"><ArrowLeft className="w-4 h-4" /> Back to Sign In</Link>
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
