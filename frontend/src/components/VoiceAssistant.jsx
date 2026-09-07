@@ -38,6 +38,7 @@ export default function VoiceAssistant() {
   const [textMode, setTextMode] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [location, setLocation] = useState(null);
 
   const recognitionRef = useRef(null);
   const synthRef = useRef(null);
@@ -91,28 +92,105 @@ export default function VoiceAssistant() {
     setIsSpeaking(false);
   }, []);
 
+  const getFarmerLocation = useCallback(() => {
+  return new Promise((resolve) => {
+
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+
+        const coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        setLocation(coords);
+        resolve(coords);
+      },
+
+      (error) => {
+        console.warn(
+          'Location permission/error:',
+          error.message
+        );
+
+        resolve(null);
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
+    );
+  });
+}, []);
+
   /* ── Process query (stable — reads langRef) ── */
   const processQuery = useCallback(async (query) => {
-    const lang = langRef.current;
-    setPhase('processing');
-    setExpanded(true);
 
-    try {
-      const result = await generateResponse(query, lang);
-      const resp = result.text || t_key(lang, 'aiError');
-      setResponse(resp);
-      setChatHistory((prev) => [
-        ...prev,
-        { role: 'user', text: query },
-        { role: 'assistant', text: resp },
-      ]);
-      setPhase('answered');
-      setTimeout(() => speakText(resp), 300);
-    } catch {
-      setPhase('error');
-      setErrorMessage(t_key(lang, 'aiError'));
-    }
-  }, [speakText]);
+  const lang = langRef.current;
+
+  setPhase('processing');
+  setExpanded(true);
+
+  try {
+
+    // Get farmer's location
+    const farmerLocation =
+      await getFarmerLocation();
+
+    const result =
+      await generateResponse(
+        query,
+        lang,
+        farmerLocation
+      );
+
+    const resp =
+      result.text ||
+      t_key(lang, 'aiError');
+
+    setResponse(resp);
+
+    setChatHistory((prev) => [
+      ...prev,
+
+      {
+        role: 'user',
+        text: query,
+      },
+
+      {
+        role: 'assistant',
+        text: resp,
+      },
+    ]);
+
+    setPhase('answered');
+
+    setTimeout(
+      () => speakText(resp),
+      300
+    );
+
+  } catch {
+
+    setPhase('error');
+
+    setErrorMessage(
+      t_key(lang, 'aiError')
+    );
+  }
+
+}, [
+  speakText,
+  getFarmerLocation
+]);
 
   /* ── Start listening (stable — reads langRef + processQueryRef) ── */
   const processQueryRef = useRef(processQuery);
