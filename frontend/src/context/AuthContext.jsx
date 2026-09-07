@@ -17,13 +17,20 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const result = await api.login(email, password);
-    if (result.ok) setUser(result.data.user);
+    if (result.ok) {
+      setUser(result.data.user);
+      // Let the offline sync queue know a session is available
+      window.dispatchEvent(new Event('m2m:login'));
+    }
     return result;
   }, []);
 
   const register = useCallback(async (name, email, phone, password, role, location) => {
     const result = await api.register(name, email, phone, password, role, location);
-    if (result.ok) setUser(result.data.user);
+    if (result.ok) {
+      setUser(result.data.user);
+      window.dispatchEvent(new Event('m2m:login'));
+    }
     return result;
   }, []);
 

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -27,8 +28,25 @@ public class DealService {
     private final ProduceRepository produceRepo;
     private final MessageService messageService;
     private final NotificationService notificationService;
+    private final DealStateMachineService stateMachine;
 
     private static final AtomicLong DEAL_COUNTER = new AtomicLong(10000);
+
+    /**
+     * Seed the deal ID counter from the highest existing deal number on startup,
+     * so restarts never generate duplicate deal IDs.
+     */
+    @PostConstruct
+    public void initCounter() {
+        try {
+            long max = deals.findMaxDealSequence();
+            if (max > 10000) {
+                DEAL_COUNTER.set(max);
+            }
+        } catch (Exception e) {
+            // Table may not exist on first run — ignore
+        }
+    }
 
     /**
      * Farmer or buyer initiates a deal lock request from chat.
@@ -48,17 +66,49 @@ public class DealService {
         Long farmerId = Long.valueOf(details.get("farmerId").toString());
         Long buyerId = Long.valueOf(details.get("buyerId").toString());
         Long produceId = details.get("produceId") != null ? Long.valueOf(details.get("produceId").toString()) : null;
-        String cropName = (String) details.getOrDefault("cropName", "Produce");
         Integer quantity = Integer.valueOf(details.get("quantity").toString());
-        String unit = (String) details.getOrDefault("unit", "kg");
         Double agreedPrice = Double.valueOf(details.get("agreedPrice").toString());
         String pickupLocation = (String) details.getOrDefault("pickupLocation", "");
         String deliveryLocation = (String) details.getOrDefault("deliveryLocation", "");
         String conditions = (String) details.getOrDefault("conditions", "");
 
+        // Optional exact coordinates — default to the parties' saved user locations
+        // when the frontend does not supply them (privacy: only the deal parties
+        // ever see these; marketplace listings stay approximate).
+        Double pickupLat = num(details.get("pickupLatitude"));
+        Double pickupLng = num(details.get("pickupLongitude"));
+        Double deliveryLat = num(details.get("deliveryLatitude"));
+        Double deliveryLng = num(details.get("deliveryLongitude"));
+
         User farmer = users.findById(farmerId).orElseThrow(() -> new ResourceNotFoundException("Farmer", "id", farmerId));
         User buyer = users.findById(buyerId).orElseThrow(() -> new ResourceNotFoundException("Buyer", "id", buyerId));
+
+        if (pickupLat == null) pickupLat = farmer.getLatitude();
+        if (pickupLng == null) pickupLng = farmer.getLongitude();
+        if (deliveryLat == null) deliveryLat = buyer.getLatitude();
+        if (deliveryLng == null) deliveryLng = buyer.getLongitude();
         Produce produce = produceId != null ? produceRepo.findById(produceId).orElse(null) : null;
+
+        // When the deal is tied to a real listing, the listing is the source of truth:
+        // derive the crop name + unit from it so the display name and the reserved
+        // stock can never mismatch (e.g. typing "cabbage" in a Tomato-listing chat).
+        String cropName;
+        String unit;
+        if (produce != null) {
+            cropName = produce.getName();
+            unit = produce.getUnit();
+        } else {
+            cropName = (String) details.getOrDefault("cropName", "Produce");
+            unit = (String) details.getOrDefault("unit", "kg");
+        }
+
+        // Fail fast: never create a deal that can't be locked because the
+        // listing no longer has enough stock. The full reservation still
+        // happens atomically at lock time in reserveQuantity().
+        if (produce != null && quantity > produce.getQuantity()) {
+            throw new BadRequestException("Only " + produce.getQuantity() + " " + produce.getUnit() +
+                    " remains available for " + produce.getName() + ". Deal quantity is " + quantity + " " + unit);
+        }
 
         String dealIdStr = "M2M-" + LocalDateTime.now().getYear() + "-" + (DEAL_COUNTER.incrementAndGet());
 
@@ -74,6 +124,10 @@ public class DealService {
                 .totalAmount(quantity * agreedPrice)
                 .pickupLocation(pickupLocation)
                 .deliveryLocation(deliveryLocation)
+                .pickupLatitude(pickupLat)
+                .pickupLongitude(pickupLng)
+                .deliveryLatitude(deliveryLat)
+                .deliveryLongitude(deliveryLng)
                 .conditions(conditions)
                 .status(DealStatus.LOCK_PENDING)
                 .conversationId(conversationId)
@@ -84,6 +138,12 @@ public class DealService {
         // Create confirmations for both parties
         confirmations.save(DealConfirmation.builder().deal(deal).user(farmer).confirmed(false).build());
         confirmations.save(DealConfirmation.builder().deal(deal).user(buyer).confirmed(false).build());
+
+        // Audit trail
+        stateMachine.recordEvent(deal.getId(), "DEAL_CREATED", user.getId(),
+                user.getId().equals(farmerId) ? "FARMER" : "BUYER",
+                user.getName() + " initiated a deal for " + quantity + " " + unit + " of " + cropName +
+                        " @ ₹" + agreedPrice + "/" + unit, null);
 
         // Send system message about deal lock request
         sendDealMessage(conversationId, "🔒 Deal Lock Requested\nDeal ID: " + dealIdStr + "\n" +
@@ -125,13 +185,19 @@ public class DealService {
         conf.setConfirmedAt(LocalDateTime.now());
         confirmations.save(conf);
 
+        // Audit trail for this confirmation
+        String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
+        stateMachine.recordEvent(dealId, actorRole + "_CONFIRMED", userId, actorRole,
+                actorRole.charAt(0) + actorRole.substring(1).toLowerCase() + " confirmed the final agreement", null);
+
         // Check if both parties confirmed
         long confirmedCount = confirmations.countByDealIdAndConfirmedTrue(dealId);
         if (confirmedCount >= 2) {
-            // Both confirmed → lock the deal
-            deal.setStatus(DealStatus.LOCKED);
-            deal.setLockedAt(LocalDateTime.now());
-            deals.save(deal);
+            // Both confirmed → reserve quantity and lock the deal
+            reserveQuantity(deal);
+
+            deal = stateMachine.transition(dealId, DealStatus.LOCKED, userId, actorRole,
+                    "Deal locked — both parties confirmed the agreement", null);
 
             sendDealMessage(deal.getConversationId(), "🔒 Deal Locked!\nDeal ID: " + deal.getDealId() +
                     "\n" + deal.getQuantity() + " " + deal.getUnit() + " " + deal.getCropName() +
@@ -146,6 +212,110 @@ public class DealService {
         } else {
             sendDealMessage(deal.getConversationId(), "⏳ " + (userId.equals(deal.getFarmer().getId()) ? "Farmer" : "Buyer") + " has confirmed the deal. Waiting for the other party to confirm.");
         }
+
+        return deal;
+    }
+
+    /**
+     * Reserve (deduct) the deal quantity from the produce listing.
+     * Prevents overselling when multiple buyers try to lock the same produce.
+     * The locked deal keeps its own snapshot of terms.
+     */
+    private void reserveQuantity(Deal deal) {
+        if (deal.getProduce() == null || deal.getQuantity() == null) return;
+
+        Produce produce = deal.getProduce();
+        if (produce.getQuantity() < deal.getQuantity()) {
+            throw new BadRequestException("Only " + produce.getQuantity() + " " + deal.getUnit() +
+                    " remains available for " + produce.getName() + ". Deal quantity is " + deal.getQuantity() + " " + deal.getUnit());
+        }
+
+        int remaining = produce.getQuantity() - deal.getQuantity();
+        produce.setQuantity(remaining);
+        if (remaining == 0) {
+            produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
+        } else if (remaining < 50) {
+            produce.setStatus(Produce.ProduceStatus.LOW_STOCK);
+        }
+        produceRepo.save(produce);
+
+        stateMachine.recordEvent(deal.getId(), "QUANTITY_RESERVED", null, "SYSTEM",
+                "Reserved " + deal.getQuantity() + " " + deal.getUnit() + " of " + produce.getName() +
+                        " (" + remaining + " " + deal.getUnit() + " remaining)", null);
+    }
+
+    /**
+     * Restore the reserved quantity when a locked (or later) deal is cancelled.
+     */
+    private void restoreQuantity(Deal deal) {
+        if (deal.getProduce() == null || deal.getQuantity() == null) return;
+        if (deal.getStatus() == DealStatus.LOCK_PENDING || deal.getStatus() == DealStatus.NEGOTIATING) return;
+
+        Produce produce = deal.getProduce();
+        int restored = produce.getQuantity() + deal.getQuantity();
+        produce.setQuantity(restored);
+        if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || produce.getStatus() == Produce.ProduceStatus.LOW_STOCK) {
+            produce.setStatus(Produce.ProduceStatus.AVAILABLE);
+        }
+        produceRepo.save(produce);
+    }
+
+    /**
+     * Amend the terms of an existing (possibly locked) deal.
+     * Only called through the structured-offer flow — the change is
+     * recorded, notified to both parties, and the amendment counter is bumped.
+     * Locked terms are never changed silently.
+     */
+    @Transactional
+    public Deal applyAmendment(Long dealId, String cropName, Integer quantity, String unit, Double agreedPrice) {
+        Deal deal = deals.findById(dealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deal", "id", dealId));
+
+        if (deal.getStatus() == DealStatus.COMPLETED || deal.getStatus() == DealStatus.CANCELLED) {
+            throw new BadRequestException("Cannot amend a " + deal.getStatus().name().toLowerCase() + " deal");
+        }
+
+        String oldTerms = deal.getQuantity() + " " + deal.getUnit() + " @ ₹" + deal.getAgreedPrice() + "/" + deal.getUnit();
+
+        // If the locked deal's quantity changed, adjust the reserved quantity on the produce listing
+        if (deal.getProduce() != null && deal.getStatus() != DealStatus.LOCK_PENDING && quantity != null
+                && !quantity.equals(deal.getQuantity())) {
+            int delta = quantity - deal.getQuantity();
+            Produce produce = deal.getProduce();
+            if (delta > 0 && produce.getQuantity() < delta) {
+                throw new BadRequestException("Only " + produce.getQuantity() + " " + deal.getUnit() +
+                        " additional stock available. Cannot increase deal quantity to " + quantity + " " + deal.getUnit());
+            }
+            int remaining = produce.getQuantity() - delta;
+            produce.setQuantity(remaining);
+            produce.setStatus(remaining == 0 ? Produce.ProduceStatus.SOLD_OUT
+                    : remaining < 50 ? Produce.ProduceStatus.LOW_STOCK : Produce.ProduceStatus.AVAILABLE);
+            produceRepo.save(produce);
+        }
+
+        deal.setCropName(cropName != null ? cropName : deal.getCropName());
+        deal.setQuantity(quantity);
+        deal.setUnit(unit);
+        deal.setAgreedPrice(agreedPrice);
+        deal.setTotalAmount(quantity * agreedPrice);
+        deal.setAmendedAt(LocalDateTime.now());
+        deal.setAmendmentCount((deal.getAmendmentCount() == null ? 0 : deal.getAmendmentCount()) + 1);
+        deals.save(deal);
+
+        String newTerms = quantity + " " + unit + " @ ₹" + agreedPrice + "/" + unit;
+        sendDealMessage(deal.getConversationId(), "✏️ Deal Amended (" + deal.getAmendmentCount() + ")\nDeal ID: " + deal.getDealId() +
+                "\nTerms changed from: " + oldTerms +
+                "\nNew terms: " + newTerms +
+                "\nNew total: ₹" + String.format("%,.0f", deal.getTotalAmount()) +
+                "\n\nLocked deal terms updated after mutual agreement.");
+
+        notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_LOCKED,
+                "Deal Amended", "Deal " + deal.getDealId() + " terms updated to " + newTerms + " (total ₹" + String.format("%,.0f", deal.getTotalAmount()) + ")");
+        notificationService.createNotification(deal.getBuyer().getId(), Notification.NotificationType.DEAL_LOCKED,
+                "Deal Amended", "Deal " + deal.getDealId() + " terms updated to " + newTerms + " (total ₹" + String.format("%,.0f", deal.getTotalAmount()) + ")");
+
+        stateMachine.recordEvent(dealId, "AMENDMENT_ACCEPTED", null, "SYSTEM",
+                "Terms changed from " + oldTerms + " to " + newTerms + " after mutual agreement", null);
 
         return deal;
     }
@@ -166,8 +336,12 @@ public class DealService {
             throw new BadRequestException("Cannot cancel a completed deal");
         }
 
-        deal.setStatus(DealStatus.CANCELLED);
-        deals.save(deal);
+        // Restore reserved quantity if the deal had been locked
+        restoreQuantity(deal);
+
+        String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
+        deal = stateMachine.transition(dealId, DealStatus.CANCELLED, userId, actorRole,
+                "Deal cancelled", null);
 
         sendDealMessage(deal.getConversationId(), "❌ Deal " + deal.getDealId() + " has been cancelled.");
 
@@ -195,6 +369,12 @@ public class DealService {
                 .orElse(null);
     }
 
+    /** Return the id of an active deal for a conversation, or null. */
+    public Long findActiveDealIdByConversation(String conversationId) {
+        Deal active = getDealByConversation(conversationId);
+        return active != null ? active.getId() : null;
+    }
+
     public List<Deal> getFarmerDeals(Long farmerId) {
         return deals.findByFarmerIdOrderByCreatedAtDesc(farmerId);
     }
@@ -205,6 +385,12 @@ public class DealService {
 
     public List<Deal> getAllDealsForUser(Long userId) {
         return deals.findAllByUserId(userId);
+    }
+
+    /** Parse a number from an untrusted request value, tolerating null/empty. */
+    private Double num(Object v) {
+        if (v == null) return null;
+        try { return Double.valueOf(v.toString()); } catch (Exception e) { return null; }
     }
 
     /**
@@ -225,12 +411,18 @@ public class DealService {
         resp.put("totalAmount", deal.getTotalAmount());
         resp.put("pickupLocation", deal.getPickupLocation());
         resp.put("deliveryLocation", deal.getDeliveryLocation());
+        resp.put("pickupLatitude", deal.getPickupLatitude());
+        resp.put("pickupLongitude", deal.getPickupLongitude());
+        resp.put("deliveryLatitude", deal.getDeliveryLatitude());
+        resp.put("deliveryLongitude", deal.getDeliveryLongitude());
         resp.put("conditions", deal.getConditions());
         resp.put("status", deal.getStatus().name());
         resp.put("conversationId", deal.getConversationId());
         resp.put("createdAt", deal.getCreatedAt());
         resp.put("lockedAt", deal.getLockedAt());
         resp.put("completedAt", deal.getCompletedAt());
+        resp.put("amendedAt", deal.getAmendedAt());
+        resp.put("amendmentCount", deal.getAmendmentCount());
 
         // Confirmation status
         List<DealConfirmation> confs = confirmations.findByDealId(deal.getId());

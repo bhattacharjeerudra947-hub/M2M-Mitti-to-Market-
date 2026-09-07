@@ -3,9 +3,12 @@ package com.mitti2market.controller;
 import com.mitti2market.config.TokenService;
 import com.mitti2market.dto.ApiResponse;
 import com.mitti2market.model.Message;
+import com.mitti2market.service.MessageEventService;
 import com.mitti2market.service.MessageService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -15,11 +18,42 @@ import java.util.Map;
 public class MessageController {
 
     private final MessageService messageService;
+    private final MessageEventService messageEventService;
     private final TokenService tokens;
 
-    public MessageController(MessageService messageService, TokenService tokens) {
+    public MessageController(MessageService messageService, MessageEventService messageEventService, TokenService tokens) {
         this.messageService = messageService;
+        this.messageEventService = messageEventService;
         this.tokens = tokens;
+    }
+
+    /**
+     * Real-time message stream (Server-Sent Events).
+     * EventSource cannot send an Authorization header, so the token is accepted
+     * as a query parameter and validated here.
+     */
+    @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamEvents(
+            @RequestParam(required = false) String token,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = null;
+        if (token != null && !token.isBlank()) {
+            userId = tokens.validateAccessToken(token);
+        }
+        if (userId == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+            userId = tokens.validateAccessToken(authHeader.substring(7));
+        }
+        if (userId == null) {
+            SseEmitter emitter = new SseEmitter(0L);
+            try {
+                emitter.send(SseEmitter.event().name("error").data("Not authenticated"));
+            } catch (Exception ignored) {}
+            emitter.complete();
+            return emitter;
+        }
+
+        return messageEventService.subscribe(userId);
     }
 
     /** Send a message */

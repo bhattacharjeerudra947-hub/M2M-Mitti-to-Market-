@@ -1,10 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
 import { useAuth } from '../context/AuthContext';
 import { getMyDocuments } from '../services/api';
+import { isLowDataMode, toggleLowDataMode, onLowDataModeChange } from '../utils/lowDataMode';
+import SyncStatusBar from './SyncStatusBar';
 
 const farmerLinks = [
   { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
@@ -12,10 +14,18 @@ const farmerLinks = [
   { to: '/farmer/add-produce', icon: PlusCircle, label: 'Add Produce' },
   { to: '/farmer/price-advisor', icon: Brain, label: 'AI Price Advisor' },
   { to: '/farmer/buyer-requests', icon: ShoppingCart, label: 'Buyer Requests' },
+  { to: '/farmer/deal-advisor', icon: Trophy, label: 'AI Deal Advisor' },
   { to: '/farmer/orders', icon: ClipboardList, label: 'Orders' },
   { to: '/farmer/earnings', icon: Wallet, label: 'Earnings' },
   { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/farmer/deals', icon: Package, label: 'My Deals' },
+  { to: '/farmer/offline-drafts', icon: Save, label: 'Offline Drafts' },
+  { to: '/locations', icon: MapPin, label: 'Live Locations' },
+];
+
+const driverLinks = [
+  { to: '/driver', icon: LayoutDashboard, label: 'My Trips' },
+  { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
 const businessLinks = [
@@ -23,12 +33,14 @@ const businessLinks = [
   { to: '/business/browse', icon: Search, label: 'Browse Produce' },
   { to: '/business/find-farmers', icon: User, label: 'Find Farmers' },
   { to: '/business/bulk-order', icon: FileText, label: 'Bulk Orders' },
+  { to: '/business/requirements', icon: ClipboardCheck, label: 'My Requirements' },
   { to: '/business/orders', icon: ClipboardList, label: 'My Orders' },
   { to: '/business/suppliers', icon: Heart, label: 'Saved Suppliers' },
   { to: '/business/insights', icon: TrendingUp, label: 'Market Insights' },
   { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/business/deals', icon: Package, label: 'My Purchases' },
+  { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
 export default function Sidebar({ role = 'farmer' }) {
@@ -39,10 +51,14 @@ export default function Sidebar({ role = 'farmer' }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+  const [lowData, setLowData] = useState(isLowDataMode());
 
-  const links = role === 'farmer' ? farmerLinks : businessLinks;
-  const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
-  const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
+  // React to low-data-mode changes from anywhere
+  useEffect(() => onLowDataModeChange(setLowData), []);
+
+  const links = role === 'farmer' ? farmerLinks : role === 'driver' ? driverLinks : businessLinks;
+  const profileName = user?.name || (role === 'farmer' ? 'Farmer' : role === 'driver' ? 'Driver' : 'Business');
+  const profileIcon = role === 'farmer' ? '👨‍🌾' : role === 'driver' ? '🚚' : '🏪';
 
   useEffect(() => {
     async function loadPhoto() {
@@ -92,7 +108,9 @@ export default function Sidebar({ role = 'farmer' }) {
         {links.map((link) => <NavLink key={link.to} {...link} />)}
       </div>
 
-      <div className="border-t border-navy-100 p-3 space-y-0.5">
+      <div className="border-t border-navy-100 p-3 space-y-2">
+        <SyncStatusBar role={role} />
+        <div className="space-y-0.5">
         <Link to="/profile" onClick={() => setMobileOpen(false)}>
           <NavLink to="/profile" icon={User} label="Profile" />
         </Link>
@@ -101,10 +119,18 @@ export default function Sidebar({ role = 'farmer' }) {
           <span>Notifications</span>
           {showNotifications && <span className="ml-1 text-[10px] text-navy-400">(open)</span>}
         </button>
+        <button onClick={() => { toggleLowDataMode(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${lowData ? 'bg-mustard-50 text-mustard-800 border border-mustard-200' : 'text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900'}`}>
+          <span className="text-base">📶</span>
+          <span className="flex-1 text-left">Low Data Mode</span>
+          <span className={`w-8 h-4.5 rounded-full transition ${lowData ? 'bg-mustard-400' : 'bg-gray-300'}`} style={{ position: 'relative', height: '18px', width: '32px' }}>
+            <span className="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all" style={{ left: lowData ? '16px' : '2px' }} />
+          </span>
+        </button>
         <button onClick={() => setShowLogoutModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-red-50 hover:text-red-600 transition-all">
           <LogOut className="w-5 h-5 text-navy-400" />
           Logout
         </button>
+        </div>
       </div>
     </div>
   );

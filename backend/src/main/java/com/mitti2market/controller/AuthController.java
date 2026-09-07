@@ -6,6 +6,7 @@ import com.mitti2market.model.User;
 import com.mitti2market.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -16,10 +17,12 @@ public class AuthController {
 
     private final UserRepository users;
     private final TokenService tokens;
+    private final PasswordEncoder passwordEncoder;
 
-    public AuthController(UserRepository users, TokenService tokens) {
+    public AuthController(UserRepository users, TokenService tokens, PasswordEncoder passwordEncoder) {
         this.users = users;
         this.tokens = tokens;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /** POST /api/auth/register */
@@ -33,14 +36,14 @@ public class AuthController {
         try {
             role = User.Role.valueOf(req.getRole().toUpperCase());
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid role. Must be FARMER or BUSINESS"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid role. Must be FARMER, BUSINESS or DRIVER"));
         }
 
         User user = User.builder()
                 .name(req.getName().trim())
                 .email(req.getEmail().toLowerCase().trim())
                 .phone(req.getPhone())
-                .passwordHash(req.getPassword())  // stored as plaintext
+                .passwordHash(passwordEncoder.encode(req.getPassword()))  // BCrypt hashed
                 .role(role)
                 .location(req.getLocation())
                 .verified(false)
@@ -60,7 +63,7 @@ public class AuthController {
                 .build());
     }
 
-    /** POST /api/auth/login — email + plaintext password */
+    /** POST /api/auth/login — email + BCrypt password */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         var userOpt = users.findByEmail(req.getEmail().toLowerCase().trim());
@@ -70,8 +73,27 @@ public class AuthController {
 
         User user = userOpt.get();
 
-        // Compare plaintext password directly
-        if (user.getPasswordHash() == null || !user.getPasswordHash().equals(req.getPassword())) {
+        // Accept both BCrypt and legacy plaintext passwords during migration.
+        // Once all users are re-hashed, remove the plaintext fallback.
+        String stored = user.getPasswordHash();
+        if (stored == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
+        }
+
+        boolean matches;
+        if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
+            // BCrypt hash
+            matches = passwordEncoder.matches(req.getPassword(), stored);
+        } else {
+            // Legacy plaintext — verify then re-hash in place
+            matches = stored.equals(req.getPassword());
+            if (matches) {
+                user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+                users.save(user);
+            }
+        }
+
+        if (!matches) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
         }
 

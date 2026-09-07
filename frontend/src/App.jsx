@@ -35,6 +35,13 @@ import FarmerRegistration from './pages/FarmerRegistration';
 import BusinessRegistration from './pages/BusinessRegistration';
 import Chat from './pages/Chat';
 import MyDeals from './pages/MyDeals';
+import DealWorkspace from './pages/DealWorkspace';
+import OfflineDrafts from './pages/OfflineDrafts';
+import DealAdvisor from './pages/DealAdvisor';
+import BuyerRequirements from './pages/BuyerRequirements';
+import MessagePopup from './components/MessagePopup';
+import Locations from './pages/Locations';
+import DriverDashboard from './pages/DriverDashboard';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -130,6 +137,7 @@ export default function App() {
       <ScrollToTop />
       <AutoRotateSections />
       <AuthProvider>
+        <MessagePopup />
         <RouteFade>
         <Routes>
           {/* Public routes */}
@@ -157,12 +165,24 @@ export default function App() {
             <Route path="add-produce" element={<AddProduce />} />
             <Route path="price-advisor" element={<PriceAdvisorPage />} />
             <Route path="buyer-requests" element={<BuyerRequests />} />
+            <Route path="deal-advisor" element={<DealAdvisor />} />
             <Route path="orders" element={<FarmerOrders />} />
             <Route path="logistics" element={<FarmerLogistics />} />
             <Route path="earnings" element={<FarmerEarnings />} />
             <Route path="chat" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
+            <Route path="deals" element={<MyDeals />} />
+            <Route path="offline-drafts" element={<OfflineDrafts />} />
           </Route>
+
+          {/* Driver Routes */}
+          <Route path="/driver" element={<ProtectedRoute role="driver"><DriverDashboard /></ProtectedRoute>} />
+
+          {/* Deal Workspace — shared by farmer & buyer */}
+          <Route path="/deal/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
+
+          {/* Live Locations — shared by farmer & buyer */}
+          <Route path="/locations" element={<ProtectedRoute><Locations /></ProtectedRoute>} />
 
           {/* Business Routes — protected by role */}
           <Route path="/business" element={<ProtectedRoute role="business"><Outlet /></ProtectedRoute>}>
@@ -170,6 +190,7 @@ export default function App() {
             <Route path="browse" element={<Marketplace />} />
             <Route path="product/:id" element={<ProductDetails />} />
             <Route path="bulk-order" element={<BulkOrder />} />
+            <Route path="requirements" element={<BuyerRequirements />} />
             <Route path="insights" element={<MarketInsights />} />
             <Route path="logistics" element={<BusinessLogistics />} />
             <Route path="orders" element={<BusinessOrders />} />
