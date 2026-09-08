@@ -42,6 +42,8 @@ import BuyerRequirements from './pages/BuyerRequirements';
 import MessagePopup from './components/MessagePopup';
 import Locations from './pages/Locations';
 import DriverDashboard from './pages/DriverDashboard';
+import RoleChoiceModal from './components/RoleChoiceModal';
+import AuthRequiredModal from './components/AuthRequiredModal';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -138,6 +140,8 @@ export default function App() {
       <AutoRotateSections />
       <AuthProvider>
         <MessagePopup />
+        <RoleChoiceModal />
+        <AuthRequiredModal />
         <RouteFade>
         <Routes>
           {/* Public routes */}

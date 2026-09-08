@@ -31,7 +31,7 @@ const QUICK_ACTIONS = [
 ];
 
 export default function FarmerDashboard() {
-  const { user } = useAuth();
+  const { user, isGuestModeActive, openAuthRequired } = useAuth();
   const firstName = user?.name?.split(' ')[0] || 'Farmer';
   const { language } = useFarmerLanguage();
   const greetKey = getGreetingKey();
@@ -88,7 +88,10 @@ export default function FarmerDashboard() {
                 return (
                   <button
                     key={action.key}
-                    onClick={() => setActiveView(isActive ? 'dashboard' : action.key)}
+                    onClick={() => {
+                      if (isGuestModeActive) { openAuthRequired(); return; }
+                      setActiveView(isActive ? 'dashboard' : action.key);
+                    }}
                     className={`relative overflow-hidden group p-4 sm:p-5 rounded-2xl text-left transition-all duration-200 ${
                       isActive
                         ? `bg-gradient-to-br ${action.color} text-white shadow-xl ${action.shadow} scale-[1.02]`
@@ -212,7 +215,16 @@ export default function FarmerDashboard() {
 
               {/* Voice Assistant + Recommendations */}
               <div className="grid lg:grid-cols-2 gap-6 mb-8">
-                <VoiceAssistant />
+                {isGuestModeActive ? (
+                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 flex flex-col items-center justify-center text-center">
+                    <span className="text-3xl mb-3">🎤</span>
+                    <p className="text-sm font-semibold text-navy-900 mb-1">Voice Assistant</p>
+                    <p className="text-xs text-navy-500 mb-3">Sign in to use AI voice assistant</p>
+                    <button onClick={openAuthRequired} className="px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-xl hover:bg-navy-800 transition">Sign In to Use</button>
+                  </div>
+                ) : (
+                  <VoiceAssistant />
+                )}
                 <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
                   <h3 className="text-sm font-bold text-navy-900 mb-3">
                     💡 {language === 'hi' ? 'AI सिफारिशें' : 'AI Recommendations'}
@@ -250,7 +262,16 @@ export default function FarmerDashboard() {
               {/* Price Advisor + Notifications */}
               <div className="grid lg:grid-cols-3 gap-6 mb-8">
                 <div className="lg:col-span-2">
-                  <PriceAdvisor />
+                  {isGuestModeActive ? (
+                    <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 flex flex-col items-center justify-center text-center min-h-[200px]">
+                      <span className="text-3xl mb-3">🧠</span>
+                      <p className="text-sm font-semibold text-navy-900 mb-1">AI Price Advisor</p>
+                      <p className="text-xs text-navy-500 mb-3">Sign in to get personalized pricing advice</p>
+                      <button onClick={openAuthRequired} className="px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-xl hover:bg-navy-800 transition">Sign In to Use</button>
+                    </div>
+                  ) : (
+                    <PriceAdvisor />
+                  )}
                 </div>
                 <div>
                   <NotificationPanel />
