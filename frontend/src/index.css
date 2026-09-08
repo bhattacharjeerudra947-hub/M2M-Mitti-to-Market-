@@ -111,7 +111,10 @@ body {
   height: 50px;
 }
 
-/* Subtle fade between routes (auto-rotation and manual navigation) */
+/* Subtle fade between routes (auto-rotation and manual navigation).
+   Opacity only — a persisted transform on this wrapper would become the
+   containing block for position:fixed descendants (e.g. modals) and anchor
+   them to the page instead of the viewport. */
 .route-enter {
   animation: route-fade-in 0.45s ease-out both;
 }
@@ -119,11 +122,9 @@ body {
 @keyframes route-fade-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
