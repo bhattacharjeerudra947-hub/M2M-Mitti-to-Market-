@@ -28,6 +28,17 @@ public class Produce {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "listed_quantity")
+    private Integer listedQuantity;
+
+    @Column(name = "reserved_quantity")
+    @Builder.Default
+    private Integer reservedQuantity = 0;
+
+    @Column(name = "sold_quantity")
+    @Builder.Default
+    private Integer soldQuantity = 0;
+
     @Column(nullable = false)
     private String unit;
 
@@ -57,6 +68,13 @@ public class Produce {
     @Builder.Default
     private ProduceStatus status = ProduceStatus.AVAILABLE;
 
+    @Column(name = "admin_removal_reason", columnDefinition = "TEXT")
+    private String adminRemovalReason;
+
+    private LocalDateTime removedAt;
+
+    private String removedBy;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -64,6 +82,9 @@ public class Produce {
 
     @PrePersist
     protected void onCreate() {
+        if (this.listedQuantity == null && this.quantity != null) {
+            this.listedQuantity = this.quantity;
+        }
         this.createdAt = LocalDateTime.now();
     }
 
@@ -73,9 +94,15 @@ public class Produce {
     }
 
     public enum ProduceStatus {
+        DRAFT,
         AVAILABLE,
         LOW_STOCK,
+        PARTIALLY_SOLD,
         SOLD_OUT,
-        INACTIVE
+        INACTIVE,
+        EXPIRED,
+        PAUSED,
+        REMOVED,
+        ADMIN_REMOVED
     }
 }

@@ -23,9 +23,11 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final com.mitti2market.repository.UserRepository userRepository;
 
-    public JwtAuthFilter(JwtUtil jwtUtil) {
+    public JwtAuthFilter(JwtUtil jwtUtil, com.mitti2market.repository.UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -40,13 +42,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             Long userId = jwtUtil.validateAccessToken(token);
 
             if (userId != null) {
-                String role = jwtUtil.extractRole(token);
+                var userOpt = userRepository.findById(userId);
+                if (userOpt.isPresent()) {
+                    var user = userOpt.get();
+                    if (user.getStatus() == com.mitti2market.model.User.UserStatus.SUSPENDED
+                            || user.getStatus() == com.mitti2market.model.User.UserStatus.DEACTIVATED) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Account is suspended or deactivated\"}");
+                        return;
+                    }
 
-                // Create authentication token with ROLE_ prefix for Spring Security
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "USER")));
-                var auth = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                    String role = user.getRole() != null ? user.getRole().name() : jwtUtil.extractRole(token);
 
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                    // Create authentication token with ROLE_ prefix for Spring Security
+                    var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "USER")));
+                    var auth = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             }
         }
 

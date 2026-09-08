@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Phone, Lock, MapPin, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Lock, MapPin, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import M2MLogo from '../components/M2MLogo';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,7 +37,7 @@ export default function SignUp() {
     const result = await register(form.name, form.email, form.phone, form.password, form.role, form.location);
     setLoading(false);
     if (result.ok) {
-      navigate(form.role === 'farmer' ? '/farmer' : '/business', { replace: true });
+      navigate(form.role === 'farmer' ? '/farmer' : form.role === 'driver' ? '/driver' : '/business', { replace: true });
     } else {
       setError(result.error || 'Registration failed. Please try again.');
     }
@@ -49,7 +49,6 @@ export default function SignUp() {
     <div className="min-h-screen bg-gradient-to-br from-mustard-50 via-white to-navy-50">
       <div className="max-w-xl mx-auto px-4 py-12">
         <Link to="/" className="inline-flex items-center mb-8"><M2MLogo /></Link>
-        <Link to="/login" className="inline-flex items-center gap-2 text-sm text-navy-600 hover:text-navy-800 mb-6 transition"><ArrowLeft className="w-4 h-4" /> Back to Sign In</Link>
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
@@ -63,8 +62,8 @@ export default function SignUp() {
             {/* Role selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
-              <div className="grid grid-cols-2 gap-3">
-                {[{ value: 'farmer', emoji: '👨‍🌾', label: 'Farmer' }, { value: 'business', emoji: '🏪', label: 'Business' }].map((r) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[{ value: 'farmer', emoji: '👨‍🌾', label: 'Farmer' }, { value: 'business', emoji: '🏪', label: 'Business' }, { value: 'driver', emoji: '🚚', label: 'Driver' }].map((r) => (
                   <button key={r.value} type="button" onClick={() => update('role', r.value)} className={`p-4 rounded-xl border-2 text-left transition ${form.role === r.value ? 'border-mustard-400 bg-mustard-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <span className="text-2xl block mb-1">{r.emoji}</span>
                     <span className="text-sm font-semibold text-gray-900">{r.label}</span>

@@ -5,6 +5,7 @@ import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCir
 import { useAuth } from '../context/AuthContext';
 import { optimizeImage } from '../utils/lowDataMode';
 import { apiGet, apiPost } from '../api';
+import ReportModal from '../components/ReportModal';
 
 const categoryEmoji = {
   Fruits: '🍎', Vegetables: '🥬', Spices: '🌶️', Grains: '🌾', Dairy: '🥛',
@@ -22,6 +23,7 @@ export default function ProductDetails() {
   const [offerPrice, setOfferPrice] = useState('');
   const [offerQuantity, setOfferQuantity] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -274,7 +276,25 @@ export default function ProductDetails() {
                   Message Farmer
                 </Link>
               )}
+
+              {/* Report listing — available to any signed-in viewer (not the owner) */}
+              {user && product.farmerId !== user.id && (
+                <button
+                  onClick={() => setShowReportModal(true)}
+                  className="mt-4 w-full py-2 text-xs text-gray-400 hover:text-red-600 transition"
+                >
+                  🚩 Report this listing
+                </button>
+              )}
             </div>
+
+            <ReportModal
+              isOpen={showReportModal}
+              onClose={() => setShowReportModal(false)}
+              targetType="PRODUCE"
+              targetId={product.id}
+              targetName={product.cropName || product.name}
+            />
           </div>
         </div>
       </main>
