@@ -8,8 +8,24 @@ import { apiGet, apiPost } from '../api';
 const FALLBACK_CROPS = ['Tomato', 'Onion', 'Potato', 'Rice', 'Wheat', 'Chilli', 'Mango', 'Grapes'];
 
 export default function BulkOrder() {
-  const { user } = useAuth();
+  const { user, isGuestModeActive, openAuthRequired } = useAuth();
   const navigate = useNavigate();
+
+  if (isGuestModeActive) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="business" />
+        <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
+          <div className="text-center">
+            <span className="text-4xl block mb-4">📋</span>
+            <p className="text-lg font-semibold text-gray-700 mb-2">Sign in to place bulk orders</p>
+            <p className="text-sm text-gray-500 mb-4">You need an account to create and manage bulk orders.</p>
+            <button onClick={openAuthRequired} className="px-6 py-3 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition">Sign In</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
   const [cropOptions, setCropOptions] = useState(FALLBACK_CROPS);
   const [form, setForm] = useState({
     product: '', quantity: '', targetPrice: '', requiredBy: '',

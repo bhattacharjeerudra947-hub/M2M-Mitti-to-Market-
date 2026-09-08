@@ -19,13 +19,16 @@ const marketInsights = [
 ];
 
 export default function BusinessDashboard() {
-  const { user } = useAuth();
+  const { user, isGuestModeActive } = useAuth();
   const displayName = user?.name?.split(' ')[0] || 'Business';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     apiGet(`/api/orders/buyer/${user.id}`)
       .then((data) => setOrders(data || []))
       .catch(() => setOrders([]))
@@ -43,7 +46,11 @@ export default function BusinessDashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-navy-900">Good morning, {displayName} 👋</h1>
-            <p className="text-navy-500 mt-1">Here's your purchasing and sourcing overview.</p>
+            <p className="text-navy-500 mt-1">
+              {isGuestModeActive
+                ? 'You are exploring as a guest. Sign in to unlock all features.'
+                : "Here's your purchasing and sourcing overview."}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -100,7 +107,11 @@ export default function BusinessDashboard() {
               {loading ? (
                 <div className="text-center py-8"><div className="animate-spin w-6 h-6 border-4 border-navy-900 border-t-transparent rounded-full mx-auto" /></div>
               ) : orders.length === 0 ? (
-                <p className="text-sm text-gray-500 py-8">No orders yet. Browse the marketplace to place your first order.</p>
+                <p className="text-sm text-gray-500 py-8">
+                  {isGuestModeActive
+                    ? 'Sign in to view your orders and purchasing history.'
+                    : 'No orders yet. Browse the marketplace to place your first order.'}
+                </p>
               ) : (
                 <div className="space-y-4">
                   {orders.slice(0, 5).map((order) => (

@@ -27,7 +27,23 @@ const STATUS_FLOW = ['LOCK_PENDING','LOCKED','LOGISTICS_PENDING','LOGISTICS_ASSI
   'PICKUP_SCHEDULED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','COMPLETED'];
 
 export default function MyDeals() {
-  const { user } = useAuth();
+  const { user, isGuestModeActive, openAuthRequired } = useAuth();
+
+  if (isGuestModeActive) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="farmer" />
+        <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
+          <div className="text-center">
+            <span className="text-4xl block mb-4">🤝</span>
+            <p className="text-lg font-semibold text-gray-700 mb-2">Sign in to view your deals</p>
+            <p className="text-sm text-gray-500 mb-4">You need an account to manage deals.</p>
+            <button onClick={openAuthRequired} className="px-6 py-3 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition">Sign In</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
   const navigate = useNavigate();
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);

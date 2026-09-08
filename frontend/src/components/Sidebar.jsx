@@ -23,6 +23,17 @@ const farmerLinks = [
   { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
+// Links that require authentication in guest mode (farmer)
+const farmerGuestRestricted = new Set([
+  '/farmer/add-produce',
+  '/farmer/price-advisor',
+  '/farmer/deal-advisor',
+  '/farmer/chat',
+  '/farmer/deals',
+  '/farmer/offline-drafts',
+  '/locations',
+]);
+
 const driverLinks = [
   { to: '/driver', icon: LayoutDashboard, label: 'My Trips' },
   { to: '/locations', icon: MapPin, label: 'Live Locations' },
@@ -43,10 +54,21 @@ const businessLinks = [
   { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
+// Links that require authentication in guest mode (business/user)
+const businessGuestRestricted = new Set([
+  '/business/bulk-order',
+  '/business/requirements',
+  '/business/orders',
+  '/business/suppliers',
+  '/business/chat',
+  '/business/deals',
+  '/locations',
+]);
+
 export default function Sidebar({ role = 'farmer' }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isGuestModeActive, guestRole, exitGuestMode, openAuthRequired } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -57,10 +79,12 @@ export default function Sidebar({ role = 'farmer' }) {
   useEffect(() => onLowDataModeChange(setLowData), []);
 
   const links = role === 'farmer' ? farmerLinks : role === 'driver' ? driverLinks : businessLinks;
+  const guestRestricted = role === 'farmer' ? farmerGuestRestricted : businessGuestRestricted;
   const profileName = user?.name || (role === 'farmer' ? 'Farmer' : role === 'driver' ? 'Driver' : 'Business');
   const profileIcon = role === 'farmer' ? '👨‍🌾' : role === 'driver' ? '🚚' : '🏪';
 
   useEffect(() => {
+    if (isGuestModeActive) return; // Don't load docs for guests
     async function loadPhoto() {
       const result = await getMyDocuments();
       if (result.ok && result.data?.data) {
@@ -69,9 +93,15 @@ export default function Sidebar({ role = 'farmer' }) {
       }
     }
     loadPhoto();
-  }, []);
+  }, [isGuestModeActive]);
 
   const handleLogout = () => {
+    if (isGuestModeActive) {
+      exitGuestMode();
+      setShowLogoutModal(false);
+      navigate('/', { replace: true });
+      return;
+    }
     logout();
     setShowLogoutModal(false);
     navigate('/login', { replace: true });
@@ -87,6 +117,17 @@ export default function Sidebar({ role = 'farmer' }) {
     );
   };
 
+  // Guest-restricted link: clicking opens auth modal instead of navigating
+  const GuestNavLink = ({ to, icon: Icon, label }) => {
+    const isActive = location.pathname === to || (to !== `/${role}` && location.pathname.startsWith(to));
+    return (
+      <button onClick={() => { setMobileOpen(false); openAuthRequired(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900`}>
+        <Icon className={`w-5 h-5 text-navy-400`} />
+        {label}
+      </button>
+    );
+  };
+
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="p-4">
@@ -98,23 +139,38 @@ export default function Sidebar({ role = 'farmer' }) {
             <span className="text-2xl">{profileIcon}</span>
           )}
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-navy-900 truncate">{profileName}</p>
-            <p className="text-xs text-navy-500 capitalize">{role} Account</p>
+            <p className="text-sm font-semibold text-navy-900 truncate">
+              {isGuestModeActive ? `Guest ${profileName}` : profileName}
+            </p>
+            <p className="text-xs text-navy-500 capitalize">
+              {isGuestModeActive ? `Exploring as ${role}` : `${role} Account`}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-        {links.map((link) => <NavLink key={link.to} {...link} />)}
+        {links.map((link) => (
+          isGuestModeActive && guestRestricted.has(link.to)
+            ? <GuestNavLink key={link.to} {...link} />
+            : <NavLink key={link.to} {...link} />
+        ))}
       </div>
 
       <div className="border-t border-navy-100 p-3 space-y-2">
-        <SyncStatusBar role={role} />
+        {!isGuestModeActive && <SyncStatusBar role={role} />}
         <div className="space-y-0.5">
-        <Link to="/profile" onClick={() => setMobileOpen(false)}>
-          <NavLink to="/profile" icon={User} label="Profile" />
-        </Link>
-        <button onClick={() => setShowNotifications(!showNotifications)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all relative">
+        {isGuestModeActive ? (
+          <button onClick={openAuthRequired} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all">
+            <User className="w-5 h-5 text-navy-400" />
+            Profile
+          </button>
+        ) : (
+          <Link to="/profile" onClick={() => setMobileOpen(false)}>
+            <NavLink to="/profile" icon={User} label="Profile" />
+          </Link>
+        )}
+        <button onClick={() => { if (isGuestModeActive) { openAuthRequired(); } else { setShowNotifications(!showNotifications); } }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all relative">
           <NotificationPanel compact />
           <span>Notifications</span>
           {showNotifications && <span className="ml-1 text-[10px] text-navy-400">(open)</span>}
@@ -128,7 +184,7 @@ export default function Sidebar({ role = 'farmer' }) {
         </button>
         <button onClick={() => setShowLogoutModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-red-50 hover:text-red-600 transition-all">
           <LogOut className="w-5 h-5 text-navy-400" />
-          Logout
+          {isGuestModeActive ? 'Exit Guest Mode' : 'Logout'}
         </button>
         </div>
       </div>
@@ -167,7 +223,7 @@ export default function Sidebar({ role = 'farmer' }) {
         </div>
       )}
 
-      {/* Logout Confirmation Modal */}
+      {/* Logout / Exit Guest Mode Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-navy-900/30 backdrop-blur-sm" onClick={() => setShowLogoutModal(false)} />
@@ -176,14 +232,20 @@ export default function Sidebar({ role = 'farmer' }) {
               <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <LogOut className="w-7 h-7 text-red-500" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Log out?</h3>
-              <p className="text-sm text-gray-500 mb-6">Are you sure you want to log out of your account?</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {isGuestModeActive ? 'Exit Guest Mode?' : 'Log out?'}
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                {isGuestModeActive
+                  ? 'Are you sure you want to exit the guest experience?'
+                  : 'Are you sure you want to log out of your account?'}
+              </p>
               <div className="flex gap-3">
                 <button onClick={() => setShowLogoutModal(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 transition">
                   Cancel
                 </button>
                 <button onClick={handleLogout} className="flex-1 py-3 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition">
-                  Log Out
+                  {isGuestModeActive ? 'Exit' : 'Log Out'}
                 </button>
               </div>
             </div>
