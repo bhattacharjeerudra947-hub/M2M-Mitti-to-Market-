@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { useSiteStats, formatCompact } from '../utils/siteStats';
 
 const stats = [
   { emoji: '👨‍🌾', value: '10K+', label: 'Farmers Onboarded' },
@@ -35,6 +36,14 @@ const ourWay = [
 ];
 
 export default function AboutUs() {
+  const { stats, loading } = useSiteStats();
+
+  const liveStats = [
+    { emoji: '👨‍🌾', value: stats ? `${formatCompact(stats.farmers)}+` : '…', label: 'Farmers Onboarded' },
+    { emoji: '🏪', value: stats ? `${formatCompact(stats.buyers)}+` : '…', label: 'Active Buyers' },
+    { emoji: '📊', value: stats ? `₹${formatCompact(stats.produceSoldValue)}+` : '…', label: 'Worth of Produce Sold' },
+  ];
+
   return (
     <div className="min-h-screen bg-cream">
       <Navbar dark />
@@ -70,8 +79,8 @@ export default function AboutUs() {
             <div className="bg-white rounded-3xl p-8 sm:p-10 border border-navy-100/50 shadow-sm">
               <h3 className="text-sm font-bold text-navy-900 mb-6 tracking-wide">The movement so far</h3>
               <div className="space-y-5">
-                {stats.map((stat, i) => (
-                  <div key={i} className="flex items-center gap-4 p-4 bg-cream rounded-2xl">
+                {liveStats.map((stat, i) => (
+                  <div key={i} className="flex items-center gap-4 p-4 bg-cream rounded-2xl" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.3s ease' }}>
                     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm shrink-0">
                       {stat.emoji}
                     </div>
