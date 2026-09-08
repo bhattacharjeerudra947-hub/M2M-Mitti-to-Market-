@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import RoleChoiceModal from './RoleChoiceModal';
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -13,7 +14,7 @@ const navItems = [
 
 export default function Navbar({ dark = false }) {
   const [open, setOpen] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, openRoleChoice } = useAuth();
   const { pathname } = useLocation();
   const role = user?.role?.toLowerCase();
 
@@ -75,12 +76,12 @@ export default function Navbar({ dark = false }) {
             ) : (
               <>
                 <Link to="/login" className={`text-[13px] font-medium ${linkColor} transition`}>Sign In</Link>
-                <Link
-                  to="/signup"
+                <button
+                  onClick={openRoleChoice}
                   className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition shadow-sm"
                 >
                   Get Started
-                </Link>
+                </button>
               </>
             )}
           </div>
@@ -113,12 +114,15 @@ export default function Navbar({ dark = false }) {
             ) : (
               <>
                 <Link to="/login" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Sign In</Link>
-                <Link to="/signup" className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>Get Started</Link>
+                <button onClick={() => { setOpen(false); openRoleChoice(); }} className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl">Get Started</button>
               </>
             )}
           </div>
         </div>
       )}
+
+      {/* Role choice modal for Navbar */}
+      <RoleChoiceModal />
     </nav>
   );
 }

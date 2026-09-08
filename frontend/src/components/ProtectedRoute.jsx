@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 
 /**
  * Protects routes by checking authentication and optional role.
+ * In guest mode, renders children for farmer/business routes.
  *
  * Usage:
  *   <ProtectedRoute><FarmerDashboard /></ProtectedRoute>
@@ -10,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
  *   <ProtectedRoute roles={["farmer", "business"]}><SomePage /></ProtectedRoute>
  */
 export default function ProtectedRoute({ children, role, roles }) {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, user, guestRole } = useAuth();
   const location = useLocation();
 
   // Show nothing while checking auth (prevents flash of protected content)
@@ -25,16 +26,30 @@ export default function ProtectedRoute({ children, role, roles }) {
     );
   }
 
-  // Not authenticated — redirect to login, save intended destination
+  // Allow guest mode for farmer/business routes
+  if (!isAuthenticated && guestRole) {
+    // If a specific role is required, check it matches the guest role
+    if (role && guestRole !== role.toLowerCase()) {
+      // Wrong guest role — redirect to their guest dashboard
+      const fallback = guestRole === 'farmer' ? '/farmer' : '/business';
+      return <Navigate to={fallback} replace />;
+    }
+    if (roles && !roles.map((r) => r.toLowerCase()).includes(guestRole)) {
+      const fallback = guestRole === 'farmer' ? '/farmer' : '/business';
+      return <Navigate to={fallback} replace />;
+    }
+    return children;
+  }
+
+  // Not authenticated and not in guest mode — redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role if specified
+  // Check role if specified (for authenticated users)
   const userRole = user?.role?.toLowerCase();
   const fallback = userRole === 'farmer' ? '/farmer' : userRole === 'driver' ? '/driver' : '/business';
   if (role && userRole !== role.toLowerCase()) {
-    // User is authenticated but wrong role — redirect to their dashboard
     return <Navigate to={fallback} replace />;
   }
   if (roles && !roles.map((r) => r.toLowerCase()).includes(userRole)) {

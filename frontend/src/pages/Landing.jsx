@@ -3,7 +3,10 @@ import { ArrowRight, TrendingUp, Users, Shield, Brain, Truck, Leaf, Star } from 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import TransparentPricing from '../components/TransparentPricing';
+import RoleChoiceModal from '../components/RoleChoiceModal';
+import AuthRequiredModal from '../components/AuthRequiredModal';
 import { useSiteStats, formatCompact } from '../utils/siteStats';
+import { useAuth } from '../context/AuthContext';
 
 const features = [
   { icon: TrendingUp, title: 'Better Prices', desc: 'Farmers earn more by selling directly to verified buyers without middlemen.' },
@@ -34,6 +37,7 @@ const statStyle = (loading) => ({
 
 export default function Landing() {
   const { stats, loading } = useSiteStats();
+  const { openRoleChoice } = useAuth();
 
   return (
     <div className="min-h-screen bg-cream">
@@ -74,13 +78,13 @@ export default function Landing() {
 
               {/* CTAs */}
               <div className="flex flex-wrap gap-4">
-                <Link
-                  to="/signup"
+                <button
+                  onClick={openRoleChoice}
                   className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20"
                 >
                   Get Started
                   <ArrowRight className="w-4 h-4" />
-                </Link>
+                </button>
                 <Link
                   to="/marketplace"
                   className="inline-flex items-center gap-2 px-7 py-3.5 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition border border-white/25"
@@ -315,19 +319,23 @@ export default function Landing() {
             Join thousands of farmers and businesses already trading directly on Mitti2Market.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              to="/signup"
+            <button
+              onClick={openRoleChoice}
               className="inline-flex items-center gap-2 px-8 py-4 bg-mustard-400 text-navy-900 font-bold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20 text-base"
             >
               Get Started — It's Free
               <ArrowRight className="w-5 h-5" />
-            </Link>
+            </button>
           </div>
         </div>
       </section>
 
       {/* ═══════════════ FOOTER ═══════════════ */}
       <Footer />
+
+      {/* ═══════════════ GUEST MODALS ═══════════════ */}
+      <RoleChoiceModal />
+      <AuthRequiredModal />
     </div>
   );
 }
