@@ -15,9 +15,25 @@ const OFFER_STATUS_LABELS = {
 };
 
 export default function Chat() {
-  const { user } = useAuth();
+  const { user, isGuestModeActive, openAuthRequired } = useAuth();
   const navigate = useNavigate();
   const { conversationId, otherUserId } = useParams();
+
+  if (isGuestModeActive) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="farmer" />
+        <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
+          <div className="text-center">
+            <span className="text-4xl block mb-4">💬</span>
+            <p className="text-lg font-semibold text-gray-700 mb-2">Sign in to use Messages</p>
+            <p className="text-sm text-gray-500 mb-4">You need an account to chat with farmers and buyers.</p>
+            <button onClick={openAuthRequired} className="px-6 py-3 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition">Sign In</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
   const messagesEndRef = useRef(null);
 
   const [conversations, setConversations] = useState([]);

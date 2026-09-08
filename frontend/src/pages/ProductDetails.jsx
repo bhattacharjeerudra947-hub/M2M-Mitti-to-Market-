@@ -12,7 +12,7 @@ const categoryEmoji = {
 
 export default function ProductDetails() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, isGuestModeActive, openAuthRequired } = useAuth();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -155,7 +155,24 @@ export default function ProductDetails() {
               </div>
 
               {/* Action Buttons */}
-              {user && product.farmerId && product.farmerId !== user.id ? (
+              {isGuestModeActive ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={openAuthRequired}
+                    className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    Buy Now
+                  </button>
+                  <button
+                    onClick={openAuthRequired}
+                    className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Message Farmer
+                  </button>
+                </div>
+              ) : user && product.farmerId && product.farmerId !== user.id ? (
                 <>
                   {!showInterestForm && !interestSent ? (
                     <button
@@ -234,7 +251,7 @@ export default function ProductDetails() {
                 </>
               ) : (
                 <div className="flex gap-3">
-                  <button className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2">
+                  <button onClick={openAuthRequired} className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2">
                     <ShoppingBag className="w-5 h-5" />
                     Buy Now
                   </button>

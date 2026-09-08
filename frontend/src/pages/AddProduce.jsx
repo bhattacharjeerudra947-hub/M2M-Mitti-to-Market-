@@ -9,7 +9,24 @@ import { idbSupported } from '../utils/idb';
 
 export default function AddProduce() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isGuestModeActive, openAuthRequired } = useAuth();
+
+  // Gate: guests cannot add produce
+  if (isGuestModeActive) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="farmer" />
+        <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
+          <div className="text-center">
+            <span className="text-4xl block mb-4">📦</span>
+            <p className="text-lg font-semibold text-gray-700 mb-2">Sign in to add produce</p>
+            <p className="text-sm text-gray-500 mb-4">You need an account to list and sell your produce.</p>
+            <button onClick={openAuthRequired} className="px-6 py-3 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition">Sign In</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
   const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({
