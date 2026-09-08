@@ -78,6 +78,16 @@ export default function Sidebar({ role = 'farmer' }) {
   // React to low-data-mode changes from anywhere
   useEffect(() => onLowDataModeChange(setLowData), []);
 
+  // Prevent the page behind the logout modal from scrolling while it is open
+  useEffect(() => {
+    if (!showLogoutModal) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showLogoutModal]);
+
   const links = role === 'farmer' ? farmerLinks : role === 'driver' ? driverLinks : businessLinks;
   const guestRestricted = role === 'farmer' ? farmerGuestRestricted : businessGuestRestricted;
   const profileName = user?.name || (role === 'farmer' ? 'Farmer' : role === 'driver' ? 'Driver' : 'Business');
