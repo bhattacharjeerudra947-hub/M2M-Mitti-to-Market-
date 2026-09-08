@@ -10,7 +10,15 @@ public interface BuyerRequirementRepository extends JpaRepository<BuyerRequireme
 
     List<BuyerRequirement> findByBuyerIdOrderByCreatedAtDesc(Long buyerId);
 
+    List<BuyerRequirement> findByBuyerIdAndStatusInOrderByCreatedAtDesc(Long buyerId, List<RequirementStatus> statuses);
+
+    List<BuyerRequirement> findByBuyerIdAndStatusNotInOrderByCreatedAtDesc(Long buyerId, List<RequirementStatus> statuses);
+
     List<BuyerRequirement> findByStatusOrderByCreatedAtDesc(RequirementStatus status);
+
+    List<BuyerRequirement> findByStatusInOrderByCreatedAtDesc(List<RequirementStatus> statuses);
+
+    long countByStatusIn(List<RequirementStatus> statuses);
 
     List<BuyerRequirement> findByCropIgnoreCaseAndStatus(String crop, RequirementStatus status);
 

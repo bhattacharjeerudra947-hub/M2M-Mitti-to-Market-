@@ -47,6 +47,9 @@ public class ProduceService {
                 .name(request.getName())
                 .category(request.getCategory())
                 .quantity(request.getQuantity())
+                .listedQuantity(request.getQuantity())
+                .reservedQuantity(0)
+                .soldQuantity(0)
                 .unit(request.getUnit())
                 .pricePerUnit(request.getPricePerUnit())
                 .description(request.getDescription())
@@ -89,11 +92,16 @@ public class ProduceService {
             produceList = produceRepository.findAll();
         }
 
-        if (Boolean.TRUE.equals(availableOnly)) {
-            produceList = produceList.stream()
-                    .filter(p -> p.getStatus() == ProduceStatus.AVAILABLE || p.getStatus() == ProduceStatus.LOW_STOCK)
-                    .toList();
-        }
+        // By default or when availableOnly is true, filter out SOLD_OUT, REMOVED, ADMIN_REMOVED, INACTIVE, EXPIRED
+        List<ProduceStatus> activeStatuses = List.of(
+                ProduceStatus.AVAILABLE,
+                ProduceStatus.LOW_STOCK,
+                ProduceStatus.PARTIALLY_SOLD
+        );
+
+        produceList = produceList.stream()
+                .filter(p -> activeStatuses.contains(p.getStatus()) && (p.getQuantity() == null || p.getQuantity() > 0))
+                .toList();
 
         return produceList.stream().map(this::toResponse).toList();
     }
@@ -139,6 +147,26 @@ public class ProduceService {
                 .toList();
     }
 
+    public List<ProduceResponse> getActiveByFarmer(Long farmerId) {
+        List<ProduceStatus> activeStatuses = List.of(
+                ProduceStatus.AVAILABLE,
+                ProduceStatus.LOW_STOCK,
+                ProduceStatus.PARTIALLY_SOLD
+        );
+        return produceRepository.findByFarmerIdAndStatusIn(farmerId, activeStatuses).stream()
+                .map(this::toResponse).toList();
+    }
+
+    public List<ProduceResponse> getHistoryByFarmer(Long farmerId) {
+        List<ProduceStatus> activeStatuses = List.of(
+                ProduceStatus.AVAILABLE,
+                ProduceStatus.LOW_STOCK,
+                ProduceStatus.PARTIALLY_SOLD
+        );
+        return produceRepository.findByFarmerIdAndStatusNotIn(farmerId, activeStatuses).stream()
+                .map(this::toResponse).toList();
+    }
+
     public ProduceResponse update(Long id, ProduceRequest request) {
         Produce produce = produceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produce", "id", id));
@@ -146,6 +174,7 @@ public class ProduceService {
         produce.setName(request.getName());
         produce.setCategory(request.getCategory());
         produce.setQuantity(request.getQuantity());
+        produce.setListedQuantity(request.getQuantity());
         produce.setUnit(request.getUnit());
         produce.setPricePerUnit(request.getPricePerUnit());
         produce.setDescription(request.getDescription());
@@ -169,10 +198,11 @@ public class ProduceService {
     }
 
     public void delete(Long id) {
-        if (!produceRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Produce", "id", id);
-        }
-        produceRepository.deleteById(id);
+        Produce produce = produceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produce", "id", id));
+        // Soft delete: mark status as REMOVED instead of dropping row
+        produce.setStatus(ProduceStatus.REMOVED);
+        produceRepository.save(produce);
     }
 
     /**
@@ -196,6 +226,11 @@ public class ProduceService {
     }
 
     private ProduceResponse toResponse(Produce produce) {
+        int listed = produce.getListedQuantity() != null ? produce.getListedQuantity() : produce.getQuantity();
+        int reserved = produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0;
+        int sold = produce.getSoldQuantity() != null ? produce.getSoldQuantity() : 0;
+        int available = Math.max(0, produce.getQuantity());
+
         return ProduceResponse.builder()
                 .id(produce.getId())
                 .farmerId(produce.getFarmer().getId())
@@ -203,6 +238,10 @@ public class ProduceService {
                 .name(produce.getName())
                 .category(produce.getCategory())
                 .quantity(produce.getQuantity())
+                .listedQuantity(listed)
+                .reservedQuantity(reserved)
+                .soldQuantity(sold)
+                .availableQuantity(available)
                 .unit(produce.getUnit())
                 .pricePerUnit(produce.getPricePerUnit())
                 .description(produce.getDescription())
@@ -211,6 +250,7 @@ public class ProduceService {
                 .aiSuggestedMinPrice(produce.getAiSuggestedMinPrice())
                 .aiSuggestedMaxPrice(produce.getAiSuggestedMaxPrice())
                 .status(produce.getStatus())
+                .adminRemovalReason(produce.getAdminRemovalReason())
                 .createdAt(produce.getCreatedAt())
                 .updatedAt(produce.getUpdatedAt())
                 .build();

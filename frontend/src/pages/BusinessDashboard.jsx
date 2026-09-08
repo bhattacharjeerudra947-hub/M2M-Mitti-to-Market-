@@ -4,19 +4,10 @@ import StatCard from '../components/StatCard';
 import NotificationPanel from '../components/NotificationPanel';
 import PriceChart from '../components/PriceChart';
 import OrderTracker from '../components/OrderTracker';
-import { ShoppingCart, Truck, Wallet, Heart, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { priceChartData } from '../data/mockData';
+import { ShoppingCart, Truck, Wallet, Heart } from 'lucide-react';
+import MarketPricesLive from '../components/MarketPricesLive';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
-
-const marketInsights = [
-  { name: 'Tomato', emoji: '🍅', price: 28, change: 4.2, trend: 'up' },
-  { name: 'Onion', emoji: '🧅', price: 24, change: -1.8, trend: 'down' },
-  { name: 'Potato', emoji: '🥔', price: 22, change: 2.1, trend: 'up' },
-  { name: 'Grapes', emoji: '🍇', price: 65, change: -0.5, trend: 'down' },
-  { name: 'Rice', emoji: '🌾', price: 35, change: 1.2, trend: 'up' },
-  { name: 'Chili', emoji: '🌶️', price: 120, change: 8.5, trend: 'up' },
-];
 
 export default function BusinessDashboard() {
   const { user, isGuestModeActive } = useAuth();
@@ -38,6 +29,10 @@ export default function BusinessDashboard() {
   const activeOrders = orders.filter(o => !['DELIVERED','CANCELLED'].includes(o.status));
   const pendingDeliveries = orders.filter(o => ['CONFIRMED','PACKED','IN_TRANSIT'].includes(o.status));
   const totalSpent = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+  // Real count: distinct farmers this buyer has actually ordered from (no hardcoded numbers)
+  const distinctSuppliers = new Set(
+    orders.map(o => o.farmer?.id ?? o.farmerId ?? o.farmer?.name ?? o.farmerName).filter(Boolean)
+  ).size;
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -54,37 +49,17 @@ export default function BusinessDashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard icon={<ShoppingCart className="w-5 h-5" />} label="Active Orders" value={String(activeOrders.length)} change={`+${activeOrders.length}`} changeType="up" color="primary" />
-            <StatCard icon={<Truck className="w-5 h-5" />} label="Pending Deliveries" value={String(pendingDeliveries.length)} change="-2" changeType="down" color="blue" />
-            <StatCard icon={<Wallet className="w-5 h-5" />} label="Total Purchases" value={`₹${totalSpent.toLocaleString()}`} change="+15%" changeType="up" color="emerald" />
-            <StatCard icon={<Heart className="w-5 h-5" />} label="Saved Suppliers" value="18" change="+2" changeType="up" color="accent" />
+            <StatCard icon={<ShoppingCart className="w-5 h-5" />} label="Active Orders" value={String(activeOrders.length)} color="primary" />
+            <StatCard icon={<Truck className="w-5 h-5" />} label="Pending Deliveries" value={String(pendingDeliveries.length)} color="blue" />
+            <StatCard icon={<Wallet className="w-5 h-5" />} label="Total Purchases" value={`₹${totalSpent.toLocaleString()}`} color="emerald" />
+            <StatCard icon={<Heart className="w-5 h-5" />} label="Suppliers Ordered From" value={String(distinctSuppliers)} color="accent" />
           </div>
 
           {/* Current Market Insights */}
           <div className="grid lg:grid-cols-3 gap-6 mb-8">
             <div className="lg:col-span-2 bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
               <h3 className="text-sm font-semibold text-navy-700 mb-4">Current Market Prices</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {marketInsights.map((item) => (
-                  <div key={item.name} className="p-4 bg-mustard-50 rounded-xl hover:bg-mustard-100 border border-mustard-100 transition cursor-pointer">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl">{item.emoji}</span>
-                      <span className="text-sm font-semibold text-navy-800">{item.name}</span>
-                    </div>
-                    <p className="text-lg font-bold text-navy-900">₹{item.price}/kg</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      {item.trend === 'up' ? (
-                        <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
-                      ) : (
-                        <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" />
-                      )}
-                      <span className={`text-xs font-semibold ${item.trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {item.change >= 0 ? '+' : ''}{item.change}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <MarketPricesLive limit={6} />
             </div>
             <NotificationPanel />
           </div>

@@ -11,7 +11,7 @@ import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
 import DealAdvisorSummary from '../components/DealAdvisorSummary';
 import { Package, ShoppingCart, Wallet, FileText, Mic, BarChart3, Navigation } from 'lucide-react';
-import { priceChartData, orders } from '../data/mockData';
+import MarketPricesLive from '../components/MarketPricesLive';
 import { useAuth } from '../context/AuthContext';
 import { useFarmerLanguage } from '../context/FarmerContext';
 import { t_key } from '../data/farmerTranslations';
@@ -38,10 +38,14 @@ export default function FarmerDashboard() {
   const [activeView, setActiveView] = useState('dashboard');
 
   // ─── Real stats from backend ───
-  const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0 });
+  const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0, monthlyEarnings: 0 });
+  const [recentOrders, setRecentOrders] = useState([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setRecentOrders([]);
+      return;
+    }
     (async () => {
       try {
         const [produceData, orderData, interestData] = await Promise.all([
@@ -57,6 +61,13 @@ export default function FarmerDashboard() {
           orders: ordersList.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status)).length,
           interests: interests.filter(i => i.status === 'PENDING').length,
         });
+        setRecentOrders(ordersList);
+        // Real monthly earnings: delivered orders paid in the current month
+        const now = new Date();
+        const monthly = ordersList
+          .filter((o) => o.status === 'DELIVERED' && o.orderDate && new Date(o.orderDate).getMonth() === now.getMonth())
+          .reduce((s, o) => s + (o.totalPrice || 0), 0);
+        setStats((prev) => ({ ...prev, monthlyEarnings: monthly }));
       } catch {}
     })();
   }, [user]);
@@ -159,7 +170,7 @@ export default function FarmerDashboard() {
                 <StatCard
                   icon={<Wallet className="w-5 h-5" />}
                   label={t_key(language, 'monthlyEarnings') || "This Month's Earnings"}
-                  value="₹0"
+                  value={`₹${(stats.monthlyEarnings || 0).toLocaleString('en-IN')}`}
                   color="emerald"
                 />
                 <StatCard
@@ -185,24 +196,8 @@ export default function FarmerDashboard() {
                       {t_key(language, 'currentCropTrends') || 'Current crop trends & important market info'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { emoji: '🍅', name: 'Tomato', price: '₹28', trend: '+4.2%', up: true },
-                      { emoji: '🧅', name: 'Onion', price: '₹24', trend: '-1.8%', up: false },
-                      { emoji: '🌾', name: 'Rice', price: '₹32', trend: '+1.2%', up: true },
-                      { emoji: '🌶️', name: 'Chili', price: '₹115', trend: '+8.5%', up: true },
-                    ].map((crop) => (
-                      <button
-                        key={crop.name}
-                        onClick={() => setActiveView('insights')}
-                        className="bg-white/10 rounded-xl p-3 hover:bg-white/15 transition text-left"
-                      >
-                        <span className="text-xl">{crop.emoji}</span>
-                        <p className="text-xs font-semibold mt-1">{crop.name}</p>
-                        <p className="text-lg font-bold">{crop.price}<span className="text-xs font-normal text-white/60">/kg</span></p>
-                        <p className={`text-[10px] font-semibold ${crop.up ? 'text-emerald-400' : 'text-red-400'}`}>{crop.trend}</p>
-                      </button>
-                    ))}
+                  <div className="p-1">
+                    <MarketPricesLive limit={4} dark />
                   </div>
                   <button
                     onClick={() => setActiveView('insights')}
@@ -295,11 +290,17 @@ export default function FarmerDashboard() {
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">
                     {t_key(language, 'recentOrders') || 'Recent Orders'}
                   </h3>
-                  <div className="space-y-4">
-                    {orders.map((order) => (
-                      <OrderTracker key={order.id} order={order} />
-                    ))}
-                  </div>
+                  {recentOrders.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-8 text-center">
+                      {user ? 'No orders yet.' : 'Sign in to view your orders.'}
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentOrders.slice(0, 5).map((order) => (
+                        <OrderTracker key={order.id} order={order} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </>

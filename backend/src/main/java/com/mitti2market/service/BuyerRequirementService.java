@@ -48,6 +48,10 @@ public class BuyerRequirementService {
                 .buyer(buyer)
                 .crop(crop.trim())
                 .quantity(quantity)
+                .requiredQuantity(quantity)
+                .fulfilledQuantity(0)
+                .reservedQuantity(0)
+                .remainingQuantity(quantity)
                 .unit((String) body.getOrDefault("unit", "kg"))
                 .minPrice(body.get("minPrice") != null ? Double.valueOf(body.get("minPrice").toString()) : null)
                 .maxPrice(body.get("maxPrice") != null ? Double.valueOf(body.get("maxPrice").toString()) : null)
@@ -74,12 +78,36 @@ public class BuyerRequirementService {
         return requirementRepo.findByBuyerIdOrderByCreatedAtDesc(buyerId);
     }
 
+    public List<BuyerRequirement> getActiveRequirements(Long buyerId) {
+        List<RequirementStatus> activeStatuses = List.of(
+                RequirementStatus.OPEN,
+                RequirementStatus.MATCHED,
+                RequirementStatus.NEGOTIATING,
+                RequirementStatus.PARTIALLY_FULFILLED
+        );
+        return requirementRepo.findByBuyerIdAndStatusInOrderByCreatedAtDesc(buyerId, activeStatuses);
+    }
+
+    public List<BuyerRequirement> getHistoryRequirements(Long buyerId) {
+        List<RequirementStatus> activeStatuses = List.of(
+                RequirementStatus.OPEN,
+                RequirementStatus.MATCHED,
+                RequirementStatus.NEGOTIATING,
+                RequirementStatus.PARTIALLY_FULFILLED
+        );
+        return requirementRepo.findByBuyerIdAndStatusNotInOrderByCreatedAtDesc(buyerId, activeStatuses);
+    }
+
     /** List open requirements, optionally filtered by crop. */
     public List<BuyerRequirement> getOpenRequirements(String crop) {
+        List<RequirementStatus> openStatuses = List.of(
+                RequirementStatus.OPEN,
+                RequirementStatus.PARTIALLY_FULFILLED
+        );
         if (crop != null && !crop.isBlank()) {
             return requirementRepo.findByStatusAndCropIgnoreCaseOrderByCreatedAtDesc(RequirementStatus.OPEN, crop.trim());
         }
-        return requirementRepo.findByStatusOrderByCreatedAtDesc(RequirementStatus.OPEN);
+        return requirementRepo.findByStatusInOrderByCreatedAtDesc(openStatuses);
     }
 
     /**
@@ -94,7 +122,7 @@ public class BuyerRequirementService {
         List<Map<String, Object>> matches = new ArrayList<>();
 
         for (Produce p : candidates) {
-            if (p.getStatus() != ProduceStatus.AVAILABLE && p.getStatus() != ProduceStatus.LOW_STOCK) continue;
+            if (p.getStatus() != ProduceStatus.AVAILABLE && p.getStatus() != ProduceStatus.LOW_STOCK && p.getStatus() != ProduceStatus.PARTIALLY_SOLD) continue;
             if (p.getQuantity() < req.getQuantity()) continue;
 
             Map<String, Object> match = new LinkedHashMap<>();
@@ -152,12 +180,19 @@ public class BuyerRequirementService {
 
     /** Safe response map — never exposes the buyer's full entity. */
     public Map<String, Object> toResponse(BuyerRequirement req) {
+        int required = req.getRequiredQuantity() != null ? req.getRequiredQuantity() : req.getQuantity();
+        int fulfilled = req.getFulfilledQuantity() != null ? req.getFulfilledQuantity() : 0;
+        int remaining = req.getRemainingQuantity() != null ? req.getRemainingQuantity() : Math.max(0, required - fulfilled);
+
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", req.getId());
         map.put("buyerId", req.getBuyer().getId());
         map.put("buyerName", req.getBuyer().getName());
         map.put("crop", req.getCrop());
         map.put("quantity", req.getQuantity());
+        map.put("requiredQuantity", required);
+        map.put("fulfilledQuantity", fulfilled);
+        map.put("remainingQuantity", remaining);
         map.put("unit", req.getUnit());
         map.put("minPrice", req.getMinPrice());
         map.put("maxPrice", req.getMaxPrice());
@@ -167,6 +202,7 @@ public class BuyerRequirementService {
         map.put("transportPreference", req.getTransportPreference().name());
         map.put("notes", req.getNotes());
         map.put("status", req.getStatus().name());
+        map.put("adminRemovalReason", req.getAdminRemovalReason());
         map.put("createdAt", req.getCreatedAt());
         return map;
     }

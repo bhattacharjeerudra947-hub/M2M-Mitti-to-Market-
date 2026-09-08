@@ -8,4 +8,8 @@ import java.util.List;
 public interface DisputeRepository extends JpaRepository<Dispute, Long> {
 
     List<Dispute> findByDealIdOrderByCreatedAtDesc(Long dealId);
+
+    List<Dispute> findByStatusOrderByCreatedAtDesc(Dispute.DisputeStatus status);
+
+    List<Dispute> findAllByOrderByCreatedAtDesc();
 }

@@ -28,14 +28,34 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.count() > 0) {
+        String hashed = passwordEncoder.encode("password123");
+
+        // ─── ALWAYS ensure the platform admin account exists ───
+        // (DB may already contain users from before the admin role was added;
+        //  the demo-data block below still only runs on a fresh database.)
+        if (userRepository.findByEmail("admin@mitti2market.com").isEmpty()) {
+            userRepository.save(User.builder()
+                    .name("System Admin")
+                    .email("admin@mitti2market.com")
+                    .passwordHash(hashed)
+                    .phone("9999999999")
+                    .role(Role.ADMIN)
+                    .location("HQ - New Delhi")
+                    .organizationName("Mitti2Market Admin Operations")
+                    .verified(true)
+                    .verificationStatus(User.VerificationStatus.VERIFIED)
+                    .build());
+            log.info("Created platform admin account: admin@mitti2market.com");
+        }
+
+        if (userRepository.count() > 1) {
             log.info("Demo data already present — skipping seed.");
             return;
         }
 
         log.info("Seeding demo data...");
 
-        String hashed = passwordEncoder.encode("password123");
+        User admin = userRepository.findByEmail("admin@mitti2market.com").orElseThrow();
 
         User farmer1 = userRepository.save(User.builder()
                 .name("Ramesh Kumar")
