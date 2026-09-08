@@ -57,6 +57,8 @@ public class SecurityConfig {
                 // ─── Public endpoints (no auth required) ───
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/ai/**").permitAll()
+                .requestMatchers("/api/market-prices/**").permitAll()
                 // SSE stream self-validates the token via query param (EventSource can't send headers)
                 .requestMatchers("/api/messages/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/produce").permitAll()
