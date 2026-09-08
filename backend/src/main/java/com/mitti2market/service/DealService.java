@@ -221,7 +221,7 @@ public class DealService {
      * Prevents overselling when multiple buyers try to lock the same produce.
      * The locked deal keeps its own snapshot of terms.
      */
-    private void reserveQuantity(Deal deal) {
+    private synchronized void reserveQuantity(Deal deal) {
         if (deal.getProduce() == null || deal.getQuantity() == null) return;
 
         Produce produce = deal.getProduce();
@@ -231,11 +231,16 @@ public class DealService {
         }
 
         int remaining = produce.getQuantity() - deal.getQuantity();
+        int reserved = (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) + deal.getQuantity();
         produce.setQuantity(remaining);
+        produce.setReservedQuantity(reserved);
+
         if (remaining == 0) {
             produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
         } else if (remaining < 50) {
             produce.setStatus(Produce.ProduceStatus.LOW_STOCK);
+        } else {
+            produce.setStatus(Produce.ProduceStatus.PARTIALLY_SOLD);
         }
         produceRepo.save(produce);
 
@@ -253,11 +258,33 @@ public class DealService {
 
         Produce produce = deal.getProduce();
         int restored = produce.getQuantity() + deal.getQuantity();
+        int reserved = Math.max(0, (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) - deal.getQuantity());
         produce.setQuantity(restored);
+        produce.setReservedQuantity(reserved);
+
         if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || produce.getStatus() == Produce.ProduceStatus.LOW_STOCK) {
-            produce.setStatus(Produce.ProduceStatus.AVAILABLE);
+            int listed = produce.getListedQuantity() != null ? produce.getListedQuantity() : restored;
+            produce.setStatus(restored == listed ? Produce.ProduceStatus.AVAILABLE : Produce.ProduceStatus.PARTIALLY_SOLD);
         }
         produceRepo.save(produce);
+    }
+
+    /**
+     * Finalize sold quantity when deal reaches COMPLETED status.
+     */
+    public void finalizeSoldQuantity(Deal deal) {
+        if (deal == null) return;
+        if (deal.getProduce() != null && deal.getQuantity() != null) {
+            Produce produce = deal.getProduce();
+            int sold = (produce.getSoldQuantity() != null ? produce.getSoldQuantity() : 0) + deal.getQuantity();
+            int reserved = Math.max(0, (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) - deal.getQuantity());
+            produce.setSoldQuantity(sold);
+            produce.setReservedQuantity(reserved);
+            if (produce.getQuantity() <= 0) {
+                produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
+            }
+            produceRepo.save(produce);
+        }
     }
 
     /**

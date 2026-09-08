@@ -52,6 +52,32 @@ public class BuyerRequirementController {
         return ResponseEntity.ok(ApiResponse.ok(reqs));
     }
 
+    /** GET /api/requirements/my/active — active requirements */
+    @GetMapping("/my/active")
+    public ResponseEntity<?> activeRequirements(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        List<Map<String, Object>> reqs = requirementService.getActiveRequirements(userId)
+                .stream().map(requirementService::toResponse).toList();
+        return ResponseEntity.ok(ApiResponse.ok(reqs));
+    }
+
+    /** GET /api/requirements/my/history — fulfilled / expired / cancelled requirements */
+    @GetMapping("/my/history")
+    public ResponseEntity<?> historyRequirements(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        List<Map<String, Object>> reqs = requirementService.getHistoryRequirements(userId)
+                .stream().map(requirementService::toResponse).toList();
+        return ResponseEntity.ok(ApiResponse.ok(reqs));
+    }
+
     /** GET /api/requirements/open?crop= — open requirements (for farmers to see demand) */
     @GetMapping("/open")
     public ResponseEntity<?> openRequirements(

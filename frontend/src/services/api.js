@@ -34,7 +34,7 @@ function getStoredUser() {
   return stored?.user || null;
 }
 
-function getStoredToken() {
+export function getStoredToken() {
   return getStoredTokens()?.token || null;
 }
 

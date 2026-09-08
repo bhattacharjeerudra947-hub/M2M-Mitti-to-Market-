@@ -62,8 +62,17 @@ public class SecurityConfig {
                 // SSE stream self-validates the token via query param (EventSource can't send headers)
                 .requestMatchers("/api/messages/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/produce").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/produce/paged").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/produce/{id}").permitAll()
+                // Farmer-owned produce lists (active/history) are private — matched
+                // BEFORE the /api/produce/** catch-all below
+                .requestMatchers(HttpMethod.GET, "/api/produce/farmer/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/produce/**").permitAll()
                 .requestMatchers("/api/users/farmers").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/price-advisor/all").permitAll()
+
+                // ─── Admin endpoints (require ADMIN role) ───
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                 // ─── All other requests require a valid JWT ───
                 .anyRequest().authenticated()

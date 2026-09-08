@@ -70,6 +70,18 @@ public class ProduceController {
         return ResponseEntity.ok(ApiResponse.ok(produceList));
     }
 
+    @GetMapping("/farmer/{farmerId}/active")
+    public ResponseEntity<ApiResponse<List<ProduceResponse>>> getActiveProduceByFarmer(@PathVariable Long farmerId) {
+        List<ProduceResponse> produceList = produceService.getActiveByFarmer(farmerId);
+        return ResponseEntity.ok(ApiResponse.ok(produceList));
+    }
+
+    @GetMapping("/farmer/{farmerId}/history")
+    public ResponseEntity<ApiResponse<List<ProduceResponse>>> getHistoryProduceByFarmer(@PathVariable Long farmerId) {
+        List<ProduceResponse> produceList = produceService.getHistoryByFarmer(farmerId);
+        return ResponseEntity.ok(ApiResponse.ok(produceList));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ProduceResponse>> updateProduce(
             @PathVariable Long id,

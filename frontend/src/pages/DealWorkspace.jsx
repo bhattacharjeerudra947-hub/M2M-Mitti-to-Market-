@@ -9,6 +9,9 @@ import {
 import { getDeal, getLogistics, cancelDeal, getDealTimeline, getDisputes, openDispute } from '../api/dealApi';
 import { getConversationOffers } from '../api/dealApi';
 import LogisticsTracking from '../components/LogisticsTracking';
+import DealRatingModal from '../components/DealRatingModal';
+import ReportModal from '../components/ReportModal';
+import { getDealRatings } from '../services/ratingApi';
 
 const STATUS_LABELS = {
   NEGOTIATING: '💬 Bargaining', LOCK_PENDING: '⏳ Confirming', LOCKED: '🔒 Deal Locked',
@@ -81,9 +84,23 @@ export default function DealWorkspace() {
   const [showDisputeForm, setShowDisputeForm] = useState(false);
   const [disputeReason, setDisputeReason] = useState('QUALITY_ISSUE');
   const [disputeDesc, setDisputeDesc] = useState('');
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [myRatingExists, setMyRatingExists] = useState(false);
 
   const isFarmer = user?.role === 'FARMER';
   const sidebarRole = isFarmer ? 'farmer' : 'business';
+
+  // Check if this user already rated the deal (one rating per party per completed deal)
+  useEffect(() => {
+    if (deal?.status === 'COMPLETED' && dealId) {
+      getDealRatings(dealId).then((res) => {
+        if (res.ok && Array.isArray(res.data)) {
+          setMyRatingExists(res.data.some((r) => r.raterId === user?.id));
+        }
+      });
+    }
+  }, [deal?.status, dealId, user?.id]);
 
   const load = () => {
     if (!dealId || !user) return;
@@ -393,7 +410,35 @@ export default function DealWorkspace() {
                     <AlertTriangle className="w-4 h-4" /> Report Issue
                   </button>
                 )}
+                {deal.status === 'COMPLETED' && !myRatingExists && (
+                  <button onClick={() => setShowRatingModal(true)}
+                    className="px-4 py-2.5 bg-mustard-50 text-mustard-700 text-sm font-semibold rounded-xl hover:bg-mustard-100 transition inline-flex items-center gap-2">
+                    ⭐ Rate Experience
+                  </button>
+                )}
+                <button onClick={() => setShowReportModal(true)}
+                  className="px-4 py-2.5 bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-100 transition inline-flex items-center gap-2">
+                  🚩 Report
+                </button>
               </div>
+
+              {/* ═══ DEAL RATING MODAL ═══ */}
+              <DealRatingModal
+                isOpen={showRatingModal}
+                onClose={() => { setShowRatingModal(false); setMyRatingExists(true); }}
+                dealId={dealId}
+                otherPartyName={isFarmer ? (deal.buyerName || deal.buyer?.name) : (deal.farmerName || deal.farmer?.name)}
+                onRatingSubmitted={load}
+              />
+
+              {/* ═══ REPORT MODAL (report the deal) ═══ */}
+              <ReportModal
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                targetType="DEAL"
+                targetId={dealId}
+                targetName={`Deal #${dealId}`}
+              />
 
               {/* ═══ DISPUTE FORM ═══ */}
               {showDisputeForm && (
