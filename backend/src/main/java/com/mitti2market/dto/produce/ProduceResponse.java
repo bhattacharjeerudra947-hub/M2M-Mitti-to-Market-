@@ -20,6 +20,10 @@ public class ProduceResponse {
     private String name;
     private String category;
     private Integer quantity;
+    private Integer listedQuantity;
+    private Integer reservedQuantity;
+    private Integer soldQuantity;
+    private Integer availableQuantity;
     private String unit;
     private Double pricePerUnit;
     private String description;
@@ -28,6 +32,7 @@ public class ProduceResponse {
     private Double aiSuggestedMinPrice;
     private Double aiSuggestedMaxPrice;
     private ProduceStatus status;
+    private String adminRemovalReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

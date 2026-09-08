@@ -97,6 +97,18 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
         }
 
+        if (user.getStatus() == User.UserStatus.SUSPENDED) {
+            String msg = "Your account has been suspended by administration";
+            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
+                msg += ": " + user.getStatusReason();
+            }
+            return ResponseEntity.status(403).body(Map.of("error", msg));
+        }
+
+        if (user.getStatus() == User.UserStatus.DEACTIVATED) {
+            return ResponseEntity.status(403).body(Map.of("error", "Your account has been deactivated. Please contact support."));
+        }
+
         String accessToken = tokens.generateAccessToken(user.getId());
         String refreshToken = tokens.generateRefreshToken(user.getId());
 

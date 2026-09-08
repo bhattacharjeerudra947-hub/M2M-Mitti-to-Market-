@@ -44,6 +44,12 @@ import Locations from './pages/Locations';
 import DriverDashboard from './pages/DriverDashboard';
 import RoleChoiceModal from './components/RoleChoiceModal';
 import AuthRequiredModal from './components/AuthRequiredModal';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminVerifications from './pages/admin/AdminVerifications';
+import AdminReports from './pages/admin/AdminReports';
+import AdminFeedback from './pages/admin/AdminFeedback';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -184,6 +190,15 @@ export default function App() {
 
           {/* Deal Workspace — shared by farmer & buyer */}
           <Route path="/deal/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
+
+          {/* Admin Routes — protected by ADMIN role (frontend guard + Spring Security hasRole('ADMIN')) */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="verifications" element={<AdminVerifications />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="feedback" element={<AdminFeedback />} />
+          </Route>
 
           {/* Live Locations — shared by farmer & buyer */}
           <Route path="/locations" element={<ProtectedRoute><Locations /></ProtectedRoute>} />

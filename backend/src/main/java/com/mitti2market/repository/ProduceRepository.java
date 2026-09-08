@@ -15,7 +15,15 @@ public interface ProduceRepository extends JpaRepository<Produce, Long> {
 
     List<Produce> findByFarmerId(Long farmerId);
 
+    List<Produce> findByFarmerIdAndStatusIn(Long farmerId, List<ProduceStatus> statuses);
+
+    List<Produce> findByFarmerIdAndStatusNotIn(Long farmerId, List<ProduceStatus> statuses);
+
     List<Produce> findByStatus(ProduceStatus status);
+
+    List<Produce> findByStatusIn(List<ProduceStatus> statuses);
+
+    long countByStatusIn(List<ProduceStatus> statuses);
 
     List<Produce> findByNameContainingIgnoreCase(String name);
 

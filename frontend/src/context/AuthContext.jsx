@@ -79,6 +79,7 @@ export function AuthProvider({ children }) {
     refreshUser,
     isAuthenticated: !!user,
     role: user?.role?.toLowerCase() || null,
+    isAdmin: user?.role === 'ADMIN',
     // Guest mode
     guestRole,
     isGuest,

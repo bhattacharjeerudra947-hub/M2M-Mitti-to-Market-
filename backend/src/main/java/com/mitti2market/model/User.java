@@ -2,6 +2,7 @@ package com.mitti2market.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -27,6 +28,7 @@ public class User {
     private String email;
 
     @Column(name = "password")
+    @JsonIgnore // never serialize password hashes in API responses
     @Builder.Default
     private String passwordHash = "";
 
@@ -40,6 +42,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_status", nullable = false)
+    @Builder.Default
+    private UserStatus status = UserStatus.ACTIVE;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider")
@@ -73,6 +80,20 @@ public class User {
     @Builder.Default
     private VerificationStatus verificationStatus = VerificationStatus.NOT_VERIFIED;
 
+    private LocalDateTime verifiedAt;
+
+    private String verifiedBy;
+
+    @Column(columnDefinition = "TEXT")
+    private String verificationNotes;
+
+    @Column(columnDefinition = "TEXT")
+    private String statusReason;
+
+    private LocalDateTime statusUpdatedAt;
+
+    private String statusUpdatedBy;
+
     @Builder.Default
     private Double rating = 0.0;
 
@@ -94,7 +115,14 @@ public class User {
     public enum Role {
         FARMER,
         BUSINESS,
-        DRIVER
+        DRIVER,
+        ADMIN
+    }
+
+    public enum UserStatus {
+        ACTIVE,
+        SUSPENDED,
+        DEACTIVATED
     }
 
     public enum AuthProvider {
@@ -122,6 +150,7 @@ public class User {
         NOT_VERIFIED,
         PENDING,
         VERIFIED,
-        REJECTED
+        REJECTED,
+        RE_SUBMISSION_REQUESTED
     }
 }
