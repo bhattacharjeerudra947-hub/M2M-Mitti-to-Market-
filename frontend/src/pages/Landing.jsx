@@ -3,6 +3,7 @@ import { ArrowRight, TrendingUp, Users, Shield, Brain, Truck, Leaf, Star } from 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import TransparentPricing from '../components/TransparentPricing';
+import { useSiteStats, formatCompact } from '../utils/siteStats';
 
 const features = [
   { icon: TrendingUp, title: 'Better Prices', desc: 'Farmers earn more by selling directly to verified buyers without middlemen.' },
@@ -26,7 +27,14 @@ const testimonials = [
   { name: 'Suresh Patil', role: 'FPO Leader, Pune', text: 'Our collective revenue increased 40% since joining the platform.', rating: 5 },
 ];
 
+const statStyle = (loading) => ({
+  opacity: loading ? 0.5 : 1,
+  transition: 'opacity 0.3s ease',
+});
+
 export default function Landing() {
+  const { stats, loading } = useSiteStats();
+
   return (
     <div className="min-h-screen bg-cream">
       {/* ═══════════════ HEADER ═══════════════ */}
@@ -150,15 +158,15 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-3 gap-4 sm:gap-8">
             {[
-              { value: '10K+', label: 'Farmers Onboarded', icon: '👨‍🌾', iconBg: 'bg-agri-700' },
-              { value: '2.5K+', label: 'Active Buyers', icon: '🏪', iconBg: 'bg-earth-500' },
-              { value: '₹15Cr+', label: 'Worth of Produce Sold', icon: '📊', iconBg: 'bg-mustard-400' },
+              { value: stats ? `${formatCompact(stats.farmers)}+` : '…', label: 'Farmers Onboarded', icon: '👨‍🌾', iconBg: 'bg-agri-700' },
+              { value: stats ? `${formatCompact(stats.buyers)}+` : '…', label: 'Active Buyers', icon: '🏪', iconBg: 'bg-earth-500' },
+              { value: stats ? `₹${formatCompact(stats.produceSoldValue)}+` : '…', label: 'Worth of Produce Sold', icon: '📊', iconBg: 'bg-mustard-400' },
             ].map((stat, i) => (
               <div key={i} className={`flex flex-col items-center text-center ${i < 2 ? 'border-r border-navy-200/30' : ''}`}>
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 ${stat.iconBg} rounded-full flex items-center justify-center mb-3`}>
                   <span className="text-lg sm:text-xl">{stat.icon}</span>
                 </div>
-                <p className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-navy-900">{stat.value}</p>
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-navy-900" style={statStyle(loading)}>{stat.value}</p>
                 <p className="text-xs sm:text-sm text-navy-500 mt-1 font-medium">{stat.label}</p>
               </div>
             ))}
