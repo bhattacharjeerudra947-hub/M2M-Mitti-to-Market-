@@ -40,6 +40,7 @@ export default function FarmerDashboard() {
   // ─── Real stats from backend ───
   const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0, monthlyEarnings: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
+  const [priceChartData, setPriceChartData] = useState([]); // NEW: fixes ReferenceError
 
   useEffect(() => {
     if (!user) {
@@ -68,6 +69,14 @@ export default function FarmerDashboard() {
           .filter((o) => o.status === 'DELIVERED' && o.orderDate && new Date(o.orderDate).getMonth() === now.getMonth())
           .reduce((s, o) => s + (o.totalPrice || 0), 0);
         setStats((prev) => ({ ...prev, monthlyEarnings: monthly }));
+
+        // NEW: price chart data — placeholder until a real price-history endpoint exists
+        setPriceChartData([
+          { month: 'Apr', tomato: 22, onion: 18 },
+          { month: 'May', tomato: 25, onion: 20 },
+          { month: 'Jun', tomato: 30, onion: 19 },
+          { month: 'Jul', tomato: 28, onion: 24 },
+        ]);
       } catch {}
     })();
   }, [user]);
@@ -282,7 +291,7 @@ export default function FarmerDashboard() {
                     { name: 'tomato', label: 'Tomato' },
                     { name: 'onion', label: 'Onion' },
                   ]}
-                  title={`${t_key(language, 'recentOrders') || 'Recent Orders'} (₹/kg)`}
+                  title={t_key(language, 'priceTrends') || 'Price Trends (₹/kg)'}
                   colors={['#0f2a4a', '#d4a017']}
                   height={250}
                 />
