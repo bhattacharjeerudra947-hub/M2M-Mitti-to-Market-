@@ -73,7 +73,7 @@ export default function RoleChoiceModal() {
             className="group bg-white rounded-2xl p-6 border-2 border-navy-100 shadow-sm hover:border-mustard-400 hover:shadow-lg transition-all text-center"
           >
             <span className="text-4xl block mb-3">🛒</span>
-            <h3 className="text-base font-bold text-gray-900 mb-1">Continue as User</h3>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Continue as Business </h3>
             <p className="text-xs text-gray-500 leading-relaxed">Browse &amp; buy fresh produce</p>
           </button>
         </div>

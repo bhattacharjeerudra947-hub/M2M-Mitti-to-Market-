@@ -58,14 +58,6 @@ export async function selectLogistics(dealId, type) {
   return apiPost(`/api/deals/${dealId}/logistics/select`, { type });
 }
 
-export async function assignDriver(logisticsId, driverUserId) {
-  return apiPost(`/api/deals/logistics/${logisticsId}/assign-driver`, { driverUserId });
-}
-
-export async function getDriverTrips() {
-  return apiGet('/api/driver/trips');
-}
-
 export async function updateLogisticsDetails(logisticsId, details) {
   return apiPut(`/api/deals/logistics/${logisticsId}/details`, details);
 }

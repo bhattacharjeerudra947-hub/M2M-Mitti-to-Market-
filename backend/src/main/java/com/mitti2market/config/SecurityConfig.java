@@ -70,6 +70,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/produce/**").permitAll()
                 .requestMatchers("/api/users/farmers").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/price-advisor/all").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/stats").permitAll()
 
                 // ─── Admin endpoints (require ADMIN role) ───
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
