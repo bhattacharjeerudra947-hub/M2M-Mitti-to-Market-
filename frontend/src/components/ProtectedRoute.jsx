@@ -48,7 +48,7 @@ export default function ProtectedRoute({ children, role, roles }) {
 
   // Check role if specified (for authenticated users)
   const userRole = user?.role?.toLowerCase();
-  const fallback = userRole === 'farmer' ? '/farmer' : userRole === 'driver' ? '/driver' : '/business';
+  const fallback = userRole === 'farmer' ? '/farmer' : '/business';
   if (role && userRole !== role.toLowerCase()) {
     return <Navigate to={fallback} replace />;
   }

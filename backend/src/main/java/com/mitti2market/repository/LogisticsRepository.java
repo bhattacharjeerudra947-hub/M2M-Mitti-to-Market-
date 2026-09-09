@@ -15,5 +15,4 @@ public interface LogisticsRepository extends JpaRepository<Logistics, Long> {
 
     List<Logistics> findByTrackingStatus(TrackingStatus status);
 
-    List<Logistics> findByDriverUserId(Long driverUserId);
 }

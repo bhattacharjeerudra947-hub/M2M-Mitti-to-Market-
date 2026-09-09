@@ -5,7 +5,6 @@ import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
 import { useAuth } from '../context/AuthContext';
 import { getMyDocuments } from '../services/api';
-import { isLowDataMode, toggleLowDataMode, onLowDataModeChange } from '../utils/lowDataMode';
 import SyncStatusBar from './SyncStatusBar';
 
 const farmerLinks = [
@@ -33,11 +32,6 @@ const farmerGuestRestricted = new Set([
   '/farmer/offline-drafts',
   '/locations',
 ]);
-
-const driverLinks = [
-  { to: '/driver', icon: LayoutDashboard, label: 'My Trips' },
-  { to: '/locations', icon: MapPin, label: 'Live Locations' },
-];
 
 const businessLinks = [
   { to: '/business', icon: LayoutDashboard, label: 'Dashboard' },
@@ -73,10 +67,7 @@ export default function Sidebar({ role = 'farmer' }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
-  const [lowData, setLowData] = useState(isLowDataMode());
 
-  // React to low-data-mode changes from anywhere
-  useEffect(() => onLowDataModeChange(setLowData), []);
 
   // Prevent the page behind the logout modal from scrolling while it is open
   useEffect(() => {
@@ -88,10 +79,10 @@ export default function Sidebar({ role = 'farmer' }) {
     };
   }, [showLogoutModal]);
 
-  const links = role === 'farmer' ? farmerLinks : role === 'driver' ? driverLinks : businessLinks;
+  const links = role === 'farmer' ? farmerLinks : businessLinks;
   const guestRestricted = role === 'farmer' ? farmerGuestRestricted : businessGuestRestricted;
-  const profileName = user?.name || (role === 'farmer' ? 'Farmer' : role === 'driver' ? 'Driver' : 'Business');
-  const profileIcon = role === 'farmer' ? '👨‍🌾' : role === 'driver' ? '🚚' : '🏪';
+  const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
+  const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
 
   useEffect(() => {
     if (isGuestModeActive) return; // Don't load docs for guests
@@ -185,13 +176,7 @@ export default function Sidebar({ role = 'farmer' }) {
           <span>Notifications</span>
           {showNotifications && <span className="ml-1 text-[10px] text-navy-400">(open)</span>}
         </button>
-        <button onClick={() => { toggleLowDataMode(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${lowData ? 'bg-mustard-50 text-mustard-800 border border-mustard-200' : 'text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900'}`}>
-          <span className="text-base">📶</span>
-          <span className="flex-1 text-left">Low Data Mode</span>
-          <span className={`w-8 h-4.5 rounded-full transition ${lowData ? 'bg-mustard-400' : 'bg-gray-300'}`} style={{ position: 'relative', height: '18px', width: '32px' }}>
-            <span className="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all" style={{ left: lowData ? '16px' : '2px' }} />
-          </span>
-        </button>
+
         <button onClick={() => setShowLogoutModal(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-red-50 hover:text-red-600 transition-all">
           <LogOut className="w-5 h-5 text-navy-400" />
           {isGuestModeActive ? 'Exit Guest Mode' : 'Logout'}

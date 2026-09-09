@@ -51,7 +51,7 @@ export default function DeliveryStatus({ delivery }) {
       </div>
 
       <div className="pt-3 border-t border-navy-50 flex items-center justify-between">
-        <span className="text-xs text-navy-500">Driver: {delivery.driver}</span>
+
         <span className="text-sm font-bold text-navy-900">₹{delivery.cost.toLocaleString()}</span>
       </div>
     </div>

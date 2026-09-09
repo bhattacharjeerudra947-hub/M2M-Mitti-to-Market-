@@ -433,104 +433,15 @@ public class LogisticsService {
     }
 
     /**
-     * Assign a registered DRIVER account to operate this trip.
-     * Only the deal's farmer or buyer may assign — the driver cannot self-assign.
-     */
-    @Transactional
-    public Logistics assignDriver(Long logisticsId, Long driverUserId, Long actorUserId) {
-        Logistics logistics = logisticsRepo.findById(logisticsId)
-                .orElseThrow(() -> new ResourceNotFoundException("Logistics", "id", logisticsId));
-
-        verifyDealAccess(logistics.getDeal(), actorUserId);
-
-        User driver = users.findById(driverUserId)
-                .orElseThrow(() -> new BadRequestException("Driver account not found"));
-        if (driver.getRole() != User.Role.DRIVER) {
-            throw new BadRequestException("Selected user is not a DRIVER account");
-        }
-
-        logistics.setDriverUserId(driver.getId());
-        logistics.setDriverName(driver.getName());
-        logistics.setDriverPhone(driver.getPhone());
-        logistics = logisticsRepo.save(logistics);
-
-        addEvent(logistics, logistics.getStatus(),
-                "Driver assigned: " + driver.getName() + " (" + driver.getPhone() + ")", null);
-
-        messageService.sendMessage(logistics.getDeal().getFarmer().getId(), logistics.getDeal().getBuyer().getId(),
-                "👨\uD83C\uDFFD\u200D🚚 Driver assigned\nTracking ID: " + logistics.getTrackingId() +
-                "\nDriver: " + driver.getName() + "\nPhone: " + driver.getPhone(),
-                logistics.getDeal().getProduce() != null ? logistics.getDeal().getProduce().getId() : null);
-
-        return logistics;
-    }
-
-    /**
-     * Assigned trips for a driver account (auth-scoped by the JWT identity —
-     * never by a client-supplied id).
-     */
-    public List<Map<String, Object>> getDriverTrips(Long driverUserId) {
-        return logisticsRepo.findByDriverUserId(driverUserId).stream()
-                .map(l -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", l.getId());
-                    m.put("trackingId", l.getTrackingId());
-                    m.put("type", l.getType().name());
-                    m.put("status", l.getStatus() != null ? l.getStatus().name() : "");
-                    m.put("trackingStatus", l.getTrackingStatus() != null ? l.getTrackingStatus().name() : "NOT_STARTED");
-                    m.put("driverName", l.getDriverName() != null ? l.getDriverName() : "");
-                    m.put("driverPhone", l.getDriverPhone() != null ? l.getDriverPhone() : "");
-                    m.put("vehicleNumber", l.getVehicleNumber() != null ? l.getVehicleNumber() : "");
-                    m.put("vehicleType", l.getVehicleType() != null ? l.getVehicleType() : "");
-                    m.put("pickupLocation", l.getPickupLocation() != null ? l.getPickupLocation() : "");
-                    m.put("deliveryLocation", l.getDeliveryLocation() != null ? l.getDeliveryLocation() : "");
-                    m.put("pickupLatitude", l.getPickupLatitude());
-                    m.put("pickupLongitude", l.getPickupLongitude());
-                    m.put("deliveryLatitude", l.getDeliveryLatitude());
-                    m.put("deliveryLongitude", l.getDeliveryLongitude());
-                    m.put("scheduledPickup", l.getScheduledPickup());
-                    m.put("expectedDelivery", l.getExpectedDelivery());
-                    m.put("latitude", l.getCurrentLatitude());
-                    m.put("longitude", l.getCurrentLongitude());
-                    m.put("lastLocationUpdate", l.getLastLocationUpdate());
-                    m.put("lastAccuracy", l.getLastAccuracy());
-                    m.put("trackingStartedAt", l.getTrackingStartedAt());
-                    m.put("trackingCompletedAt", l.getTrackingCompletedAt());
-                    m.put("routeDistanceKm", l.getRouteDistanceKm());
-                    m.put("routeDurationMinutes", l.getRouteDurationMinutes());
-                    m.put("routeEstimatedCost", l.getRouteEstimatedCost());
-                    m.put("routeSummary", l.getRouteSummary());
-                    m.put("routeCaveat", l.getRouteCaveat());
-                    m.put("routeComputedAt", l.getRouteComputedAt());
-
-                    // Deal context for the driver's trip card
-                    Deal deal = l.getDeal();
-                    m.put("dealId", deal.getId());
-                    m.put("dealNumber", deal.getDealId());
-                    m.put("cropName", deal.getProduce() != null && deal.getProduce().getName() != null
-                            ? deal.getProduce().getName()
-                            : (deal.getCropName() != null ? deal.getCropName() : ""));
-                    m.put("quantity", deal.getQuantity());
-                    m.put("unit", deal.getUnit() != null ? deal.getUnit() : "kg");
-                    m.put("farmerName", deal.getFarmer() != null ? deal.getFarmer().getName() : "");
-                    m.put("buyerName", deal.getBuyer() != null ? deal.getBuyer().getName() : "");
-                    m.put("dealStatus", deal.getStatus() != null ? deal.getStatus().name() : "");
-                    return m;
-                })
-                .toList();
-    }
-
-    /**
      * Fetch + verify a logistics record for tracking operations — the user
-     * must be a deal party OR the assigned driver.
+     * must be a deal party.
      */
-    private Logistics findAndVerify(Long logisticsId, Long userId) {
+private Logistics findAndVerify(Long logisticsId, Long userId) {
         Logistics logistics = logisticsRepo.findById(logisticsId)
                 .orElseThrow(() -> new ResourceNotFoundException("Logistics", "id", logisticsId));
         boolean isParty = logistics.getDeal().getFarmer().getId().equals(userId)
                 || logistics.getDeal().getBuyer().getId().equals(userId);
-        boolean isDriver = logistics.getDriverUserId() != null && logistics.getDriverUserId().equals(userId);
-        if (!isParty && !isDriver) {
+        if (!isParty) {
             throw new BadRequestException("You are not part of this deal");
         }
         return logistics;

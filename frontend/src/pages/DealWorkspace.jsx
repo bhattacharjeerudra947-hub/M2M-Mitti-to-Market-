@@ -320,8 +320,7 @@ export default function DealWorkspace() {
                           <div className="flex justify-between"><span className="text-gray-500">Status</span>
                             <span className={`font-semibold ${logistics.status === 'DELIVERED' ? 'text-emerald-600' : logistics.status === 'REQUESTED' ? 'text-amber-600' : 'text-blue-700'}`}>{logistics.status.replace(/_/g, ' ')}</span>
                           </div>
-                          {logistics.driverName && <div className="flex justify-between"><span className="text-gray-500">Driver</span><span className="font-semibold text-navy-900">{logistics.driverName}</span></div>}
-                          {logistics.vehicleNumber && <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="font-semibold text-navy-900">{logistics.vehicleNumber}</span></div>}
+{logistics.vehicleNumber && <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="font-semibold text-navy-900">{logistics.vehicleNumber}</span></div>}
                           {logistics.expectedDelivery && <div className="flex justify-between"><span className="text-gray-500">Expected delivery</span><span className="font-semibold text-navy-900">{formatDateTime(logistics.expectedDelivery)}</span></div>}
                         </div>
                         <LogisticsTracking logistics={logistics} deal={deal} onUpdate={refreshLogistics} />

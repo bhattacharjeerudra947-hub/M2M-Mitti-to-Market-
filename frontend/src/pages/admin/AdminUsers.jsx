@@ -92,9 +92,8 @@ export default function AdminUsers() {
             className="w-full text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2.5 text-gray-900 dark:text-white"
           >
             <option value="">All Roles</option>
-            <option value="FARMER">Farmer</option>
+<option value="FARMER">Farmer</option>
             <option value="BUSINESS">Business / Buyer</option>
-            <option value="DRIVER">Driver</option>
             <option value="ADMIN">Admin</option>
           </select>
 

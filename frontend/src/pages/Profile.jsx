@@ -129,7 +129,7 @@ export default function Profile() {
     );
   }
 
-  const dashboardPath = role === 'farmer' ? '/farmer' : role === 'driver' ? '/driver' : '/business';
+const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
 
   // Count documents by status
   const pendingCount = documents.filter(d => d.verificationStatus === 'PENDING').length;

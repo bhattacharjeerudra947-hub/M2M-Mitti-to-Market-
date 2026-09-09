@@ -14,6 +14,7 @@ export default function BusinessDashboard() {
   const displayName = user?.name?.split(' ')[0] || 'Business';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [priceChartData, setPriceChartData] = useState([]); // NEW: fixes ReferenceError
 
   useEffect(() => {
     if (!user) {
@@ -25,6 +26,16 @@ export default function BusinessDashboard() {
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, [user]);
+
+  // NEW: price chart data — placeholder until a real price-history endpoint exists
+  useEffect(() => {
+    setPriceChartData([
+      { month: 'Apr', tomato: 22, onion: 18, potato: 15 },
+      { month: 'May', tomato: 25, onion: 20, potato: 16 },
+      { month: 'Jun', tomato: 30, onion: 19, potato: 17 },
+      { month: 'Jul', tomato: 28, onion: 24, potato: 18 },
+    ]);
+  }, []);
 
   const activeOrders = orders.filter(o => !['DELIVERED','CANCELLED'].includes(o.status));
   const pendingDeliveries = orders.filter(o => ['CONFIRMED','PACKED','IN_TRANSIT'].includes(o.status));
