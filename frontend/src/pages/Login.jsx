@@ -19,7 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
-    const from = redirectTo || (userRole === 'farmer' ? '/farmer' : userRole === 'driver' ? '/driver' : '/business');
+const from = redirectTo || (userRole === 'farmer' ? '/farmer' : '/business');
     navigate(from, { replace: true });
     return null;
   }
@@ -36,7 +36,7 @@ export default function Login() {
 
     if (result.ok) {
       const r = result.data.user?.role?.toLowerCase();
-      const dest = redirectTo || (r === 'farmer' ? '/farmer' : r === 'driver' ? '/driver' : '/business');
+const dest = redirectTo || (r === 'farmer' ? '/farmer' : '/business');
       navigate(dest, { replace: true });
     } else {
       setError(result.error || 'Login failed. Please try again.');
@@ -65,12 +65,7 @@ export default function Login() {
               <p className="text-sm text-gray-500 mb-5 leading-relaxed">Source fresh produce directly from farmers and FPOs.</p>
               <div className="flex items-center gap-2 text-sm font-semibold text-navy-800 group-hover:text-navy-900">Continue as Business <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
             </button>
-            <button onClick={() => setRole('driver')} className="group bg-white rounded-3xl p-8 border-2 border-navy-100 shadow-sm hover:border-mustard-400 hover:shadow-lg transition-all text-left">
-              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-4xl mb-5 group-hover:bg-emerald-100 border border-emerald-200 transition">🚚</div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Driver</h2>
-              <p className="text-sm text-gray-500 mb-5 leading-relaxed">Deliver produce and share live trip location.</p>
-              <div className="flex items-center gap-2 text-sm font-semibold text-navy-800 group-hover:text-navy-900">Continue as Driver <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
-            </button>
+
           </div>
         </div>
       </div>
@@ -83,7 +78,7 @@ export default function Login() {
         <Link to="/" className="inline-flex items-center mb-8"><M2MLogo /></Link>
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-mustard-50 rounded-full text-sm font-medium text-navy-800 border border-mustard-200 mb-4">
-            {role === 'farmer' ? '👨‍🌾' : role === 'driver' ? '🚚' : '🏪'} {role === 'farmer' ? 'Farmer' : role === 'driver' ? 'Driver' : 'Business'} Account
+{role === 'farmer' ? '👨‍🌾' : '🏪'} {role === 'farmer' ? 'Farmer' : 'Business'} Account
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h1>
           <p className="text-gray-500">Enter your credentials to continue</p>

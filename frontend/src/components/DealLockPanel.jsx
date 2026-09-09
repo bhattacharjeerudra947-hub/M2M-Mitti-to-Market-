@@ -54,8 +54,8 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   const [locBusy, setLocBusy] = useState(''); // 'pickup' | 'delivery'
 
   // Logistics details form
-  const [logisticsForm, setLogisticsForm] = useState({
-    transporterName: '', driverName: '', driverPhone: '',
+const [logisticsForm, setLogisticsForm] = useState({
+    transporterName: '',
     vehicleNumber: '', vehicleType: '', scheduledPickup: '', expectedDelivery: ''
   });
 
@@ -424,13 +424,12 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         <div className="space-y-2">
           <div className="bg-blue-50 rounded-xl p-3 text-xs space-y-1 border border-blue-100">
             <p className="font-bold text-blue-900">{logistics.type === 'OWN' ? '🚚 Own Logistics' : '🚚 Mitti2Market Logistics'}</p>
-            <p>Tracking: {logistics.trackingId}</p>
+<p>Tracking: {logistics.trackingId}</p>
             <p>Status: {STATUS_LABELS[logistics.status] || logistics.status}</p>
-            {logistics.driverName && <p>Driver: {logistics.driverName} ({logistics.vehicleNumber})</p>}
           </div>
 
           {/* Status update buttons (simplified for demo) */}
-          {deal.status === 'LOGISTICS_PENDING' && !logistics.driverName && logistics.type === 'OWN' && (
+{deal.status === 'LOGISTICS_PENDING' && logistics.type === 'OWN' && (
             <button onClick={() => setShowLogisticsForm(true)}
               className="w-full py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-semibold border border-blue-200 hover:bg-blue-100">
               📋 Add Transporter Details
@@ -515,12 +514,8 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
           <div className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-sm w-full">
             <h3 className="text-sm font-bold text-navy-900 mb-3">Transporter Details</h3>
             <div className="space-y-2">
-              <input value={logisticsForm.transporterName} onChange={e => setLogisticsForm({...logisticsForm, transporterName: e.target.value})}
+<input value={logisticsForm.transporterName} onChange={e => setLogisticsForm({...logisticsForm, transporterName: e.target.value})}
                 placeholder="Transporter company" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs" />
-              <input value={logisticsForm.driverName} onChange={e => setLogisticsForm({...logisticsForm, driverName: e.target.value})}
-                placeholder="Driver name" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs" />
-              <input value={logisticsForm.driverPhone} onChange={e => setLogisticsForm({...logisticsForm, driverPhone: e.target.value})}
-                placeholder="Driver phone" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs" />
               <input value={logisticsForm.vehicleNumber} onChange={e => setLogisticsForm({...logisticsForm, vehicleNumber: e.target.value})}
                 placeholder="Vehicle number" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs" />
               <input value={logisticsForm.vehicleType} onChange={e => setLogisticsForm({...logisticsForm, vehicleType: e.target.value})}

@@ -192,24 +192,6 @@ public class DealController {
         }
     }
 
-    /** Assign a registered DRIVER account to operate this trip (deal party only) */
-    @PostMapping("/logistics/{logisticsId}/assign-driver")
-    public ResponseEntity<?> assignDriver(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId,
-            @RequestBody Map<String, Object> body) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            Long driverUserId = Long.valueOf(body.get("driverUserId").toString());
-            Logistics logistics = logisticsService.assignDriver(logisticsId, driverUserId, userId);
-            return ResponseEntity.ok(ApiResponse.ok("Driver assigned", logisticsToMap(logistics)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
     /** Update logistics details (transporter info) */
     @PutMapping("/logistics/{logisticsId}/details")
     public ResponseEntity<?> updateLogisticsDetails(

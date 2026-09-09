@@ -41,7 +41,6 @@ import DealAdvisor from './pages/DealAdvisor';
 import BuyerRequirements from './pages/BuyerRequirements';
 import MessagePopup from './components/MessagePopup';
 import Locations from './pages/Locations';
-import DriverDashboard from './pages/DriverDashboard';
 import RoleChoiceModal from './components/RoleChoiceModal';
 import AuthRequiredModal from './components/AuthRequiredModal';
 import AdminLayout from './components/admin/AdminLayout';
@@ -185,8 +184,6 @@ export default function App() {
             <Route path="offline-drafts" element={<OfflineDrafts />} />
           </Route>
 
-          {/* Driver Routes */}
-          <Route path="/driver" element={<ProtectedRoute role="driver"><DriverDashboard /></ProtectedRoute>} />
 
           {/* Deal Workspace — shared by farmer & buyer */}
           <Route path="/deal/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
