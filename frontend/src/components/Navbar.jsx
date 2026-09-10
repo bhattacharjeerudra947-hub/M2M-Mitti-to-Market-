@@ -2,19 +2,22 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from './LanguageSelector';
 import RoleChoiceModal from './RoleChoiceModal';
 
 const navItems = [
-  { label: 'Home', to: '/' },
-  { label: 'How It Works', to: '/how-it-works' },
-  { label: 'Marketplace', to: '/marketplace' },
-  { label: 'Pricing', to: '/pricing' },
-  { label: 'About Us', to: '/about-us' },
+  { labelKey: 'navHome', to: '/' },
+  { labelKey: 'navHowItWorks', to: '/how-it-works' },
+  { labelKey: 'navMarketplace', to: '/marketplace' },
+  { labelKey: 'navPricing', to: '/pricing' },
+  { labelKey: 'navAboutUs', to: '/about-us' },
 ];
 
 export default function Navbar({ dark = false }) {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, user, openRoleChoice } = useAuth();
+  const { t } = useLanguage();
   const { pathname } = useLocation();
   const role = user?.role?.toLowerCase();
 
@@ -59,7 +62,7 @@ export default function Navbar({ dark = false }) {
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
               <Link key={item.to} to={item.to} className={desktopLink(item.to)}>
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
           </div>
@@ -71,19 +74,20 @@ export default function Navbar({ dark = false }) {
                 to={role === 'farmer' ? '/farmer' : '/business'}
                 className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition"
               >
-                My Dashboard
+                {t('myDashboard')}
               </Link>
             ) : (
               <>
-                <Link to="/login" className={`text-[13px] font-medium ${linkColor} transition`}>Sign In</Link>
+                <Link to="/login" className={`text-[13px] font-medium ${linkColor} transition`}>{t('signin')}</Link>
                 <button
                   onClick={openRoleChoice}
                   className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition shadow-sm"
                 >
-                  Get Started
+                  {t('getStarted')}
                 </button>
               </>
             )}
+            <LanguageSelector compact />
           </div>
 
           {/* Mobile toggle */}
@@ -105,16 +109,17 @@ export default function Navbar({ dark = false }) {
               className={mobileLink(item.to)}
               onClick={() => setOpen(false)}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           ))}
           <div className="pt-2 border-t border-navy-100 space-y-2">
+            <LanguageSelector />
             {isAuthenticated ? (
-              <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>My Dashboard</Link>
+              <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>{t('myDashboard')}</Link>
             ) : (
               <>
-                <Link to="/login" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Sign In</Link>
-                <button onClick={() => { setOpen(false); openRoleChoice(); }} className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl">Get Started</button>
+                <Link to="/login" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>{t('signin')}</Link>
+                <button onClick={() => { setOpen(false); openRoleChoice(); }} className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl">{t('getStarted')}</button>
               </>
             )}
           </div>
