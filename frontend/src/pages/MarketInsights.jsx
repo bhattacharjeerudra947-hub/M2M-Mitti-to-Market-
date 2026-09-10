@@ -1,28 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import PriceChart from '../components/PriceChart';
-import { priceChartData } from '../data/mockData';
-import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Brain, BarChart3, Globe, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Brain, Globe, Loader2, Inbox, Database } from 'lucide-react';
+import { apiGet } from '../api';
 
-const cropInsights = [
-  { name: 'Tomato', emoji: '🍅', price: 28, demand: 'HIGH', supply: 'MEDIUM', expected: '₹29–31/kg', change: 4.2, trend: 'up' },
-  { name: 'Onion', emoji: '🧅', price: 24, demand: 'MEDIUM', supply: 'HIGH', expected: '₹23–25/kg', change: -1.8, trend: 'down' },
-  { name: 'Potato', emoji: '🥔', price: 22, demand: 'MEDIUM', supply: 'MEDIUM', expected: '₹22–24/kg', change: 2.1, trend: 'up' },
-  { name: 'Grapes', emoji: '🍇', price: 65, demand: 'LOW', supply: 'LOW', expected: '₹62–68/kg', change: -0.5, trend: 'down' },
-  { name: 'Rice', emoji: '🌾', price: 35, demand: 'HIGH', supply: 'HIGH', expected: '₹34–37/kg', change: 1.2, trend: 'up' },
-  { name: 'Chili', emoji: '🌶️', price: 120, demand: 'HIGH', supply: 'LOW', expected: '₹125–135/kg', change: 8.5, trend: 'up' },
-];
-
-const regionalDemand = [
-  { region: 'Maharashtra', demand: 85, topCrops: 'Tomato, Onion, Grapes' },
-  { region: 'Punjab', demand: 78, topCrops: 'Wheat, Rice' },
-  { region: 'Tamil Nadu', demand: 72, topCrops: 'Rice, Chili, Mango' },
-  { region: 'Uttar Pradesh', demand: 68, topCrops: 'Potato, Wheat' },
-  { region: 'Karnataka', demand: 65, topCrops: 'Rice, Coffee' },
-];
-
+/**
+ * Market Insights — powered entirely by /api/price-advisor/all (real
+ * MarketDataService analysis). No hardcoded crop prices: when the API
+ * fails or returns nothing, the page shows an explicit empty state.
+ */
 export default function MarketInsights() {
-  const [selectedCrop, setSelectedCrop] = useState(cropInsights[0]);
+  const [crops, setCrops] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedCrop, setSelectedCrop] = useState(null);
+
+  useEffect(() => {
+    apiGet('/api/price-advisor/all')
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setCrops(list);
+        if (list.length > 0) setSelectedCrop(list[0]);
+      })
+      .catch((e) => setError(e?.message || 'Failed to load market data'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const trendIcon = (trend) => trend === 'Increasing'
+    ? <TrendingUp className="w-3 h-3" />
+    : trend === 'Decreasing' ? <TrendingDown className="w-3 h-3" /> : null;
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -35,133 +40,163 @@ export default function MarketInsights() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-navy-900">Market Insights</h1>
-              <p className="text-navy-500 text-sm">AI-powered market analysis and price trends</p>
+              <p className="text-navy-500 text-sm">Live market analysis from Mitti2Market's price intelligence</p>
             </div>
           </div>
 
-          {/* Current Prices Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-            {cropInsights.map((crop) => (
-              <button
-                key={crop.name}
-                onClick={() => setSelectedCrop(crop)}
-                className={`p-4 rounded-2xl border text-left transition ${
-                  selectedCrop.name === crop.name
-                    ? 'bg-mustard-50 border-mustard-300 shadow-sm'
-                    : 'bg-white border-navy-100 hover:border-mustard-200'
-                }`}
-              >
-                <span className="text-2xl">{crop.emoji}</span>
-                <p className="text-sm font-semibold text-gray-900 mt-2">{crop.name}</p>
-                <p className="text-lg font-bold text-navy-900 mt-1">₹{crop.price}/kg</p>
-                <div className="flex items-center gap-1 mt-1">
-                  {crop.trend === 'up' ? (
-                    <ArrowUpRight className="w-3 h-3 text-emerald-500" />
-                  ) : (
-                    <ArrowDownRight className="w-3 h-3 text-rose-500" />
-                  )}
-                  <span className={`text-xs font-semibold ${crop.trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {crop.change >= 0 ? '+' : ''}{crop.change}%
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6 mb-8">
-            {/* Selected Crop Detail */}              <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-5">
-                <span className="text-4xl">{selectedCrop.emoji}</span>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{selectedCrop.name}</h2>
-                  <p className="text-sm text-gray-500">Detailed Analysis</p>
-                </div>
+          {loading ? (
+            <div className="text-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-navy-900 mx-auto mb-4" />
+              <p className="text-sm text-gray-500">Loading market data...</p>
+            </div>
+          ) : error && crops.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-red-100 p-12 text-center">
+              <Inbox className="w-10 h-10 text-red-300 mx-auto mb-3" />
+              <p className="font-semibold text-navy-900">Market data unavailable</p>
+              <p className="text-sm text-gray-500 mt-1">{error}</p>
+            </div>
+          ) : crops.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-navy-100 p-12 text-center">
+              <Inbox className="w-10 h-10 text-navy-300 mx-auto mb-3" />
+              <p className="font-semibold text-navy-900">No market data yet</p>
+              <p className="text-sm text-gray-500 mt-1">Insights appear once the price intelligence service has data. We don't show sample numbers.</p>
+            </div>
+          ) : (
+            <>
+              {/* Current Prices Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+                {crops.map((crop) => (
+                  <button
+                    key={crop.name}
+                    onClick={() => setSelectedCrop(crop)}
+                    className={`p-4 rounded-2xl border text-left transition ${
+                      selectedCrop?.name === crop.name
+                        ? 'bg-mustard-50 border-mustard-300 shadow-sm'
+                        : 'bg-white border-navy-100 hover:border-mustard-200'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-gray-900">{crop.name}</p>
+                    <p className="text-lg font-bold text-navy-900 mt-1">₹{crop.aiOptimalPrice}/kg</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={`text-xs font-semibold inline-flex items-center gap-0.5 ${
+                        crop.trend === 'Increasing' ? 'text-emerald-600' : crop.trend === 'Decreasing' ? 'text-rose-600' : 'text-gray-500'
+                      }`}>
+                        {crop.trend === 'Increasing' ? <ArrowUpRight className="w-3 h-3" />
+                          : crop.trend === 'Decreasing' ? <ArrowDownRight className="w-3 h-3" /> : null}
+                        {crop.trend || 'Stable'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
               </div>
 
-              <div className="space-y-3">
-                <div className="p-3 bg-gray-50 rounded-xl">
-                  <p className="text-xs text-gray-500">Current Price</p>
-                  <p className="text-lg font-bold text-gray-900">₹{selectedCrop.price}/kg</p>
-                </div>
-                <div className="p-3 bg-mustard-50 rounded-xl border border-mustard-200">
-                  <p className="text-xs text-navy-600 font-medium">Expected Price</p>
-                  <p className="text-lg font-bold text-navy-900">{selectedCrop.expected}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-gray-50 rounded-xl">
-                    <p className="text-xs text-gray-500">Demand</p>
-                    <p className={`text-sm font-bold ${
-                      selectedCrop.demand === 'HIGH' ? 'text-emerald-600' : 'text-amber-600'
-                    }`}>
-                      {selectedCrop.demand} ↑
-                    </p>
-                  </div>
-                  <div className="p-3 bg-gray-50 rounded-xl">
-                    <p className="text-xs text-gray-500">Supply</p>
-                    <p className={`text-sm font-bold ${
-                      selectedCrop.supply === 'HIGH' ? 'text-rose-600' : 'text-amber-600'
-                    }`}>
-                      {selectedCrop.supply}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <div className="grid lg:grid-cols-3 gap-6">
+                {/* Selected Crop Detail */}
+                {selectedCrop && (
+                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-6">
+                    <div className="mb-5">
+                      <h2 className="text-xl font-bold text-gray-900">{selectedCrop.name}</h2>
+                      <p className="text-sm text-gray-500">{selectedCrop.category} • Market Analysis</p>
+                    </div>
 
-              {/* AI Insight */}
-              <div className="mt-4 p-4 bg-gradient-to-br from-mustard-50 to-white rounded-xl border border-mustard-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Brain className="w-4 h-4 text-navy-700" />
-                  <span className="text-xs font-bold text-navy-800">AI Insight</span>
-                </div>
-                <p className="text-xs text-gray-700 leading-relaxed">
-                  Demand is currently {selectedCrop.demand.toLowerCase()} in your selected region with an {selectedCrop.trend} price trend. {selectedCrop.supply === 'LOW' ? 'Limited supply suggests potential for premium pricing.' : selectedCrop.supply === 'HIGH' ? 'High supply may pressure prices down slightly.' : 'Balanced supply-demand dynamics expected.'}
-                </p>
-              </div>
-            </div>
+                    <div className="space-y-3">
+                      <div className="p-3 bg-gray-50 rounded-xl">
+                        <p className="text-xs text-gray-500">AI Optimal Price</p>
+                        <p className="text-lg font-bold text-gray-900">₹{selectedCrop.aiOptimalPrice}/kg</p>
+                      </div>
+                      <div className="p-3 bg-mustard-50 rounded-xl border border-mustard-200">
+                        <p className="text-xs text-navy-600 font-medium">AI Suggested Range</p>
+                        <p className="text-lg font-bold text-navy-900">₹{selectedCrop.aiSuggestedMinPrice}–₹{selectedCrop.aiSuggestedMaxPrice}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500">Market Range</p>
+                          <p className="text-sm font-bold text-navy-900">₹{selectedCrop.marketMinPrice}–₹{selectedCrop.marketMaxPrice}</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-xl">
+                          <p className="text-xs text-gray-500">Trend</p>
+                          <p className={`text-sm font-bold inline-flex items-center gap-1 ${
+                            selectedCrop.trend === 'Increasing' ? 'text-emerald-600' : selectedCrop.trend === 'Decreasing' ? 'text-rose-600' : 'text-gray-600'
+                          }`}>
+                            {trendIcon(selectedCrop.trend)} {selectedCrop.trend || 'Stable'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-            {/* Chart */}
-            <div className="lg:col-span-2">
-              <PriceChart
-                data={priceChartData}
-                dataKeys={[
-                  { name: 'month', xKey: 'month' },
-                  { name: 'tomato', label: 'Tomato' },
-                  { name: 'onion', label: 'Onion' },
-                  { name: 'potato', label: 'Potato' },
-                ]}
-                title="Historical Price Trends (₹/kg)"
-                colors={['#16a34a', '#f97316', '#3b82f6']}
-                height={350}
-              />
-            </div>
-          </div>
-
-          {/* Regional Demand */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <Globe className="w-5 h-5 text-navy-700" />
-              <h3 className="text-base font-bold text-navy-900">Regional Demand</h3>
-            </div>
-            <div className="space-y-4">
-              {regionalDemand.map((r, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <div className="w-32 flex-shrink-0">
-                    <p className="text-sm font-semibold text-navy-800">{r.region}</p>
-                    <p className="text-xs text-gray-500">{r.topCrops}</p>
-                  </div>
-                  <div className="flex-1">
-                    <div className="w-full h-3 bg-navy-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-mustard-400 to-navy-700 rounded-full transition-all"
-                        style={{ width: `${r.demand}%` }}
-                      />
+                    <div className="mt-4 p-4 bg-gradient-to-br from-mustard-50 to-white rounded-xl border border-mustard-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Brain className="w-4 h-4 text-navy-700" />
+                        <span className="text-xs font-bold text-navy-800">AI Insight</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        Demand is <strong>{selectedCrop.demandLevel?.toLowerCase() || 'moderate'}</strong> and supply is
+                        <strong> {selectedCrop.supplyLevel?.toLowerCase() || 'medium'}</strong> with a {(selectedCrop.trend || 'stable').toLowerCase()} price trend.
+                        {selectedCrop.supplyLevel === 'LOW' ? ' Limited supply suggests potential for premium pricing.' :
+                          selectedCrop.supplyLevel === 'HIGH' ? ' High supply may pressure prices down slightly.' : ''}
+                        {' '}Estimates are AI-generated from market data — not guaranteed prices.
+                      </p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-navy-800 w-12 text-right">{r.demand}%</span>
+                )}
+
+                {/* Regional Prices for the selected crop */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-6 h-full">
+                    <div className="flex items-center gap-2 mb-5">
+                      <Globe className="w-5 h-5 text-navy-700" />
+                      <h3 className="text-base font-bold text-navy-900">
+                        Regional Prices — {selectedCrop?.name || ''}
+                      </h3>
+                      <span className="ml-auto text-[10px] text-gray-400 inline-flex items-center gap-1">
+                        <Database className="w-3 h-3" /> live market intelligence
+                      </span>
+                    </div>
+                    {selectedCrop?.regionalPrices && Object.keys(selectedCrop.regionalPrices).length > 0 ? (
+                      <div className="space-y-4">
+                        {Object.entries(selectedCrop.regionalPrices).map(([city, price]) => {
+                          const maxP = Math.max(...Object.values(selectedCrop.regionalPrices));
+                          return (
+                            <div key={city} className="flex items-center gap-4">
+                              <div className="w-28 flex-shrink-0">
+                                <p className="text-sm font-semibold text-navy-800">{city}</p>
+                              </div>
+                              <div className="flex-1">
+                                <div className="w-full h-3 bg-navy-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-mustard-400 to-navy-700 rounded-full transition-all"
+                                    style={{ width: `${Math.round((price / maxP) * 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="text-sm font-bold text-navy-800 w-16 text-right">₹{price}/kg</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Inbox className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">No regional price data for this crop yet.</p>
+                      </div>
+                    )}
+
+                    {/* Top markets */}
+                    {selectedCrop?.topMarkets?.length > 0 && (
+                      <div className="mt-5 pt-4 border-t border-gray-100">
+                        <p className="text-xs font-semibold text-navy-700 mb-2">Top markets</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedCrop.topMarkets.map((m) => (
+                            <span key={m} className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-full text-xs text-navy-700">{m}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
     </div>

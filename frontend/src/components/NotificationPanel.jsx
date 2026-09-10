@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet, apiPut } from '../api';
-import { pollInterval, isLowDataMode, onLowDataModeChange } from '../utils/lowDataMode';
 
 const NOTIF_ICONS = {
   NEW_MESSAGE: { icon: MessageCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
@@ -42,8 +41,6 @@ export default function NotificationPanel({ compact = false }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [lowData, setLowData] = useState(isLowDataMode());
-  useEffect(() => onLowDataModeChange(setLowData), []);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -63,10 +60,9 @@ export default function NotificationPanel({ compact = false }) {
 
   useEffect(() => {
     fetchNotifications();
-    // Poll for new notifications — slower in low data mode
-    const interval = setInterval(fetchNotifications, pollInterval(10000, 30000));
+    const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
-  }, [fetchNotifications, lowData]);
+  }, [fetchNotifications]);
 
   const markAsRead = useCallback(async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));

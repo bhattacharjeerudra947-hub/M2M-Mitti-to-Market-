@@ -31,13 +31,8 @@ public class Logistics {
 
     // Transporter details
     private String transporterName;
-    private String driverName;
-    private String driverPhone;
     private String vehicleNumber;
     private String vehicleType;
-
-    /** Registered driver account assigned to operate this trip (DRIVER role) */
-    private Long driverUserId;
 
     // Locations (string + optional exact coordinates)
     private String pickupLocation;
@@ -53,21 +48,7 @@ public class Logistics {
     private LocalDateTime expectedDelivery;
     private LocalDateTime actualDelivery;
 
-    // Tracking
-    private Double currentLatitude;
-    private Double currentLongitude;
-    private LocalDateTime lastLocationUpdate;
-    private String trackingUrl;
-
-    /** Driver tracking session state */
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private TrackingStatus trackingStatus = TrackingStatus.NOT_STARTED;
-    private LocalDateTime trackingStartedAt;
-    private LocalDateTime trackingCompletedAt;
-
-    /** GPS accuracy of the last location fix (metres) */
-    private Double lastAccuracy;
+    // Route estimate summary (computed by the route engine)
 
     // Route estimate summary (computed by the route engine)
     private Double routeDistanceKm;
@@ -104,12 +85,5 @@ public class Logistics {
         IN_TRANSIT,
         OUT_FOR_DELIVERY,
         DELIVERED
-    }
-
-    public enum TrackingStatus {
-        NOT_STARTED,
-        ACTIVE,
-        PAUSED,
-        COMPLETED
     }
 }

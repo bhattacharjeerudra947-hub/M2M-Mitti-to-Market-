@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { Search, SlidersHorizontal, X, Package } from 'lucide-react';
 import { apiGet } from '../api';
-import { optimizeImage } from '../utils/lowDataMode';
+import { optimizeImage } from '../utils/image';
 
 const categoryEmoji = {
   Fruits: '🍎',
