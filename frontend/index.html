@@ -8,13 +8,13 @@
     <meta name="description" content="Farmer deal intelligence + marketplace + logistics. Works on low-bandwidth rural networks." />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/logo-icon.png" />
-    <title>Mitti2Market — Direct Agri Marketplace</title>
+    <title class="notranslate" translate="no">Mitti2Market — Direct Agri Marketplace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="google_translate_element" style="display: none;"></div>
+    <div id="google_translate_element"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script type="text/javascript">
@@ -22,12 +22,11 @@
         if (window.google && window.google.translate) {
           new window.google.translate.TranslateElement({
             pageLanguage: 'en',
-            autoDisplay: false,
-            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE
+            autoDisplay: false
           }, 'google_translate_element');
         }
       };
     </script>
-    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
+    <script id="google-translate-script" type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
   </body>
 </html>

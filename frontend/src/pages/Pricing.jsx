@@ -34,7 +34,7 @@ export default function Pricing() {
               <span className="text-mustard-400">every single trade.</span>
             </h1>
             <p className="text-base sm:text-lg text-navy-200 mb-8 max-w-xl leading-relaxed">
-              No commissions eating into your margins. No opaque rates. Mitti2Market is a direct
+              No commissions eating into your margins. No opaque rates. <span className="notranslate" translate="no">Mitti2Market</span> is a direct
               marketplace — farmers set their price, buyers see it, and everyone knows the value is real.
             </p>
             <div className="flex flex-wrap gap-4">
