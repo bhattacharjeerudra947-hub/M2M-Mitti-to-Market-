@@ -15,8 +15,14 @@ public class BusinessProfileResponse {
     private String businessType;
     private String officialName;
     private String gstin;
+    private String panNumber;
     private String registrationNumber;
     private String businessAddress;
+    private String state;
+    private String district;
+    private String tehsil;
+    private String village;
+    private String pincode;
     private String departmentName;
     private String authorizedPerson;
     private String registrationDocStorageKey;

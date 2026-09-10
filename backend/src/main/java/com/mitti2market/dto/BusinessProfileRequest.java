@@ -13,8 +13,14 @@ public class BusinessProfileRequest {
     private String businessType;        // GOVERNMENT, PRIVATE_BUSINESS, FPO_COOPERATIVE, OTHER
     private String officialName;
     private String gstin;
+    private String panNumber;
     private String registrationNumber;
     private String businessAddress;
+    private String state;
+    private String district;
+    private String tehsil;
+    private String village;
+    private String pincode;
     private String departmentName;      // for GOVERNMENT type
     private String authorizedPerson;
     private String requiredCrops;       // comma-separated: "Rice,Wheat"

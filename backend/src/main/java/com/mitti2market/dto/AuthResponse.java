@@ -26,6 +26,9 @@ public class AuthResponse {
         private String role;
         private String location;
         private Boolean verified;
+        private String verificationStatus;
+        private String state;
+        private String district;
         private Double rating;
     }
 }

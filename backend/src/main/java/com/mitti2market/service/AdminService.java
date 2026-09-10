@@ -320,6 +320,11 @@ public class AdminService {
                 : Boolean.TRUE.equals(user.getVerified()) ? "VERIFIED" : "NOT_VERIFIED");
         m.put("rating", user.getRating());
         m.put("location", user.getLocation());
+        m.put("state", user.getState());
+        m.put("district", user.getDistrict());
+        m.put("tehsil", user.getTehsil());
+        m.put("village", user.getVillage());
+        m.put("pincode", user.getPincode());
         m.put("organizationName", user.getOrganizationName());
         m.put("statusReason", user.getStatusReason());
         m.put("verificationNotes", user.getVerificationNotes());
