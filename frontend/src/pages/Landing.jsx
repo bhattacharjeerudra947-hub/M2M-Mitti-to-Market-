@@ -7,27 +7,30 @@ import RoleChoiceModal from '../components/RoleChoiceModal';
 import AuthRequiredModal from '../components/AuthRequiredModal';
 import { useSiteStats, formatCompact } from '../utils/siteStats';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
-const features = [
-  { icon: TrendingUp, title: 'Better Prices', desc: 'Farmers earn more by selling directly to verified buyers without middlemen.' },
-  { icon: Users, title: 'Direct Access', desc: 'Connect directly with buyers and negotiate fair prices for your produce.' },
-  { icon: Shield, title: 'Transparent Pricing', desc: 'No hidden fees. See exactly what you earn and what buyers pay.' },
-  { icon: Brain, title: 'AI Price Insights', desc: 'Get AI-powered recommendations for optimal pricing and demand forecasting.' },
-  { icon: Truck, title: 'Smart Logistics', desc: 'AI-optimized delivery routes to reduce transport costs and food waste.' },
-  { icon: Leaf, title: 'Less Food Wastage', desc: 'Direct connections mean faster transactions, fresher produce, and less waste.' },
+// Content lives in src/data/translations/pages/landing.js — these helpers
+// just pair each translated string with its icon/number for rendering.
+const buildFeatures = (t) => [
+  { icon: TrendingUp, title: t('landing.feature1Title'), desc: t('landing.feature1Desc') },
+  { icon: Users, title: t('landing.feature2Title'), desc: t('landing.feature2Desc') },
+  { icon: Shield, title: t('landing.feature3Title'), desc: t('landing.feature3Desc') },
+  { icon: Brain, title: t('landing.feature4Title'), desc: t('landing.feature4Desc') },
+  { icon: Truck, title: t('landing.feature5Title'), desc: t('landing.feature5Desc') },
+  { icon: Leaf, title: t('landing.feature6Title'), desc: t('landing.feature6Desc') },
 ];
 
-const steps = [
-  { num: '01', title: 'List Your Produce', desc: 'Add your crops and set your price.', icon: Leaf },
-  { num: '02', title: 'Connect Directly', desc: 'Buyers connect with you directly.', icon: Users },
-  { num: '03', title: 'Confirm & Deliver', desc: 'Finalize orders and deliver with ease.', icon: Truck },
-  { num: '04', title: 'Get Paid', desc: 'Receive payments securely and on time.', icon: TrendingUp },
+const buildSteps = (t) => [
+  { num: '01', title: t('landing.step1Title'), desc: t('landing.step1Desc'), icon: Leaf },
+  { num: '02', title: t('landing.step2Title'), desc: t('landing.step2Desc'), icon: Users },
+  { num: '03', title: t('landing.step3Title'), desc: t('landing.step3Desc'), icon: Truck },
+  { num: '04', title: t('landing.step4Title'), desc: t('landing.step4Desc'), icon: TrendingUp },
 ];
 
-const testimonials = [
-  { name: 'Rajesh Kumar', role: 'Farmer, Nashik', text: 'I earn 17% more per kg now. No more middlemen eating into my profits.', rating: 5 },
-  { name: 'Priya Agarwal', role: 'FreshMart, Mumbai', text: 'I get fresher produce at better prices. The AI insights help me plan purchases.', rating: 5 },
-  { name: 'Suresh Patil', role: 'FPO Leader, Pune', text: 'Our collective revenue increased 40% since joining the platform.', rating: 5 },
+const buildTestimonials = (t) => [
+  { name: 'Rajesh Kumar', role: t('landing.testimonial1Role'), text: t('landing.testimonial1Text'), rating: 5 },
+  { name: 'Priya Agarwal', role: t('landing.testimonial2Role'), text: t('landing.testimonial2Text'), rating: 5 },
+  { name: 'Suresh Patil', role: t('landing.testimonial3Role'), text: t('landing.testimonial3Text'), rating: 5 },
 ];
 
 const statStyle = (loading) => ({
@@ -38,6 +41,17 @@ const statStyle = (loading) => ({
 export default function Landing() {
   const { stats, loading } = useSiteStats();
   const { openRoleChoice } = useAuth();
+  const { t } = useLanguage();
+
+  const features = buildFeatures(t);
+  const steps = buildSteps(t);
+  const testimonials = buildTestimonials(t);
+
+  const stats_ = [
+    { value: stats ? `${formatCompact(stats.farmers)}+` : '…', label: t('landing.statFarmersLabel'), icon: '👨‍🌾', iconBg: 'bg-agri-700' },
+    { value: stats ? `${formatCompact(stats.buyers)}+` : '…', label: t('landing.statBuyersLabel'), icon: '🏪', iconBg: 'bg-earth-500' },
+    { value: stats ? `₹${formatCompact(stats.produceSoldValue)}+` : '…', label: t('landing.statProduceLabel'), icon: '📊', iconBg: 'bg-mustard-400' },
+  ];
 
   return (
     <div className="min-h-screen bg-cream">
@@ -62,18 +76,18 @@ export default function Landing() {
               {/* Pill */}
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-agri-700/30 border border-agri-500/30 rounded-full mb-6">
                 <span className="text-sm">🌿</span>
-                <span className="text-[13px] font-medium text-agri-200">Direct Agri Marketplace</span>
+                <span className="text-[13px] font-medium text-agri-200">{t('landing.heroPill')}</span>
               </div>
 
               {/* Headline */}
               <h1 className="font-display text-[2.5rem] sm:text-[3rem] lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight text-white mb-6">
-                From Farm to Market,<br />
-                <span className="text-mustard-400">Without the Middlemen.</span>
+                {t('landing.heroTitleLine1')}<br />
+                <span className="text-mustard-400">{t('landing.heroTitleLine2')}</span>
               </h1>
 
               {/* Subtext */}
               <p className="text-base sm:text-lg text-navy-200 mb-8 max-w-md leading-relaxed">
-                Mitti2Market connects farmers directly with buyers. Get fair prices, save more, and grow together.
+                {t('landing.heroSubtext')}
               </p>
 
               {/* CTAs */}
@@ -82,14 +96,14 @@ export default function Landing() {
                   onClick={openRoleChoice}
                   className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20"
                 >
-                  Get Started
+                  {t('landing.ctaGetStarted')}
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <Link
                   to="/marketplace"
                   className="inline-flex items-center gap-2 px-7 py-3.5 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition border border-white/25"
                 >
-                  Explore Marketplace
+                  {t('landing.ctaExploreMarketplace')}
                 </Link>
               </div>
             </div>
@@ -140,9 +154,9 @@ export default function Landing() {
                     <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-4 h-4 text-primary-600" />
                     </div>
-                    <span className="text-[11px] font-semibold text-navy-900">Fair Prices</span>
+                    <span className="text-[11px] font-semibold text-navy-900">{t('landing.heroCardTitle')}</span>
                   </div>
-                  <p className="text-[11px] text-navy-600 leading-snug">Farmers earn 17% more on average</p>
+                  <p className="text-[11px] text-navy-600 leading-snug">{t('landing.heroCardDesc')}</p>
                 </div>
               </div>
             </div>
@@ -161,11 +175,7 @@ export default function Landing() {
       <section className="relative bg-cream pt-8 pb-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-3 gap-4 sm:gap-8">
-            {[
-              { value: stats ? `${formatCompact(stats.farmers)}+` : '…', label: 'Farmers Onboarded', icon: '👨‍🌾', iconBg: 'bg-agri-700' },
-              { value: stats ? `${formatCompact(stats.buyers)}+` : '…', label: 'Active Buyers', icon: '🏪', iconBg: 'bg-earth-500' },
-              { value: stats ? `₹${formatCompact(stats.produceSoldValue)}+` : '…', label: 'Worth of Produce Sold', icon: '📊', iconBg: 'bg-mustard-400' },
-            ].map((stat, i) => (
+            {stats_.map((stat, i) => (
               <div key={i} className={`flex flex-col items-center text-center ${i < 2 ? 'border-r border-navy-200/30' : ''}`}>
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 ${stat.iconBg} rounded-full flex items-center justify-center mb-3`}>
                   <span className="text-lg sm:text-xl">{stat.icon}</span>
@@ -188,9 +198,9 @@ export default function Landing() {
             </div>
             <div className="text-center sm:text-left">
               <h3 className="font-display text-2xl sm:text-3xl font-bold text-cream leading-tight">
-                Supporting Farmers,<br />Strengthening Bharat
+                {t('landing.supportingTitleLine1')}<br />{t('landing.supportingTitleLine2')}
               </h3>
-              <p className="text-earth-200 mt-2 text-sm sm:text-base">Better income. Better future.</p>
+              <p className="text-earth-200 mt-2 text-sm sm:text-base">{t('landing.supportingSubtitle')}</p>
             </div>
           </div>
         </div>
@@ -209,13 +219,13 @@ export default function Landing() {
           {/* Section label */}
           <div className="text-center mb-4">
             <span className="inline-block px-4 py-1.5 bg-white/15 text-agri-100 text-[11px] font-semibold tracking-widest uppercase rounded-full">
-              How It Works
+              {t('landing.howItWorksLabel')}
             </span>
           </div>
 
           {/* Heading */}
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-center mb-14 leading-tight">
-            Simple steps,<br />strong impact.
+            {t('landing.howItWorksHeadingLine1')}<br />{t('landing.howItWorksHeadingLine2')}
           </h2>
 
           {/* Steps */}
@@ -232,7 +242,7 @@ export default function Landing() {
 
                 {/* Step number */}
                 <span className="text-[11px] font-bold text-mustard-400 tracking-widest uppercase mb-2 block">
-                  Step {step.num}
+                  {t('landing.stepWord')} {step.num}
                 </span>
 
                 <h3 className="text-base font-bold text-white mb-2">{step.title}</h3>
@@ -248,13 +258,13 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
             <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-[11px] font-semibold tracking-widest uppercase rounded-full mb-4">
-              Why Choose Us
+              {t('landing.whyChooseUsLabel')}
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
-              Built for the Future of Agriculture
+              {t('landing.featuresHeading')}
             </h2>
             <p className="text-base text-navy-500 max-w-2xl mx-auto">
-              A platform designed to empower farmers and businesses alike through technology.
+              {t('landing.featuresSubtitle')}
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -279,28 +289,28 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
             <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-[11px] font-semibold tracking-widest uppercase rounded-full mb-4">
-              Testimonials
+              {t('landing.testimonialsLabel')}
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
-              Trusted by Thousands
+              {t('landing.testimonialsHeading')}
             </h2>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
-            {testimonials.map((t, i) => (
+            {testimonials.map((item, i) => (
               <div key={i} className="bg-white rounded-2xl p-6 border border-navy-100/50 shadow-sm">
                 <div className="flex gap-0.5 mb-3">
-                  {Array.from({ length: t.rating }).map((_, j) => (
+                  {Array.from({ length: item.rating }).map((_, j) => (
                     <Star key={j} className="w-4 h-4 text-mustard-400 fill-mustard-400" />
                   ))}
                 </div>
-                <p className="text-[13px] text-navy-600 mb-5 leading-relaxed">"{t.text}"</p>
+                <p className="text-[13px] text-navy-600 mb-5 leading-relaxed">"{item.text}"</p>
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 bg-navy-900 rounded-full flex items-center justify-center text-sm font-bold text-white">
-                    {t.name.charAt(0)}
+                    {item.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-navy-900">{t.name}</p>
-                    <p className="text-[11px] text-navy-400">{t.role}</p>
+                    <p className="text-sm font-semibold text-navy-900">{item.name}</p>
+                    <p className="text-[11px] text-navy-400">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -313,17 +323,17 @@ export default function Landing() {
       <section className="py-20 sm:py-24 bg-navy-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mb-4">
-            Ready to Transform Your Agricultural Trade?
+            {t('landing.ctaHeading')}
           </h2>
           <p className="text-base text-navy-300 mb-8 max-w-xl mx-auto">
-            Join thousands of farmers and businesses already trading directly on Mitti2Market.
+            {t('landing.ctaSubtext')}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button
               onClick={openRoleChoice}
               className="inline-flex items-center gap-2 px-8 py-4 bg-mustard-400 text-navy-900 font-bold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20 text-base"
             >
-              Get Started — It's Free
+              {t('landing.ctaButton')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
