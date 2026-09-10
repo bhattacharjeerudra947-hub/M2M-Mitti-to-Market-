@@ -91,6 +91,8 @@ public class SupportingDocument {
         PROFILE_PHOTO,
         IDENTITY_DOC,
         AADHAAR_CARD,
+        FARMER_ID,
+        LAND_CULTIVATION_PROOF,
         BUSINESS_REGISTRATION,
         GST_CERTIFICATE,
         PAN_CARD,
@@ -105,6 +107,7 @@ public class SupportingDocument {
     public enum VerificationStatus {
         PENDING,
         VERIFIED,
-        REJECTED
+        REJECTED,
+        RE_UPLOAD_REQUESTED
     }
 }

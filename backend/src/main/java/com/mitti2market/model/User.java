@@ -55,6 +55,16 @@ public class User {
 
     private String location;
 
+    private String state;
+
+    private String district;
+
+    private String tehsil;
+
+    private String village;
+
+    private String pincode;
+
     /** Latitude for GPS coordinates */
     private Double latitude;
 
