@@ -2,15 +2,19 @@ package com.mitti2market.controller;
 
 import com.mitti2market.config.TokenService;
 import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.dto.produce.ProduceResponse;
 import com.mitti2market.model.Deal;
+import com.mitti2market.model.Dispute;
 import com.mitti2market.model.User;
 import com.mitti2market.repository.DealRepository;
+import com.mitti2market.repository.DisputeRepository;
 import com.mitti2market.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +29,8 @@ public class AdminController {
     private final FeedbackService feedbackService;
     private final AuditLogService auditLogService;
     private final DealRepository dealRepository;
+    private final DisputeRepository disputeRepository;
+    private final ProduceService produceService;
     private final TokenService tokens;
 
     private Long extractAdminId(String authHeader) {
@@ -199,6 +205,49 @@ public class AdminController {
             deals = deals.stream().filter(d -> d.getStatus().name().equalsIgnoreCase(status)).toList();
         }
         return ResponseEntity.ok(ApiResponse.ok(deals));
+    }
+
+    /**
+     * GET /api/admin/produce — all produce listings (for moderation).
+     * Optional ?status= filter (AVAILABLE, PARTIALLY_SOLD, SOLD_OUT, ADMIN_REMOVED, ...).
+     */
+    @GetMapping("/produce")
+    public ResponseEntity<?> getProduce(@RequestParam(required = false) String status) {
+        List<ProduceResponse> all = produceService.listAll(null, null, null, null);
+        if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
+            all = all.stream()
+                    .filter(p -> p.getStatus() != null && p.getStatus().name().equalsIgnoreCase(status))
+                    .toList();
+        }
+        return ResponseEntity.ok(ApiResponse.ok(all));
+    }
+
+    /**
+     * GET /api/admin/disputes — all deal disputes (moderation queue).
+     * Optional ?status= filter (OPEN, UNDER_REVIEW, RESOLVED, REJECTED).
+     */
+    @GetMapping("/disputes")
+    public ResponseEntity<?> getDisputes(@RequestParam(required = false) String status) {
+        List<Dispute> disputes = disputeRepository.findAllByOrderByCreatedAtDesc();
+        if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
+            disputes = disputes.stream()
+                    .filter(d -> d.getStatus() != null && d.getStatus().name().equalsIgnoreCase(status))
+                    .toList();
+        }
+        List<Map<String, Object>> out = disputes.stream().map(d -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", d.getId());
+            m.put("dealId", d.getDealId());
+            m.put("reason", d.getReason());
+            m.put("description", d.getDescription());
+            m.put("status", d.getStatus());
+            m.put("createdAt", d.getCreatedAt());
+            m.put("resolvedAt", d.getResolvedAt());
+            m.put("raisedByName", d.getRaisedBy() != null ? d.getRaisedBy().getName() : null);
+            m.put("raisedByEmail", d.getRaisedBy() != null ? d.getRaisedBy().getEmail() : null);
+            return m;
+        }).toList();
+        return ResponseEntity.ok(ApiResponse.ok(out));
     }
 
     @GetMapping("/audit-log")

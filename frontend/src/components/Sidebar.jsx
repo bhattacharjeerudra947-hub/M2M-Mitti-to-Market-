@@ -54,6 +54,7 @@ const businessGuestRestricted = new Set([
   '/business/requirements',
   '/business/orders',
   '/business/suppliers',
+  '/business/insights',
   '/business/chat',
   '/business/deals',
   '/locations',

@@ -28,7 +28,10 @@ export default function AdminLayout() {
     { label: 'Produce', path: '/admin/produce', icon: '🌾' },
     { label: 'Disputes', path: '/admin/disputes', icon: '⚖️' },
     { label: 'Audit Log', path: '/admin/audit-log', icon: '📜' },
+    { label: 'Settings', path: '/admin/settings', icon: '⚙️' },
   ];
+
+  const current = navItems.find((n) => n.path === location.pathname);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100">
@@ -85,7 +88,7 @@ export default function AdminLayout() {
         <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {navItems.find((n) => n.path === location.pathname)?.label || 'Administration'}
+              {current?.label || 'Administration'}
             </h1>
           </div>
           <div className="flex items-center gap-4">
