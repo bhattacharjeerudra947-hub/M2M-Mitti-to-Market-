@@ -50,7 +50,7 @@ export default function HowItWorks() {
               <span className="text-mustard-400">in four simple steps.</span>
             </h1>
             <p className="text-base sm:text-lg text-navy-200 mb-8 max-w-xl leading-relaxed">
-              Mitti2Market removes the middlemen and puts farmers face-to-face with buyers.
+              <span className="notranslate" translate="no">Mitti2Market</span> removes the middlemen and puts farmers face-to-face with buyers.
               Here&apos;s how the journey works — from listing a crop to getting paid.
             </p>
             <div className="flex flex-wrap gap-4">
@@ -87,7 +87,7 @@ export default function HowItWorks() {
               Simple steps, strong impact
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
-              How farmers sell on Mitti2Market
+              How farmers sell on <span className="notranslate" translate="no">Mitti2Market</span>
             </h2>
             <p className="text-base text-navy-500 max-w-2xl mx-auto">
               A straightforward flow designed so farmers keep more of what they earn.
@@ -193,7 +193,7 @@ export default function HowItWorks() {
             Ready to start trading directly?
           </h2>
           <p className="text-base text-navy-300 mb-8 max-w-xl mx-auto">
-            Join thousands of farmers and businesses already trading on Mitti2Market.
+            Join thousands of farmers and businesses already trading on <span className="notranslate" translate="no">Mitti2Market</span>.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
