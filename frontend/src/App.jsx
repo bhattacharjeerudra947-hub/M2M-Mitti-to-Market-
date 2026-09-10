@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider, LanguageRouteSync } from './context/LanguageContext';
 import { FarmerProvider } from './context/FarmerContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
@@ -140,8 +141,10 @@ function FarmerLayout() {
 
 export default function App() {
   return (
+    <LanguageProvider>
     <Router>
       <ScrollToTop />
+      <LanguageRouteSync />
       <AutoRotateSections />
       <AuthProvider>
         <MessagePopup />
@@ -224,5 +227,6 @@ export default function App() {
         </RouteFade>
       </AuthProvider>
     </Router>
+    </LanguageProvider>
   );
 }
