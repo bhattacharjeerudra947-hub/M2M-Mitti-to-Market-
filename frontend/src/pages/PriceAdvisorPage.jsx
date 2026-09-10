@@ -1,7 +1,75 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Brain, TrendingUp, TrendingDown, Minus, Info, Loader2, RefreshCw } from 'lucide-react';
+import { Brain, TrendingUp, TrendingDown, Minus, Info, Loader2, RefreshCw, Database, ShieldCheck } from 'lucide-react';
 import { apiGet } from '../api';
+
+const SOURCE_LABELS = {
+  DATASET_MODEL: { text: 'Based on historical crop-price dataset', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Database },
+  LIVE_MANDI: { text: 'Live government mandi prices (data.gov.in)', cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: ShieldCheck },
+  UNAVAILABLE: { text: 'No verified data available', cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: Info },
+};
+
+/** Dataset/mandi-backed estimate card — always discloses its source. */
+function DatasetEstimateCard({ cropName, state }) {
+  const [estimate, setEstimate] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!cropName) return;
+    setLoading(true);
+    const params = new URLSearchParams({ crop: cropName });
+    if (state) params.set('state', state);
+    apiGet(`/api/price-advisor/estimate?${params}`)
+      .then(setEstimate)
+      .catch(() => setEstimate(null))
+      .finally(() => setLoading(false));
+  }, [cropName, state]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-navy-100 p-5 flex items-center gap-3">
+        <Loader2 className="w-4 h-4 animate-spin text-navy-500" />
+        <p className="text-sm text-gray-500">Checking historical dataset & live mandi prices…</p>
+      </div>
+    );
+  }
+  if (!estimate) return null;
+
+  const src = SOURCE_LABELS[estimate.source] || SOURCE_LABELS.UNAVAILABLE;
+  return (
+    <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-bold text-navy-900">Data-Backed Estimate</h3>
+          <p className="text-[11px] text-navy-500 mt-0.5">{estimate.explanation}</p>
+        </div>
+        <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border shrink-0 inline-flex items-center gap-1 ${src.cls}`}>
+          <src.icon className="w-3 h-3" /> {src.text}
+        </span>
+      </div>
+      {estimate.source === 'UNAVAILABLE' ? (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+          Mitti2Market does not display fabricated prices for this crop/location.
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="p-3 bg-gray-50 rounded-xl">
+            <p className="text-lg font-bold text-navy-900">₹{estimate.medianPrice}</p>
+            <p className="text-[10px] text-gray-500">Median ₹/{estimate.unit || 'kg'}</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-xl">
+            <p className="text-lg font-bold text-navy-900">₹{estimate.rangeLow}–₹{estimate.rangeHigh}</p>
+            <p className="text-[10px] text-gray-500">Expected range</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-xl">
+            <p className="text-lg font-bold text-navy-900">{estimate.samples}</p>
+            <p className="text-[10px] text-gray-500">Data points</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PriceAdvisorPage() {
   const [crops, setCrops] = useState([]);
@@ -114,6 +182,7 @@ export default function PriceAdvisorPage() {
 
               {/* Right: Analysis */}
               <div className="lg:col-span-2 space-y-4">
+                <DatasetEstimateCard cropName={selected?.name} state={location} />
                 {analyzing ? (
                   <div className="text-center py-12 bg-white rounded-2xl border border-navy-100">
                     <Loader2 className="w-8 h-8 animate-spin text-navy-900 mx-auto mb-3" />
