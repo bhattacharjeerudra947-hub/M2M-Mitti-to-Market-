@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * Sign-in required modal — shown when a guest tries to perform an
@@ -9,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
  */
 export default function AuthRequiredModal() {
   const { authRequiredOpen, closeAuthRequired } = useAuth();
+  const { t } = useLanguage();
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') closeAuthRequired();
@@ -43,7 +45,7 @@ export default function AuthRequiredModal() {
         <button
           onClick={closeAuthRequired}
           className="absolute top-4 right-4 p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition z-10"
-          aria-label="Close"
+          aria-label={t('close')}
         >
           <X className="w-5 h-5" />
         </button>
@@ -53,9 +55,9 @@ export default function AuthRequiredModal() {
           <div className="w-14 h-14 bg-mustard-400/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Lock className="w-7 h-7 text-mustard-400" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-1">Sign In Required</h2>
+          <h2 className="text-xl font-bold text-white mb-1">{t('signInRequired')}</h2>
           <p className="text-sm text-navy-300">
-            Sign in or create an account to use this feature
+            {t('signInToUseFeature')}
           </p>
         </div>
 
@@ -66,7 +68,7 @@ export default function AuthRequiredModal() {
             onClick={closeAuthRequired}
             className="block w-full py-3.5 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition text-center shadow-sm"
           >
-            Sign In
+            {t('signin')}
           </Link>
 
           <Link
@@ -74,14 +76,14 @@ export default function AuthRequiredModal() {
             onClick={closeAuthRequired}
             className="block w-full py-3.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl hover:bg-mustard-300 transition text-center shadow-sm"
           >
-            Create Account
+            {t('createAccountAction')}
           </Link>
 
           <button
             onClick={closeAuthRequired}
             className="block w-full py-2.5 text-sm text-gray-500 hover:text-gray-700 transition text-center"
           >
-            Close
+            {t('close')}
           </button>
         </div>
       </div>

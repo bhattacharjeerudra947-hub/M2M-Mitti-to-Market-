@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { onMessage, closeMessageStream } from '../utils/messageStream';
 import { X, MessageCircle } from 'lucide-react';
 
@@ -11,13 +12,11 @@ import { X, MessageCircle } from 'lucide-react';
  */
 export default function MessagePopup() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [popups, setPopups] = useState([]);
   const timers = useRef(new Map());
-
-  useEffect(() => {
-    if (!user) return;
 
     const unsubscribe = onMessage((msg) => {
       // Only pop up for messages addressed to me
@@ -31,7 +30,7 @@ const role = user.role === 'FARMER' ? 'farmer' : 'business';
       const popup = {
         id: msg.id || `${Date.now()}-${Math.random()}`,
         conversationId: msg.conversationId,
-        senderName: msg.senderName || 'Someone',
+        senderName: msg.senderName || t('someone'),
         content: msg.content || '',
         to: `/${role}/chat/${msg.conversationId}/${msg.senderId}`,
       };
@@ -73,7 +72,7 @@ const role = user.role === 'FARMER' ? 'farmer' : 'business';
               <MessageCircle className="w-4 h-4 text-navy-900" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-mustard-300 truncate">💬 New message from {p.senderName}</p>
+              <p className="text-xs font-bold text-mustard-300 truncate">{t('newMessageFrom', { name: p.senderName })}</p>
               <p className="text-sm text-gray-100 mt-0.5 line-clamp-2 break-words">{p.content}</p>
             </div>
             <span onClick={(e) => { e.stopPropagation(); setPopups((prev) => prev.filter((x) => x.id !== p.id)); }}

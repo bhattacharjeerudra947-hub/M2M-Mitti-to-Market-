@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigat
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider, LanguageRouteSync } from './context/LanguageContext';
 import { FarmerProvider } from './context/FarmerContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
 import HowItWorks from './pages/HowItWorks';
@@ -227,6 +228,7 @@ export default function App() {
         </RouteFade>
       </AuthProvider>
     </Router>
+    </LanguageProvider>
     </LanguageProvider>
   );
 }
