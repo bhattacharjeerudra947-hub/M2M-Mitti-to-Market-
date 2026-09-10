@@ -2,21 +2,24 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import RoleChoiceModal from './RoleChoiceModal';
-
-const navItems = [
-  { label: 'Home', to: '/' },
-  { label: 'How It Works', to: '/how-it-works' },
-  { label: 'Marketplace', to: '/marketplace' },
-  { label: 'Pricing', to: '/pricing' },
-  { label: 'About Us', to: '/about-us' },
-];
+import LanguageSelector from './LanguageSelector';
 
 export default function Navbar({ dark = false }) {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, user, openRoleChoice } = useAuth();
   const { pathname } = useLocation();
+  const { t } = useLanguage();
   const role = user?.role?.toLowerCase();
+
+  const navItems = [
+    { label: t('nav.home'), to: '/' },
+    { label: t('nav.howItWorks'), to: '/how-it-works' },
+    { label: t('nav.marketplace'), to: '/marketplace' },
+    { label: t('nav.pricing'), to: '/pricing' },
+    { label: t('nav.aboutUs'), to: '/about-us' },
+  ];
 
   const isActive = (to) => (to === '/' ? pathname === '/' : pathname === to);
 
@@ -66,21 +69,22 @@ export default function Navbar({ dark = false }) {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
+            <LanguageSelector compact />
             {isAuthenticated ? (
               <Link
                 to={role === 'farmer' ? '/farmer' : '/business'}
                 className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition"
               >
-                My Dashboard
+                {t('nav.myDashboard')}
               </Link>
             ) : (
               <>
-                <Link to="/login" className={`text-[13px] font-medium ${linkColor} transition`}>Sign In</Link>
+                <Link to="/login" className={`text-[13px] font-medium ${linkColor} transition`}>{t('nav.signIn')}</Link>
                 <button
                   onClick={openRoleChoice}
                   className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition shadow-sm"
                 >
-                  Get Started
+                  {t('nav.getStarted')}
                 </button>
               </>
             )}
@@ -108,13 +112,16 @@ export default function Navbar({ dark = false }) {
               {item.label}
             </Link>
           ))}
+          <div className="pt-2 pb-1">
+            <LanguageSelector compact />
+          </div>
           <div className="pt-2 border-t border-navy-100 space-y-2">
             {isAuthenticated ? (
-              <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>My Dashboard</Link>
+              <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>{t('nav.myDashboard')}</Link>
             ) : (
               <>
-                <Link to="/login" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>Sign In</Link>
-                <button onClick={() => { setOpen(false); openRoleChoice(); }} className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl">Get Started</button>
+                <Link to="/login" className={`block py-2.5 text-sm font-medium ${linkColor}`} onClick={() => setOpen(false)}>{t('nav.signIn')}</Link>
+                <button onClick={() => { setOpen(false); openRoleChoice(); }} className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl">{t('nav.getStarted')}</button>
               </>
             )}
           </div>
