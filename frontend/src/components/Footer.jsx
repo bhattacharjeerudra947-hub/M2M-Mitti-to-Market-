@@ -5,11 +5,11 @@ export default function Footer() {
   const { t } = useLanguage();
 
   const pageLinks = [
-    { label: t('nav.home'), to: '/' },
-    { label: t('nav.howItWorks'), to: '/how-it-works' },
-    { label: t('nav.marketplace'), to: '/marketplace' },
-    { label: t('nav.pricing'), to: '/pricing' },
-    { label: t('nav.aboutUs'), to: '/about-us' },
+    { labelKey: 'nav.home', to: '/' },
+    { labelKey: 'nav.howItWorks', to: '/how-it-works' },
+    { labelKey: 'nav.marketplace', to: '/marketplace' },
+    { labelKey: 'nav.pricing', to: '/pricing' },
+    { labelKey: 'nav.aboutUs', to: '/about-us' },
   ];
 
   return (
@@ -20,7 +20,7 @@ export default function Footer() {
           <div className="flex flex-col items-center md:items-start gap-3 text-center md:text-left">
             <div className="flex items-center gap-2">
               <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-8 h-8 object-contain" />
-              <span className="text-white font-bold text-sm">Mitti2Market</span>
+              <span className="text-white font-bold text-sm notranslate" translate="no">Mitti2Market</span>
             </div>
             <p className="text-xs text-navy-500 max-w-[240px] leading-relaxed">
               {t('footer.tagline')}

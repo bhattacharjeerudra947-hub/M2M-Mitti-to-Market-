@@ -49,7 +49,7 @@ const dest = redirectTo || (r === 'farmer' ? '/farmer' : '/business');
         <div className="max-w-4xl mx-auto px-4 py-12">
           <Link to="/" className="inline-flex items-center mb-8"><M2MLogo /></Link>
           <div className="text-center mb-10">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Welcome to Mitti2Market</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Welcome to <span className="notranslate" translate="no">Mitti2Market</span></h1>
             <p className="text-lg text-gray-500">How are you using the platform?</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">

@@ -41,6 +41,31 @@ const GOOGLE_LANG_MAP = {
   ur: 'ur',
 };
 
+// Known translated phrases for Mitti2Market across various Indian languages
+const KNOWN_TRANSLATED_NAMES = [
+  'मिट्टी से बाज़ार',
+  'मिट्टी से बाजार',
+  'मिट्टी 2 बाजार',
+  'मिट्टी2बाजार',
+  'मिट्टी2मार्केट',
+  'मिट्टी 2 मार्केट',
+  'माटी ते बाजार',
+  'मातीतून बाजारपेठ',
+  'মাটি থেকে বাজার',
+  'মিত্তি২মার্কেট',
+  'மண்ணிலிருந்து சந்தைக்கு',
+  'மண்ணிலிருந்து சந்தை',
+  'మట్టి నుండి మార్కెట్',
+  'మట్టి నుంచి మార్కెట్',
+  'మాతీయిందా మార్కెట్',
+  'ಮಣ್ಣಿನಿಂದ ಮಾರುಕಟ್ಟೆಗೆ',
+  'മണ്ണിൽ നിന്ന് വിപണിയിലേക്ക്',
+  'માટીથી બજાર',
+  'మిట్టి 2 మార్కెట్',
+  'Mitti 2 Market',
+  'Mitti to Market',
+];
+
 /**
  * Patch DOM methods so React 19 does not crash when Google Translate wraps
  * text nodes in <font><font> elements.
@@ -74,24 +99,125 @@ function applyDomSafetyPatch() {
   };
 }
 
+// Apply safety patch immediately upon module import
+applyDomSafetyPatch();
+
 /**
  * Sets the Google Translate cookie for the current host
  */
 function setTranslateCookie(targetLang) {
   if (typeof document === 'undefined') return;
   const host = window.location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
   const path = '/';
 
   if (!targetLang || targetLang === 'en') {
     // Clear cookies
     document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path};`;
-    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=.${host}; path=${path};`;
-    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${host}; path=${path};`;
     document.cookie = `googtrans=/en/en; path=${path};`;
+    document.cookie = `googtrans=/auto/en; path=${path};`;
+    if (!isLocal) {
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=.${host}; path=${path};`;
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${host}; path=${path};`;
+      document.cookie = `googtrans=/en/en; domain=.${host}; path=${path};`;
+      document.cookie = `googtrans=/en/en; domain=${host}; path=${path};`;
+    }
   } else {
     document.cookie = `googtrans=/en/${targetLang}; path=${path};`;
-    document.cookie = `googtrans=/en/${targetLang}; domain=.${host}; path=${path};`;
-    document.cookie = `googtrans=/en/${targetLang}; domain=${host}; path=${path};`;
+    document.cookie = `googtrans=/auto/${targetLang}; path=${path};`;
+    if (!isLocal) {
+      document.cookie = `googtrans=/en/${targetLang}; domain=.${host}; path=${path};`;
+      document.cookie = `googtrans=/en/${targetLang}; domain=${host}; path=${path};`;
+      document.cookie = `googtrans=/auto/${targetLang}; domain=.${host}; path=${path};`;
+      document.cookie = `googtrans=/auto/${targetLang}; domain=${host}; path=${path};`;
+    }
+  }
+}
+
+/**
+ * Ensures any element or text node displaying "Mitti2Market" retains
+ * its untranslated English brand name.
+ */
+let isScanningBrand = false;
+export function protectBrandNames() {
+  if (typeof document === 'undefined' || isScanningBrand) return;
+  isScanningBrand = true;
+
+  try {
+    // 1. Protect elements that directly display "Mitti2Market"
+    const candidates = document.querySelectorAll(
+      'span, a, p, h1, h2, h3, h4, h5, h6, div, b, strong, button'
+    );
+    for (const el of candidates) {
+      if (el.children.length === 0 && el.textContent && el.textContent.includes('Mitti2Market')) {
+        if (!el.classList.contains('notranslate')) {
+          el.classList.add('notranslate');
+        }
+        if (el.getAttribute('translate') !== 'no') {
+          el.setAttribute('translate', 'no');
+        }
+      }
+    }
+
+    // 2. Revert any mistakenly translated phrases in text nodes
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+
+    const nodesToCheck = [];
+    while (walker.nextNode()) {
+      nodesToCheck.push(walker.currentNode);
+    }
+
+    for (const node of nodesToCheck) {
+      if (!node.nodeValue) continue;
+      let val = node.nodeValue;
+      let changed = false;
+
+      for (const pattern of KNOWN_TRANSLATED_NAMES) {
+        if (val.includes(pattern)) {
+          val = val.split(pattern).join('Mitti2Market');
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        node.nodeValue = val;
+      }
+    }
+  } catch (err) {
+    // Silent fail to ensure app never crashes
+  } finally {
+    isScanningBrand = false;
+  }
+}
+
+let brandObserver = null;
+function setupBrandObserver() {
+  if (typeof window === 'undefined' || typeof MutationObserver === 'undefined' || brandObserver) return;
+
+  brandObserver = new MutationObserver((mutations) => {
+    let shouldScan = false;
+    for (const mutation of mutations) {
+      if (mutation.type === 'characterData' || mutation.type === 'childList') {
+        shouldScan = true;
+        break;
+      }
+    }
+    if (shouldScan) {
+      protectBrandNames();
+    }
+  });
+
+  if (document.body) {
+    brandObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 }
 
@@ -106,28 +232,34 @@ export function initPageTranslator() {
   isInitialized = true;
 
   applyDomSafetyPatch();
+  setupBrandObserver();
 
   // Create hidden translate container if missing
   if (!document.getElementById('google_translate_element')) {
     const el = document.createElement('div');
     el.id = 'google_translate_element';
-    el.style.display = 'none';
     document.body.appendChild(el);
   }
 
-  // Define global Google Translate initialization callback
+  // Setup global Google Translate initialization callback
+  const prevInit = window.googleTranslateElementInit;
   window.googleTranslateElementInit = function () {
+    if (typeof prevInit === 'function') {
+      try { prevInit(); } catch {}
+    }
     if (window.google && window.google.translate) {
-      new window.google.translate.TranslateElement(
-        {
-          pageLanguage: 'en',
-          autoDisplay: false,
-          layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-        },
-        'google_translate_element'
-      );
+      if (!document.querySelector('.goog-te-combo')) {
+        try {
+          new window.google.translate.TranslateElement(
+            {
+              pageLanguage: 'en',
+              autoDisplay: false,
+            },
+            'google_translate_element'
+          );
+        } catch {}
+      }
 
-      // Once ready, check if a non-English language was already selected
       setTimeout(() => {
         if (currentLanguage && currentLanguage !== 'en') {
           triggerTranslateElement(currentLanguage);
@@ -144,20 +276,33 @@ export function initPageTranslator() {
     script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
     script.async = true;
     document.head.appendChild(script);
+  } else if (window.google && window.google.translate) {
+    // If already loaded
+    window.googleTranslateElementInit();
   }
 }
 
 /**
- * Trigger the hidden Google Translate dropdown combo
+ * Trigger the Google Translate dropdown combo
  */
 function triggerTranslateElement(internalLang) {
   const gLang = GOOGLE_LANG_MAP[internalLang] || internalLang;
   setTranslateCookie(gLang);
+  protectBrandNames();
+
+  const selectAndTrigger = (combo) => {
+    const targetVal = gLang === 'en' ? '' : gLang;
+    if (combo.value !== targetVal) {
+      combo.value = targetVal;
+      combo.dispatchEvent(new Event('change'));
+    }
+    setTimeout(protectBrandNames, 200);
+    setTimeout(protectBrandNames, 600);
+  };
 
   const combo = document.querySelector('.goog-te-combo');
   if (combo) {
-    combo.value = gLang === 'en' ? '' : gLang;
-    combo.dispatchEvent(new Event('change'));
+    selectAndTrigger(combo);
   } else {
     // If element is not yet created by Google Translate script, poll for it
     let attempts = 0;
@@ -166,12 +311,11 @@ function triggerTranslateElement(internalLang) {
       const c = document.querySelector('.goog-te-combo');
       if (c) {
         clearInterval(timer);
-        c.value = gLang === 'en' ? '' : gLang;
-        c.dispatchEvent(new Event('change'));
-      } else if (attempts > 30) {
+        selectAndTrigger(c);
+      } else if (attempts > 40) {
         clearInterval(timer);
       }
-    }, 200);
+    }, 150);
   }
 }
 
@@ -181,6 +325,7 @@ function triggerTranslateElement(internalLang) {
 export function applyPageTranslation(langCode) {
   currentLanguage = langCode || 'en';
   applyDomSafetyPatch();
+  setupBrandObserver();
 
   if (!langCode || langCode === 'en') {
     resetPageTranslation();
@@ -212,6 +357,8 @@ export function resetPageTranslation() {
       if (closeBtn) closeBtn.click();
     }
   } catch {}
+
+  setTimeout(protectBrandNames, 100);
 }
 
 /**
@@ -225,7 +372,7 @@ export function syncRouteTranslation(activeLang) {
   // Let React finish mounting the new route's DOM before triggering
   setTimeout(() => {
     triggerTranslateElement(activeLang);
-  }, 150);
+  }, 200);
 }
 
 export default {
@@ -233,4 +380,5 @@ export default {
   applyPageTranslation,
   resetPageTranslation,
   syncRouteTranslation,
+  protectBrandNames,
 };

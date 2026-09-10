@@ -25,7 +25,8 @@ export default function M2MLogo({ size = 'md', noLink = false, className = '' })
       />
 
       <span
-        className={`font-extrabold tracking-tight ${textSizes[size] || 'text-lg'}`}
+        className={`font-extrabold tracking-tight notranslate ${textSizes[size] || 'text-lg'}`}
+        translate="no"
         style={{ color: '#0f2a4a' }}
       >
         Mitti2Market

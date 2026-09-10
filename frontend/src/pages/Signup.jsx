@@ -52,7 +52,7 @@ navigate(form.role === 'farmer' ? '/farmer' : '/business', { replace: true });
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-500">Join Mitti2Market and start trading</p>
+          <p className="text-gray-500">Join <span className="notranslate" translate="no">Mitti2Market</span> and start trading</p>
         </div>
 
         <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">

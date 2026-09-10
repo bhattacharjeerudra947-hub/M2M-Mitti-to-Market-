@@ -65,7 +65,7 @@ export default function AboutUs() {
                 thin margins — while buyers pay more than they should.
               </p>
               <p className="text-base text-navy-600 leading-relaxed mb-4">
-                Mitti2Market shortens that chain to a single, direct connection: farmer to buyer. Built as
+                <span className="notranslate" translate="no">Mitti2Market</span> shortens that chain to a single, direct connection: farmer to buyer. Built as
                 a Smart India Hackathon project and growing into a real platform, we pair that direct
                 connection with AI price insights and smart logistics — so farming becomes more profitable
                 and less wasteful.
@@ -141,7 +141,7 @@ export default function AboutUs() {
               The problem we exist to solve
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mb-4">
-              Why Mitti2Market exists
+              Why <span className="notranslate" translate="no">Mitti2Market</span> exists
             </h2>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -190,7 +190,7 @@ export default function AboutUs() {
               Our values
             </h2>
             <p className="text-base text-navy-500 max-w-2xl mx-auto">
-              Every feature on Mitti2Market exists to serve the people at the two ends of the field.
+              Every feature on <span className="notranslate" translate="no">Mitti2Market</span> exists to serve the people at the two ends of the field.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

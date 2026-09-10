@@ -15,18 +15,23 @@ export default function MessagePopup() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [popups, setPopups] = useState([]);
   const timers = useRef(new Map());
+
+  // Listen for new messages
+  useEffect(() => {
+    if (!user) return;
 
     const unsubscribe = onMessage((msg) => {
       // Only pop up for messages addressed to me
       if (!msg || String(msg.receiverId) !== String(user.id)) return;
 
-      // If I'm already looking at that conversation, skip the toast —
-      // the message renders inline in the chat.
+      // If I'm already looking at that conversation, skip the toast
       if (location.pathname.includes(msg.conversationId)) return;
 
-const role = user.role === 'FARMER' ? 'farmer' : 'business';
+      const role = user.role === 'FARMER' ? 'farmer' : 'business';
+
       const popup = {
         id: msg.id || `${Date.now()}-${Math.random()}`,
         conversationId: msg.conversationId,
@@ -36,26 +41,54 @@ const role = user.role === 'FARMER' ? 'farmer' : 'business';
       };
 
       setPopups((prev) => {
-        const next = [popup, ...prev].filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i).slice(0, 3);
+        const next = [popup, ...prev]
+          .filter(
+            (p, i, arr) =>
+              arr.findIndex((x) => x.id === p.id) === i
+          )
+          .slice(0, 3);
+
         return next;
       });
 
       // Auto-dismiss after 5 seconds
-      if (timers.current.has(popup.id)) clearTimeout(timers.current.get(popup.id));
-      const t = setTimeout(() => {
-        setPopups((prev) => prev.filter((p) => p.id !== popup.id));
+      if (timers.current.has(popup.id)) {
+        clearTimeout(timers.current.get(popup.id));
+      }
+
+      const timerId = setTimeout(() => {
+        setPopups((prev) =>
+          prev.filter((p) => p.id !== popup.id)
+        );
+
         timers.current.delete(popup.id);
       }, 5000);
-      timers.current.set(popup.id, t);
+
+      timers.current.set(popup.id, timerId);
     });
 
-    return () => { unsubscribe(); };
-  }, [user, location.pathname]);
+    return () => {
+      unsubscribe();
+    };
+  }, [user, location.pathname, t]);
 
-  // Drop the stream on logout
+  // Close message stream on logout
   useEffect(() => {
-    if (!user) closeMessageStream();
+    if (!user) {
+      closeMessageStream();
+    }
   }, [user]);
+
+  // Clear timers when component unmounts
+  useEffect(() => {
+    return () => {
+      timers.current.forEach((timerId) => {
+        clearTimeout(timerId);
+      });
+
+      timers.current.clear();
+    };
+  }, []);
 
   if (popups.length === 0) return null;
 
@@ -64,19 +97,38 @@ const role = user.role === 'FARMER' ? 'farmer' : 'business';
       {popups.map((p) => (
         <button
           key={p.id}
-          onClick={() => { navigate(p.to); setPopups((prev) => prev.filter((x) => x.id !== p.id)); }}
+          onClick={() => {
+            navigate(p.to);
+            setPopups((prev) =>
+              prev.filter((x) => x.id !== p.id)
+            );
+          }}
           className="bg-navy-900 text-white rounded-2xl shadow-2xl border border-navy-700 p-4 text-left animate-[fadeInUp_0.25s_ease-out] hover:bg-navy-800 transition group"
         >
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 bg-mustard-400 rounded-xl flex items-center justify-center flex-shrink-0">
               <MessageCircle className="w-4 h-4 text-navy-900" />
             </div>
+
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-mustard-300 truncate">{t('newMessageFrom', { name: p.senderName })}</p>
-              <p className="text-sm text-gray-100 mt-0.5 line-clamp-2 break-words">{p.content}</p>
+              <p className="text-xs font-bold text-mustard-300 truncate">
+                {t('newMessageFrom', { name: p.senderName })}
+              </p>
+
+              <p className="text-sm text-gray-100 mt-0.5 line-clamp-2 break-words">
+                {p.content}
+              </p>
             </div>
-            <span onClick={(e) => { e.stopPropagation(); setPopups((prev) => prev.filter((x) => x.id !== p.id)); }}
-              className="text-gray-400 hover:text-white transition flex-shrink-0 group-hover:opacity-100">
+
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setPopups((prev) =>
+                  prev.filter((x) => x.id !== p.id)
+                );
+              }}
+              className="text-gray-400 hover:text-white transition flex-shrink-0 group-hover:opacity-100"
+            >
               <X className="w-4 h-4" />
             </span>
           </div>
