@@ -9,6 +9,7 @@ import LanguageSelector from './LanguageSelector';
 export default function Navbar({ dark = false }) {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, user, openRoleChoice } = useAuth();
+  const { t } = useLanguage();
   const { pathname } = useLocation();
   const { t } = useLanguage();
   const role = user?.role?.toLowerCase();
@@ -62,7 +63,7 @@ export default function Navbar({ dark = false }) {
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
               <Link key={item.to} to={item.to} className={desktopLink(item.to)}>
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
           </div>
@@ -88,6 +89,7 @@ export default function Navbar({ dark = false }) {
                 </button>
               </>
             )}
+            <LanguageSelector compact />
           </div>
 
           {/* Mobile toggle */}
@@ -109,13 +111,14 @@ export default function Navbar({ dark = false }) {
               className={mobileLink(item.to)}
               onClick={() => setOpen(false)}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           ))}
           <div className="pt-2 pb-1">
             <LanguageSelector compact />
           </div>
           <div className="pt-2 border-t border-navy-100 space-y-2">
+            <LanguageSelector />
             {isAuthenticated ? (
               <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>{t('nav.myDashboard')}</Link>
             ) : (
