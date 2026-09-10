@@ -1,14 +1,16 @@
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 
 const pageLinks = [
-  { label: 'Home', to: '/' },
-  { label: 'How It Works', to: '/how-it-works' },
-  { label: 'Marketplace', to: '/marketplace' },
-  { label: 'Pricing', to: '/pricing' },
-  { label: 'About Us', to: '/about-us' },
+  { labelKey: 'navHome', to: '/' },
+  { labelKey: 'navHowItWorks', to: '/how-it-works' },
+  { labelKey: 'navMarketplace', to: '/marketplace' },
+  { labelKey: 'navPricing', to: '/pricing' },
+  { labelKey: 'navAboutUs', to: '/about-us' },
 ];
 
 export default function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="bg-navy-950 text-navy-400 py-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -20,7 +22,7 @@ export default function Footer() {
               <span className="text-white font-bold text-sm">Mitti2Market</span>
             </div>
             <p className="text-xs text-navy-500 max-w-[240px] leading-relaxed">
-              From farm to market, without the middlemen. Direct agri marketplace for farmers, FPOs and buyers.
+              {t('footerTagline')}
             </p>
           </div>
 
@@ -32,17 +34,17 @@ export default function Footer() {
                 to={item.to}
                 className="text-xs text-navy-400 hover:text-mustard-300 transition"
               >
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
             <Link to="/signup" className="text-xs font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-3.5 py-1.5 rounded-lg transition">
-              Get Started
+              {t('getStarted')}
             </Link>
           </nav>
         </div>
         <div className="border-t border-navy-800/50 mt-6 pt-6 text-center text-xs text-navy-600">
-          <p className="mb-1">SIH 26033 — Direct Agri Marketplace</p>
-          <p>© 2026 Mitti2Market. All rights reserved. Built for Smart India Hackathon.</p>
+          <p className="mb-1">{t('footerSIH')}</p>
+          <p>{t('footerCopyright')}</p>
         </div>
       </div>
     </footer>
