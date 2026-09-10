@@ -29,6 +29,8 @@ public class DealService {
     private final MessageService messageService;
     private final NotificationService notificationService;
     private final DealStateMachineService stateMachine;
+    private final BuyerRequirementService requirementService;
+    private final BuyerRequirementRepository requirements;
 
     private static final AtomicLong DEAL_COUNTER = new AtomicLong(10000);
 
@@ -89,6 +91,17 @@ public class DealService {
         if (deliveryLng == null) deliveryLng = buyer.getLongitude();
         Produce produce = produceId != null ? produceRepo.findById(produceId).orElse(null) : null;
 
+        // Optional link to the buyer requirement this deal fulfils
+        BuyerRequirement requirement = null;
+        if (details.get("buyerRequirementId") != null) {
+            Long reqId = Long.valueOf(details.get("buyerRequirementId").toString());
+            requirement = requirements.findById(reqId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Requirement", "id", reqId));
+            if (requirement.getBuyer() == null || !requirement.getBuyer().getId().equals(buyerId)) {
+                throw new BadRequestException("This requirement belongs to a different buyer");
+            }
+        }
+
         // When the deal is tied to a real listing, the listing is the source of truth:
         // derive the crop name + unit from it so the display name and the reserved
         // stock can never mismatch (e.g. typing "cabbage" in a Tomato-listing chat).
@@ -117,6 +130,7 @@ public class DealService {
                 .farmer(farmer)
                 .buyer(buyer)
                 .produce(produce)
+                .buyerRequirement(requirement)
                 .cropName(cropName)
                 .quantity(quantity)
                 .unit(unit)
@@ -195,6 +209,7 @@ public class DealService {
         if (confirmedCount >= 2) {
             // Both confirmed → reserve quantity and lock the deal
             reserveQuantity(deal);
+            requirementService.reserveForDeal(deal);
 
             deal = stateMachine.transition(dealId, DealStatus.LOCKED, userId, actorRole,
                     "Deal locked — both parties confirmed the agreement", null);
@@ -262,9 +277,12 @@ public class DealService {
         produce.setQuantity(restored);
         produce.setReservedQuantity(reserved);
 
-        if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || produce.getStatus() == Produce.ProduceStatus.LOW_STOCK) {
+        // Re-derive status from the restored stock level
+        if (produce.getStatus() != Produce.ProduceStatus.ADMIN_REMOVED
+                && produce.getStatus() != Produce.ProduceStatus.REMOVED) {
             int listed = produce.getListedQuantity() != null ? produce.getListedQuantity() : restored;
-            produce.setStatus(restored == listed ? Produce.ProduceStatus.AVAILABLE : Produce.ProduceStatus.PARTIALLY_SOLD);
+            produce.setStatus(restored >= listed ? Produce.ProduceStatus.AVAILABLE
+                    : restored < 50 ? Produce.ProduceStatus.LOW_STOCK : Produce.ProduceStatus.PARTIALLY_SOLD);
         }
         produceRepo.save(produce);
     }
@@ -365,6 +383,7 @@ public class DealService {
 
         // Restore reserved quantity if the deal had been locked
         restoreQuantity(deal);
+        requirementService.releaseForDeal(deal);
 
         String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
         deal = stateMachine.transition(dealId, DealStatus.CANCELLED, userId, actorRole,

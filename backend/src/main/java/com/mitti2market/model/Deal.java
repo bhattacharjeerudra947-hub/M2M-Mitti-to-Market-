@@ -33,6 +33,11 @@ public class Deal {
     @JoinColumn(name = "produce_id")
     private Produce produce;
 
+    /** Buyer requirement this deal fulfils (when the deal originates from a requirement). */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "buyer_requirement_id")
+    private BuyerRequirement buyerRequirement;
+
     private String cropName;
     private Integer quantity;
     private String unit;

@@ -79,6 +79,15 @@ public class BuyerRequirementController {
     }
 
     /** GET /api/requirements/open?crop= — open requirements (for farmers to see demand) */
+    /** GET /api/requirements — public demand board (guest-browsable; no private buyer data). */
+    @GetMapping
+    public ResponseEntity<?> allRequirements(@RequestParam(required = false) String crop) {
+        List<Map<String, Object>> reqs = requirementService.getOpenRequirements(crop)
+                .stream().map(requirementService::toResponse).toList();
+        return ResponseEntity.ok(ApiResponse.ok(reqs));
+    }
+
+    /** GET /api/requirements/open — authenticated alias of the public board. */
     @GetMapping("/open")
     public ResponseEntity<?> openRequirements(
             @RequestHeader(value = "Authorization", required = false) String authHeader,

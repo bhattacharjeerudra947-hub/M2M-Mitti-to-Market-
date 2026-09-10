@@ -70,7 +70,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/produce/**").permitAll()
                 .requestMatchers("/api/users/farmers").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/price-advisor/all").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/price-advisor/estimate").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stats").permitAll()
+                // Open buyer requirements — public demand board (guest-browsable)
+                .requestMatchers(HttpMethod.GET, "/api/requirements").permitAll()
 
                 // ─── Admin endpoints (require ADMIN role) ───
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

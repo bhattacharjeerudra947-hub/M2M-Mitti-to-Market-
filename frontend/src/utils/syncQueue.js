@@ -12,7 +12,6 @@
 import { useState, useEffect } from 'react';
 import { idbPut, idbGet, idbGetAll, idbDelete } from './idb';
 import { apiPost, apiUpload } from '../api';
-import { isLowDataMode } from './lowDataMode';
 
 const MAX_RETRIES = 6;
 
@@ -141,7 +140,7 @@ export function scheduleProcess(delayMs = 400) {
 
 function scheduleBackoff(retryCount) {
   const base = Math.min(1000 * 2 ** retryCount, 30000);
-  const delay = isLowDataMode() ? base * 2 : base; // low data mode = fewer retry attempts
+  const delay = base;
   if (backoffTimer) clearTimeout(backoffTimer);
   backoffTimer = setTimeout(() => processSyncQueue(), delay);
 }

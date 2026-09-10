@@ -1,6 +1,7 @@
 package com.mitti2market.controller;
 
 import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.service.DatasetPriceService;
 import com.mitti2market.service.MarketDataService;
 import com.mitti2market.service.ProduceService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,20 @@ public class PriceAdvisorController {
 
     private final MarketDataService marketDataService;
     private final ProduceService produceService;
+
+    private final DatasetPriceService datasetPriceService;
+
+    /**
+     * GET /api/price-advisor/estimate?crop=Tomato&state=West Bengal
+     * Dataset/mandi-backed price estimate. Source is disclosed; when neither
+     * the trained model nor live mandi data covers the crop, source=UNAVAILABLE.
+     */
+    @GetMapping("/estimate")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> estimate(
+            @RequestParam String crop,
+            @RequestParam(required = false) String state) {
+        return ResponseEntity.ok(ApiResponse.ok(datasetPriceService.estimate(crop, state, null)));
+    }
 
     /**
      * GET /api/price-advisor/all

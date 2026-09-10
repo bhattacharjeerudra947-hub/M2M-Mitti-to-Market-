@@ -78,34 +78,14 @@ export async function getTimeline(logisticsId) {
   return apiGet(`/api/deals/logistics/${logisticsId}/timeline`);
 }
 
-// ──────── Logistics Intelligence (Phase 4) ────────
+// ──────── Logistics Intelligence ────────
 
-export async function startTracking(logisticsId) {
-  return apiPost(`/api/deals/logistics/${logisticsId}/start-tracking`);
-}
-
-export async function pauseTracking(logisticsId) {
-  return apiPost(`/api/deals/logistics/${logisticsId}/pause-tracking`);
-}
-
-export async function resumeTracking(logisticsId) {
-  return apiPost(`/api/deals/logistics/${logisticsId}/resume-tracking`);
-}
-
-export async function completeTracking(logisticsId) {
-  return apiPost(`/api/deals/logistics/${logisticsId}/complete-tracking`);
-}
-
-export async function updateLiveLocation(logisticsId, { latitude, longitude, accuracy, speed, heading }) {
-  return apiPut(`/api/deals/logistics/${logisticsId}/location`, { latitude, longitude, accuracy, speed, heading });
+export async function getMyLogistics() {
+  return apiGet('/api/deals/logistics/my');
 }
 
 export async function getRouteEstimate(logisticsId) {
   return apiGet(`/api/deals/logistics/${logisticsId}/route`);
-}
-
-export async function getLocationHistory(logisticsId) {
-  return apiGet(`/api/deals/logistics/${logisticsId}/location-history`);
 }
 
 export async function optimizeRoute(body) {
