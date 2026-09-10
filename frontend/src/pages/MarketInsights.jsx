@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import GuestSignInGate from '../components/GuestSignInGate';
+import { useAuth } from '../context/AuthContext';
 import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Brain, Globe, Loader2, Inbox, Database } from 'lucide-react';
 import { apiGet } from '../api';
 
@@ -9,12 +11,14 @@ import { apiGet } from '../api';
  * fails or returns nothing, the page shows an explicit empty state.
  */
 export default function MarketInsights() {
+  const { isGuestModeActive } = useAuth();
   const [crops, setCrops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedCrop, setSelectedCrop] = useState(null);
 
   useEffect(() => {
+    if (isGuestModeActive) return;
     apiGet('/api/price-advisor/all')
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
@@ -28,6 +32,32 @@ export default function MarketInsights() {
   const trendIcon = (trend) => trend === 'Increasing'
     ? <TrendingUp className="w-3 h-3" />
     : trend === 'Decreasing' ? <TrendingDown className="w-3 h-3" /> : null;
+
+  if (isGuestModeActive) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="business" />
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 bg-navy-900 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-navy-900">Market Insights</h1>
+                <p className="text-navy-500 text-sm">Live market analysis from Mitti2Market's price intelligence</p>
+              </div>
+            </div>
+            <GuestSignInGate
+              title="Market Insights"
+              description="Sign in to view market analysis, regional prices and AI intelligence for your business."
+              className="min-h-[300px]"
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">

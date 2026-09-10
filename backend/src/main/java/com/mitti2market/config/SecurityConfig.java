@@ -88,6 +88,13 @@ public class SecurityConfig {
                     objectMapper.writeValue(response.getOutputStream(),
                             ApiResponse.error("Not authenticated"));
                 })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    // Authenticated user with insufficient role -> 403 Forbidden
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    objectMapper.writeValue(response.getOutputStream(),
+                            ApiResponse.error("Access denied: insufficient permissions"));
+                })
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
