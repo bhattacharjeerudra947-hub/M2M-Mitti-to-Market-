@@ -11,15 +11,15 @@ export default function Navbar({ dark = false }) {
   const { isAuthenticated, user, openRoleChoice } = useAuth();
   const { t } = useLanguage();
   const { pathname } = useLocation();
-  const { t } = useLanguage();
+  
   const role = user?.role?.toLowerCase();
 
   const navItems = [
-    { label: t('nav.home'), to: '/' },
-    { label: t('nav.howItWorks'), to: '/how-it-works' },
-    { label: t('nav.marketplace'), to: '/marketplace' },
-    { label: t('nav.pricing'), to: '/pricing' },
-    { label: t('nav.aboutUs'), to: '/about-us' },
+    { labelKey: 'nav.home', to: '/' },
+    { labelKey: 'nav.howItWorks', to: '/how-it-works' },
+    { labelKey: 'nav.marketplace', to: '/marketplace' },
+    { labelKey: 'nav.pricing', to: '/pricing' },
+    { labelKey: 'nav.aboutUs', to: '/about-us' },
   ];
 
   const isActive = (to) => (to === '/' ? pathname === '/' : pathname === to);
@@ -54,7 +54,10 @@ export default function Navbar({ dark = false }) {
         <div className="flex items-center justify-between h-16 lg:h-18">
           <Link to="/" className="flex items-center gap-2.5">
             <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-[34px] h-[34px] object-contain" />
-            <span className={`hidden sm:block text-sm font-bold tracking-tight ${dark ? 'text-white' : 'text-navy-900'}`}>
+            <span
+              className={`hidden sm:block text-sm font-bold tracking-tight notranslate ${dark ? 'text-white' : 'text-navy-900'}`}
+              translate="no"
+            >
               Mitti2Market
             </span>
           </Link>
@@ -89,7 +92,6 @@ export default function Navbar({ dark = false }) {
                 </button>
               </>
             )}
-            <LanguageSelector compact />
           </div>
 
           {/* Mobile toggle */}
@@ -114,10 +116,7 @@ export default function Navbar({ dark = false }) {
               {t(item.labelKey)}
             </Link>
           ))}
-          <div className="pt-2 pb-1">
-            <LanguageSelector compact />
-          </div>
-          <div className="pt-2 border-t border-navy-100 space-y-2">
+          <div className="pt-3 border-t border-navy-100 space-y-2">
             <LanguageSelector />
             {isAuthenticated ? (
               <Link to={role === 'farmer' ? '/farmer' : '/business'} className="block w-full text-center px-5 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl" onClick={() => setOpen(false)}>{t('nav.myDashboard')}</Link>

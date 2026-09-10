@@ -48,7 +48,7 @@ export default function LanguageSelector({ compact = false }) {
   }, [query]);
 
   return (
-    <div className="relative notranslate" ref={ref}>
+    <div className="relative notranslate" translate="no" ref={ref}>
       {/* Trigger button */}
       <button
         onClick={() => setOpen(!open)}

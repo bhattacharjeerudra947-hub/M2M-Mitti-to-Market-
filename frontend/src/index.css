@@ -155,10 +155,27 @@ body {
 }
 
 #google_translate_element {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body > .skiptranslate,
+.goog-te-banner-frame {
   display: none !important;
 }
 
-body > .skiptranslate {
-  display: none !important;
+body {
+  top: 0px !important;
+}
+
+.notranslate,
+[translate="no"] {
+  translate: no;
 }
 
