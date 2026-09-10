@@ -72,6 +72,8 @@ public class BusinessController {
         if (req.getTehsil() != null) { profile.setTehsil(req.getTehsil()); user.setTehsil(req.getTehsil()); }
         if (req.getVillage() != null) { profile.setVillage(req.getVillage()); user.setVillage(req.getVillage()); }
         if (req.getPincode() != null) { profile.setPincode(req.getPincode()); user.setPincode(req.getPincode()); }
+        if (req.getLatitude() != null) { user.setLatitude(req.getLatitude()); }
+        if (req.getLongitude() != null) { user.setLongitude(req.getLongitude()); }
 
         // Update user-level fields
         if (req.getBusinessType() != null) {
@@ -85,10 +87,8 @@ public class BusinessController {
         if ((profile.getGstin() != null && !profile.getGstin().isBlank()) ||
             (profile.getPanNumber() != null && !profile.getPanNumber().isBlank())) {
             user.setVerificationStatus(User.VerificationStatus.PENDING);
-        }
-
-        // Check if profile is complete
-        if (profile.getBusinessType() != null && profile.getOfficialName() != null && !profile.getOfficialName().isBlank()) {
+            profile.setProfileStatus(BusinessProfile.ProfileStatus.UNDER_REVIEW);
+        } else if (profile.getBusinessType() != null && profile.getOfficialName() != null && !profile.getOfficialName().isBlank()) {
             profile.setProfileStatus(BusinessProfile.ProfileStatus.COMPLETE);
         }
 

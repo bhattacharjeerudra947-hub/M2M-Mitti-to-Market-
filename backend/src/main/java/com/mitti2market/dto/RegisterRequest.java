@@ -33,5 +33,9 @@ public class RegisterRequest {
     /** For business registrations */
     private String organizationName;
     private String contactPersonName;
+
+    /** GPS Coordinates */
+    private Double latitude;
+    private Double longitude;
 }
 

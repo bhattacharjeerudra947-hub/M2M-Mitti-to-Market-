@@ -85,6 +85,8 @@ public class AuthController {
                 .tehsil(req.getTehsil())
                 .village(req.getVillage())
                 .pincode(req.getPincode())
+                .latitude(req.getLatitude())
+                .longitude(req.getLongitude())
                 .organizationName(req.getOrganizationName())
                 .verified(false)
                 .verificationStatus(User.VerificationStatus.NOT_VERIFIED)

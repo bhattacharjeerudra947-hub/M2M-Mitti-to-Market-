@@ -8,6 +8,7 @@ import { ShoppingCart, Truck, Wallet, Heart } from 'lucide-react';
 import MarketPricesLive from '../components/MarketPricesLive';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
+import VerificationStatusBanner from '../components/VerificationStatusBanner';
 
 export default function BusinessDashboard() {
   const { user, isGuestModeActive } = useAuth();
@@ -67,6 +68,9 @@ export default function BusinessDashboard() {
                 : "Here's your purchasing and sourcing overview."}
             </p>
           </div>
+
+          {/* User Verification Status Alert / Re-upload Banner */}
+          <VerificationStatusBanner />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatCard icon={<ShoppingCart className="w-5 h-5" />} label="Active Orders" value={String(activeOrders.length)} color="primary" />

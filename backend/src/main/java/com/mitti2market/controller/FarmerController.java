@@ -91,6 +91,8 @@ public class FarmerController {
         if (req.getTehsil() != null) { profile.setTehsil(req.getTehsil()); user.setTehsil(req.getTehsil()); }
         if (req.getVillage() != null) { profile.setVillage(req.getVillage()); user.setVillage(req.getVillage()); }
         if (req.getPincode() != null) { profile.setPincode(req.getPincode()); user.setPincode(req.getPincode()); }
+        if (req.getLatitude() != null) { user.setLatitude(req.getLatitude()); }
+        if (req.getLongitude() != null) { user.setLongitude(req.getLongitude()); }
 
         // Update user-level fields
         if (req.getFarmerCategory() != null) {
@@ -102,10 +104,8 @@ public class FarmerController {
         // When KYC details are submitted, set verification status to PENDING
         if (profile.getAadhaarNumber() != null && !profile.getAadhaarNumber().isBlank()) {
             user.setVerificationStatus(User.VerificationStatus.PENDING);
-        }
-
-        // Check if profile is complete
-        if (profile.getFarmerCategory() != null && profile.getCrops() != null && !profile.getCrops().isBlank()) {
+            profile.setProfileStatus(FarmerProfile.ProfileStatus.UNDER_REVIEW);
+        } else if (profile.getFarmerCategory() != null && profile.getCrops() != null && !profile.getCrops().isBlank()) {
             profile.setProfileStatus(FarmerProfile.ProfileStatus.COMPLETE);
         }
 

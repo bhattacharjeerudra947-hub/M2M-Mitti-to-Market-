@@ -48,8 +48,10 @@ public class AdminController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String verification,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String district,
             @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(ApiResponse.ok(adminService.searchUsers(role, verification, status, search)));
+        return ResponseEntity.ok(ApiResponse.ok(adminService.searchUsers(role, verification, status, search, state, district)));
     }
 
     @GetMapping("/users/{id}")
@@ -135,9 +137,14 @@ public class AdminController {
     }
 
     @GetMapping("/verifications")
-    public ResponseEntity<?> getVerifications(@RequestParam(required = false) String status) {
-        String verFilter = status != null && !status.isBlank() ? status : "PENDING";
-        return ResponseEntity.ok(ApiResponse.ok(adminService.searchUsers(null, verFilter, null, null)));
+    public ResponseEntity<?> getVerifications(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String district,
+            @RequestParam(required = false) String search) {
+        String verFilter = status != null && !status.isBlank() ? status : null;
+        return ResponseEntity.ok(ApiResponse.ok(adminService.searchUsers(role, verFilter, null, search, state, district)));
     }
 
     @GetMapping("/reports")
