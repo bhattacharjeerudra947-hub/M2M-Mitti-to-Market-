@@ -1151,9 +1151,15 @@ const translations = {
 
 /**
  * Translate a key for the given language code.
- * Falls back to English if translation is missing.
+ * Routes through the central i18n engine (frontend/src/locales) so all keys
+ * resolve consistently — including fallback chains for sister languages and
+ * the complete dictionaries there. Falls back to the legacy table, then English.
  */
-export function t_key(langCode, key) {
+import { t_raw } from '../locales';
+
+export function t_key(langCode, key, vars) {
+  const result = t_raw(langCode, key, vars);
+  if (result !== key) return result;
   const lang = translations[langCode];
   if (lang && lang[key]) return lang[key];
   if (translations.en && translations.en[key]) return translations.en[key];
