@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { FarmerProvider } from './context/FarmerContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
 import HowItWorks from './pages/HowItWorks';
@@ -140,15 +141,16 @@ function FarmerLayout() {
 
 export default function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <AutoRotateSections />
-      <AuthProvider>
-        <MessagePopup />
-        <RoleChoiceModal />
-        <AuthRequiredModal />
-        <RouteFade>
-        <Routes>
+    <LanguageProvider>
+      <Router>
+        <ScrollToTop />
+        <AutoRotateSections />
+        <AuthProvider>
+          <MessagePopup />
+          <RoleChoiceModal />
+          <AuthRequiredModal />
+          <RouteFade>
+          <Routes>
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
@@ -224,5 +226,6 @@ export default function App() {
         </RouteFade>
       </AuthProvider>
     </Router>
+    </LanguageProvider>
   );
 }
