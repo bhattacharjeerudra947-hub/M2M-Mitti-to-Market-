@@ -1,11 +1,8 @@
 package com.mitti2market.controller;
 
 import com.mitti2market.dto.ApiResponse;
-import com.mitti2market.model.Logistics;
-import com.mitti2market.model.Logistics.TrackingStatus;
 import com.mitti2market.model.User;
 import com.mitti2market.model.User.Role;
-import com.mitti2market.repository.LogisticsRepository;
 import com.mitti2market.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +15,9 @@ import java.util.stream.Stream;
 public class UserController {
 
     private final UserRepository users;
-    private final LogisticsRepository logisticsRepo;
 
-    public UserController(UserRepository users, LogisticsRepository logisticsRepo) {
+    public UserController(UserRepository users) {
         this.users = users;
-        this.logisticsRepo = logisticsRepo;
     }
 
     @GetMapping("/{id}")
@@ -53,37 +48,20 @@ public class UserController {
      *  - Exact coordinates are only returned when the user has actually shared
      *    them (latitude/longitude set). Otherwise an APPROXIMATE city-level
      *    coordinate from the built-in lookup is used (clearly labelled).
-     *  - "Live" means the user is a party in a logistics record with an ACTIVE
-     *    tracking session — their last shared vehicle position is included so
-     *    authorized viewers can see it on the map.
      */
     @GetMapping("/locations")
     public ResponseEntity<?> listLocations() {
-        // Active tracking sessions → last known position per deal party
-        Map<Long, Map<String, Object>> liveByUserId = new HashMap<>();
-        for (Logistics l : logisticsRepo.findByTrackingStatus(TrackingStatus.ACTIVE)) {
-            if (l.getDeal() == null) continue;
-            Map<String, Object> info = Map.of(
-                    "trackingId", l.getTrackingId() != null ? l.getTrackingId() : "",
-                    "latitude", l.getCurrentLatitude(),
-                    "longitude", l.getCurrentLongitude(),
-                    "lastLocationUpdate", l.getLastLocationUpdate()
-            );
-            if (l.getDeal().getFarmer() != null) liveByUserId.put(l.getDeal().getFarmer().getId(), info);
-            if (l.getDeal().getBuyer() != null) liveByUserId.put(l.getDeal().getBuyer().getId(), info);
-        }
-
         List<Map<String, Object>> result = Stream.concat(
                         users.findByRole(Role.FARMER).stream(),
                         users.findByRole(Role.BUSINESS).stream())
                 .distinct()
-                .map(u -> locationDto(u, liveByUserId.get(u.getId())))
+                .map(u -> locationDto(u))
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    private Map<String, Object> locationDto(User user, Map<String, Object> live) {
+    private Map<String, Object> locationDto(User user) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", user.getId());
         m.put("name", user.getName() != null ? user.getName() : "");
@@ -103,16 +81,6 @@ public class UserController {
             m.put("latitude", approx[0]);
             m.put("longitude", approx[1]);
             m.put("locationAccuracy", "APPROXIMATE");
-        }
-
-        if (live != null) {
-            m.put("live", true);
-            m.put("liveTrackingId", live.get("trackingId"));
-            m.put("liveLatitude", live.get("latitude"));
-            m.put("liveLongitude", live.get("longitude"));
-            m.put("liveLastUpdate", live.get("lastLocationUpdate"));
-        } else {
-            m.put("live", false);
         }
         return m;
     }

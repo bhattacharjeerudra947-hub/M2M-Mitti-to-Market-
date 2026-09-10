@@ -236,88 +236,7 @@ public class DealController {
         }
     }
 
-    /** Update live location (authorized user, ACTIVE tracking session) */
-    @PutMapping("/logistics/{logisticsId}/location")
-    public ResponseEntity<?> updateLocation(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId,
-            @RequestBody Map<String, Object> body) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            Logistics logistics = logisticsService.updateLocation(logisticsId, userId, body);
-            return ResponseEntity.ok(ApiResponse.ok("Location updated", logisticsToMap(logistics)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    /** Start the live tracking session */
-    @PostMapping("/logistics/{logisticsId}/start-tracking")
-    public ResponseEntity<?> startTracking(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            Logistics logistics = logisticsService.startTracking(logisticsId, userId);
-            return ResponseEntity.ok(ApiResponse.ok("Tracking started", logisticsToMap(logistics)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    /** Pause the live tracking session */
-    @PostMapping("/logistics/{logisticsId}/pause-tracking")
-    public ResponseEntity<?> pauseTracking(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            Logistics logistics = logisticsService.pauseTracking(logisticsId, userId);
-            return ResponseEntity.ok(ApiResponse.ok("Tracking paused", logisticsToMap(logistics)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    /** Resume the live tracking session */
-    @PostMapping("/logistics/{logisticsId}/resume-tracking")
-    public ResponseEntity<?> resumeTracking(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            Logistics logistics = logisticsService.resumeTracking(logisticsId, userId);
-            return ResponseEntity.ok(ApiResponse.ok("Tracking resumed", logisticsToMap(logistics)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    /** Complete the trip — location sharing stops */
-    @PostMapping("/logistics/{logisticsId}/complete-tracking")
-    public ResponseEntity<?> completeTracking(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            Logistics logistics = logisticsService.completeTracking(logisticsId, userId);
-            return ResponseEntity.ok(ApiResponse.ok("Tracking completed", logisticsToMap(logistics)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    /** Current route summary: remaining distance / ETA / cost */
+    /** Current route summary: distance / ETA / cost (pickup → delivery) */
     @GetMapping("/logistics/{logisticsId}/route")
     public ResponseEntity<?> getRoute(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -327,21 +246,6 @@ public class DealController {
 
         try {
             return ResponseEntity.ok(ApiResponse.ok("Route estimate", logisticsService.getRouteSummary(logisticsId, userId)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    /** Sampled location history for a trip (authorized deal parties only) */
-    @GetMapping("/logistics/{logisticsId}/location-history")
-    public ResponseEntity<?> getLocationHistory(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable Long logisticsId) {
-        Long userId = extractUserId(authHeader);
-        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
-
-        try {
-            return ResponseEntity.ok(ApiResponse.ok("Location history", logisticsService.getLocationHistory(logisticsId, userId)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
@@ -372,6 +276,16 @@ public class DealController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
+    }
+
+    /** All logistics records involving the authenticated user (farmer or buyer). */
+    @GetMapping("/logistics/my")
+    public ResponseEntity<?> getMyLogistics(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        return ResponseEntity.ok(ApiResponse.ok(logisticsService.getMyLogistics(userId)));
     }
 
     /** Get logistics for a deal */
@@ -518,10 +432,6 @@ public class DealController {
         resp.put("trackingId", l.getTrackingId());
         resp.put("type", l.getType().name());
         resp.put("status", l.getStatus() != null ? l.getStatus().name() : "");
-        resp.put("trackingStatus", l.getTrackingStatus() != null ? l.getTrackingStatus().name() : "NOT_STARTED");
-        resp.put("driverUserId", l.getDriverUserId());
-        resp.put("driverName", l.getDriverName() != null ? l.getDriverName() : "");
-        resp.put("driverPhone", l.getDriverPhone() != null ? l.getDriverPhone() : "");
         resp.put("vehicleNumber", l.getVehicleNumber() != null ? l.getVehicleNumber() : "");
         resp.put("vehicleType", l.getVehicleType() != null ? l.getVehicleType() : "");
         resp.put("pickupLocation", l.getPickupLocation() != null ? l.getPickupLocation() : "");
@@ -532,12 +442,6 @@ public class DealController {
         resp.put("deliveryLongitude", l.getDeliveryLongitude());
         resp.put("scheduledPickup", l.getScheduledPickup());
         resp.put("expectedDelivery", l.getExpectedDelivery());
-        resp.put("lastLocationUpdate", l.getLastLocationUpdate());
-        resp.put("lastAccuracy", l.getLastAccuracy());
-        resp.put("trackingStartedAt", l.getTrackingStartedAt());
-        resp.put("trackingCompletedAt", l.getTrackingCompletedAt());
-        resp.put("latitude", l.getCurrentLatitude());
-        resp.put("longitude", l.getCurrentLongitude());
         resp.put("routeDistanceKm", l.getRouteDistanceKm());
         resp.put("routeDurationMinutes", l.getRouteDurationMinutes());
         resp.put("routeEstimatedCost", l.getRouteEstimatedCost());

@@ -115,7 +115,6 @@ public class User {
     public enum Role {
         FARMER,
         BUSINESS,
-        DRIVER,
         ADMIN
     }
 

@@ -157,6 +157,99 @@ public class BuyerRequirementService {
         return matches;
     }
 
+    /**
+     * Lifecycle: reserve requirement quantity when its deal is locked.
+     * No-ops for deals not tied to a requirement.
+     */
+    @Transactional
+    public void reserveForDeal(Deal deal) {
+        BuyerRequirement req = deal.getBuyerRequirement();
+        if (req == null || req.getId() == null || deal.getQuantity() == null) return;
+        int remaining = remainingOf(req);
+        if (deal.getQuantity() > remaining) {
+            throw new BadRequestException("Requirement only needs " + remaining + " " +
+                    (req.getUnit() != null ? req.getUnit() : "kg") + " more — cannot reserve " + deal.getQuantity());
+        }
+        req.setReservedQuantity(nz(req.getReservedQuantity()) + deal.getQuantity());
+        if (req.getStatus() == RequirementStatus.OPEN || req.getStatus() == RequirementStatus.MATCHED) {
+            req.setStatus(RequirementStatus.NEGOTIATING);
+        }
+        requirementRepo.save(req);
+    }
+
+    /**
+     * Lifecycle: deal completed → move quantity from reserved to fulfilled.
+     * Auto-FULFILLED when nothing remains. Notifies the buyer.
+     */
+    @Transactional
+    public void fulfillForDeal(Deal deal) {
+        BuyerRequirement req = deal.getBuyerRequirement();
+        if (req == null || req.getId() == null || deal.getQuantity() == null) return;
+        req = requirementRepo.findById(req.getId()).orElse(null);
+        if (req == null) return;
+
+        req.setFulfilledQuantity(nz(req.getFulfilledQuantity()) + deal.getQuantity());
+        req.setReservedQuantity(Math.max(0, nz(req.getReservedQuantity()) - deal.getQuantity()));
+        int required = req.getRequiredQuantity() != null ? req.getRequiredQuantity() : req.getQuantity();
+        int fulfilled = nz(req.getFulfilledQuantity());
+        req.setRemainingQuantity(Math.max(0, required - fulfilled));
+
+        boolean wasFulfilled = req.getStatus() == RequirementStatus.FULFILLED;
+        if (req.getRemainingQuantity() == 0) {
+            req.setStatus(RequirementStatus.FULFILLED);
+        } else if (req.getStatus() != RequirementStatus.FULFILLED) {
+            req.setStatus(RequirementStatus.PARTIALLY_FULFILLED);
+        }
+        requirementRepo.save(req);
+
+        if (!wasFulfilled) {
+            boolean nowFulfilled = req.getStatus() == RequirementStatus.FULFILLED;
+            notificationService.createNotification(req.getBuyer().getId(),
+                    Notification.NotificationType.SYSTEM_ALERT,
+                    nowFulfilled ? "Requirement Fulfilled!" : "Requirement Progress",
+                    nowFulfilled
+                        ? "Your requirement for " + required + " " + (req.getUnit() != null ? req.getUnit() : "kg") + " of " + req.getCrop() + " is now fully fulfilled."
+                        : req.getCrop() + " requirement: " + fulfilled + "/" + required + " " + (req.getUnit() != null ? req.getUnit() : "kg") + " fulfilled.");
+        }
+    }
+
+    /**
+     * Lifecycle: deal cancelled → release the reserved requirement quantity.
+     * Re-opens FULFILLED requirements when appropriate.
+     */
+    @Transactional
+    public void releaseForDeal(Deal deal) {
+        BuyerRequirement req = deal.getBuyerRequirement();
+        if (req == null || req.getId() == null || deal.getQuantity() == null) return;
+        req = requirementRepo.findById(req.getId()).orElse(null);
+        if (req == null) return;
+
+        req.setReservedQuantity(Math.max(0, nz(req.getReservedQuantity()) - deal.getQuantity()));
+        int required = req.getRequiredQuantity() != null ? req.getRequiredQuantity() : req.getQuantity();
+        int fulfilled = nz(req.getFulfilledQuantity());
+        req.setRemainingQuantity(Math.max(0, required - fulfilled));
+
+        // Re-derive an active status after release (unless the buyer cancelled/removed it)
+        if (req.getStatus() != RequirementStatus.CANCELLED && req.getStatus() != RequirementStatus.ADMIN_REMOVED
+                && req.getStatus() != RequirementStatus.EXPIRED) {
+            if (req.getStatus() == RequirementStatus.FULFILLED && req.getRemainingQuantity() > 0) {
+                req.setStatus(RequirementStatus.PARTIALLY_FULFILLED);
+            } else if (req.getStatus() == RequirementStatus.NEGOTIATING && req.getReservedQuantity() == 0
+                    && fulfilled == 0) {
+                req.setStatus(RequirementStatus.OPEN);
+            }
+        }
+        requirementRepo.save(req);
+    }
+
+    private int remainingOf(BuyerRequirement req) {
+        int required = req.getRequiredQuantity() != null ? req.getRequiredQuantity() : req.getQuantity();
+        int committed = Math.max(nz(req.getFulfilledQuantity()), nz(req.getReservedQuantity()));
+        return Math.max(0, required - committed);
+    }
+
+    private int nz(Integer v) { return v != null ? v : 0; }
+
     /** Update requirement status (buyer owns it; OPEN→CANCELLED/FULFILLED etc.). */
     @Transactional
     public BuyerRequirement updateStatus(Long userId, Long requirementId, String status) {

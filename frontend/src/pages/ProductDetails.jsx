@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCircle, Loader2, Heart, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { optimizeImage } from '../utils/lowDataMode';
+import { optimizeImage } from '../utils/image';
 import { apiGet, apiPost } from '../api';
 import ReportModal from '../components/ReportModal';
 

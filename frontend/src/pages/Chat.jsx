@@ -7,7 +7,6 @@ import { apiGet, apiPost } from '../api';
 import { onMessage } from '../utils/messageStream';
 import DealLockPanel from '../components/DealLockPanel';
 import { createOffer, getConversationOffers, acceptOffer, counterOffer, rejectOffer } from '../api/dealApi';
-import { pollInterval, isLowDataMode, onLowDataModeChange } from '../utils/lowDataMode';
 
 const OFFER_STATUS_LABELS = {
   PENDING: '⏳ Pending', ACCEPTED: '✅ Accepted', COUNTERED: '🔄 Countered',
@@ -50,8 +49,6 @@ export default function Chat() {
   const [counterFor, setCounterFor] = useState(null); // offer id being countered
   const [counterForm, setCounterForm] = useState({ price: '', quantity: '' });
   const [offerAction, setOfferAction] = useState(null); // loading state
-  const [lowData, setLowData] = useState(isLowDataMode());
-  useEffect(() => onLowDataModeChange(setLowData), []);
 
   const role = user?.role?.toLowerCase() || 'farmer';
   const sidebarRole = role === 'farmer' ? 'farmer' : 'business';
@@ -80,9 +77,9 @@ export default function Chat() {
 
   // Poll conversations list even while in a chat (to show unread badges)
   useEffect(() => {
-    const interval = setInterval(() => loadConversations(false), pollInterval(10000, 30000));
+    const interval = setInterval(() => loadConversations(false), 10000);
     return () => clearInterval(interval);
-  }, [user, lowData]);
+  }, [user]);
 
   // Load messages when conversation is selected — poll for real-time
   useEffect(() => {
@@ -93,9 +90,9 @@ export default function Chat() {
       loadMessages();
       loadOffers();
       loadConversations(false); // Also refresh conversation list for unread badges
-    }, pollInterval(2000, 10000));
+    }, 2000);
     return () => clearInterval(interval);
-  }, [conversationId, user, lowData]);
+  }, [conversationId, user]);
 
   // Real-time: SSE push — new messages pop up on screen instantly, no poll wait
   useEffect(() => {

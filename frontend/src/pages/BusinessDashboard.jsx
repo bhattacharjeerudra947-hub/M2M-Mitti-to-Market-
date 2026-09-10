@@ -27,15 +27,24 @@ export default function BusinessDashboard() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  // NEW: price chart data — placeholder until a real price-history endpoint exists
+  // Real spend trend: delivered order value per month (last 6 months)
   useEffect(() => {
-    setPriceChartData([
-      { month: 'Apr', tomato: 22, onion: 18, potato: 15 },
-      { month: 'May', tomato: 25, onion: 20, potato: 16 },
-      { month: 'Jun', tomato: 30, onion: 19, potato: 17 },
-      { month: 'Jul', tomato: 28, onion: 24, potato: 18 },
-    ]);
-  }, []);
+    const byMonth = new Map();
+    for (const o of orders) {
+      if (o.status !== 'DELIVERED' || !o.orderDate) continue;
+      const d = new Date(o.orderDate);
+      if (isNaN(d)) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+    }
+    setPriceChartData([...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([key, total]) => {
+        const [y, m] = key.split('-');
+        return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), spend: Math.round(total) };
+      }));
+  }, [orders]);
 
   const activeOrders = orders.filter(o => !['DELIVERED','CANCELLED'].includes(o.status));
   const pendingDeliveries = orders.filter(o => ['CONFIRMED','PACKED','IN_TRANSIT'].includes(o.status));
@@ -80,12 +89,11 @@ export default function BusinessDashboard() {
               data={priceChartData}
               dataKeys={[
                 { name: 'month', xKey: 'month' },
-                { name: 'tomato', label: 'Tomato' },
-                { name: 'onion', label: 'Onion' },
-                { name: 'potato', label: 'Potato' },
+                { name: 'spend', label: 'Spend (₹)' },
               ]}
-              title="Market Price Trends (₹/kg)"
-              colors={['#0f2a4a', '#d4a017', '#16a34a']}
+              title="Monthly Spend (₹)"
+              unit="₹"
+              colors={['#0f2a4a']}
               height={280}
             />
             <div>

@@ -40,7 +40,7 @@ export default function FarmerDashboard() {
   // ─── Real stats from backend ───
   const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0, monthlyEarnings: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
-  const [priceChartData, setPriceChartData] = useState([]); // NEW: fixes ReferenceError
+  const [priceChartData, setPriceChartData] = useState([]);
 
   useEffect(() => {
     if (!user) {
@@ -70,13 +70,22 @@ export default function FarmerDashboard() {
           .reduce((s, o) => s + (o.totalPrice || 0), 0);
         setStats((prev) => ({ ...prev, monthlyEarnings: monthly }));
 
-        // NEW: price chart data — placeholder until a real price-history endpoint exists
-        setPriceChartData([
-          { month: 'Apr', tomato: 22, onion: 18 },
-          { month: 'May', tomato: 25, onion: 20 },
-          { month: 'Jun', tomato: 30, onion: 19 },
-          { month: 'Jul', tomato: 28, onion: 24 },
-        ]);
+        // Real earnings trend: delivered order value per month (last 6 months)
+        const byMonth = new Map();
+        for (const o of ordersList) {
+          if (o.status !== 'DELIVERED' || !o.orderDate) continue;
+          const d = new Date(o.orderDate);
+          if (isNaN(d)) continue;
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+        }
+        setPriceChartData([...byMonth.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .slice(-6)
+          .map(([key, total]) => {
+            const [y, m] = key.split('-');
+            return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), earnings: Math.round(total) };
+          }));
       } catch {}
     })();
   }, [user]);
@@ -288,11 +297,11 @@ export default function FarmerDashboard() {
                   data={priceChartData}
                   dataKeys={[
                     { name: 'month', xKey: 'month' },
-                    { name: 'tomato', label: 'Tomato' },
-                    { name: 'onion', label: 'Onion' },
+                    { name: 'earnings', label: 'Earnings (₹)' },
                   ]}
-                  title={t_key(language, 'priceTrends') || 'Price Trends (₹/kg)'}
-                  colors={['#0f2a4a', '#d4a017']}
+                  title="Monthly Earnings (₹)"
+                  unit="₹"
+                  colors={['#16a34a']}
                   height={250}
                 />
                 <div>
