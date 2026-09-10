@@ -38,6 +38,10 @@ public class BusinessProfile {
     @Column(name = "gstin", length = 15)
     private String gstin;
 
+    /** PAN / Business PAN Number */
+    @Column(name = "pan_number", length = 10)
+    private String panNumber;
+
     /** Business registration number */
     @Column(name = "registration_number")
     private String registrationNumber;
@@ -45,6 +49,16 @@ public class BusinessProfile {
     /** Business address */
     @Column(columnDefinition = "TEXT")
     private String businessAddress;
+
+    private String state;
+
+    private String district;
+
+    private String tehsil;
+
+    private String village;
+
+    private String pincode;
 
     /** Government department/agency name (if GOVERNMENT type) */
     @Column(name = "department_name")

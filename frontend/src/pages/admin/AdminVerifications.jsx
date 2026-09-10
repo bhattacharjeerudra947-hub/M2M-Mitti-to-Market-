@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getVerifications, getUserDetails, verifyUser, rejectVerification, requestResubmission } from '../../services/adminApi';
+import { getVerifications, getUserDetails, verifyUser, rejectVerification, requestResubmission, requestDocReupload } from '../../services/adminApi';
 
 export default function AdminVerifications() {
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -9,6 +9,11 @@ export default function AdminVerifications() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [processing, setProcessing] = useState(false);
+
+  // Document-level re-upload state
+  const [activeDocForReupload, setActiveDocForReupload] = useState(null);
+  const [docReuploadReason, setDocReuploadReason] = useState('');
+  const [docProcessing, setDocProcessing] = useState(false);
 
   const fetchVerifications = useCallback(async () => {
     setLoading(true);
@@ -38,7 +43,7 @@ export default function AdminVerifications() {
     } else if (actionType === 'REJECT') {
       await rejectVerification(selectedUser.id, actionReason || 'Verification rejected.');
     } else if (actionType === 'RESUBMIT') {
-      await requestResubmission(selectedUser.id, actionReason || 'Please upload valid identity documents.');
+      await requestResubmission(selectedUser.id, actionReason || 'Please upload valid replacement documents.');
     }
 
     setProcessing(false);
@@ -46,6 +51,20 @@ export default function AdminVerifications() {
     setSelectedDetails(null);
     setActionReason('');
     fetchVerifications();
+  };
+
+  const handleDocReuploadRequest = async (docId) => {
+    if (!docReuploadReason.trim()) return;
+    setDocProcessing(true);
+    await requestDocReupload(docId, docReuploadReason.trim());
+    setDocProcessing(false);
+    setActiveDocForReupload(null);
+    setDocReuploadReason('');
+    // Refresh user details
+    if (selectedUser) {
+      const res = await getUserDetails(selectedUser.id);
+      if (res.ok) setSelectedDetails(res.data);
+    }
   };
 
   return (
@@ -123,53 +142,129 @@ export default function AdminVerifications() {
                 </span>
               </div>
 
+              {/* Location details */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200">📍 Registered Location Details (India)</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-600 dark:text-slate-300 pt-1">
+                  <p><span className="font-semibold text-slate-900 dark:text-white">State:</span> {selectedDetails.user.state || 'N/A'}</p>
+                  <p><span className="font-semibold text-slate-900 dark:text-white">District:</span> {selectedDetails.user.district || 'N/A'}</p>
+                  <p><span className="font-semibold text-slate-900 dark:text-white">Tehsil:</span> {selectedDetails.user.tehsil || 'N/A'}</p>
+                  <p><span className="font-semibold text-slate-900 dark:text-white">Village:</span> {selectedDetails.user.village || 'N/A'}</p>
+                  <p><span className="font-semibold text-slate-900 dark:text-white">PIN Code:</span> {selectedDetails.user.pincode || 'N/A'}</p>
+                  <p><span className="font-semibold text-slate-900 dark:text-white">Mobile:</span> +91 {selectedDetails.user.phone || 'N/A'}</p>
+                </div>
+              </div>
+
               {/* Profile specific information */}
               {selectedDetails.farmerProfile && (
                 <div className="bg-emerald-50/60 dark:bg-emerald-950/30 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs space-y-2">
                   <h4 className="font-bold text-emerald-800 dark:text-emerald-300">🌾 Farmer Verification Info</h4>
-                  <p><span className="font-medium">Category:</span> {selectedDetails.farmerProfile.farmerCategory}</p>
-                  <p><span className="font-medium">Crops Grown:</span> {selectedDetails.farmerProfile.crops}</p>
-                  <p><span className="font-medium">Land Area:</span> {selectedDetails.farmerProfile.landAreaAcres} Acres ({selectedDetails.farmerProfile.landOwnership})</p>
-                  <p><span className="font-medium">Aadhaar Last 4 Digits:</span> {selectedDetails.farmerProfile.aadhaarLast4 || 'N/A'}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-emerald-900 dark:text-emerald-200">
+                    <p><span className="font-semibold">Aadhaar Number:</span> {selectedDetails.farmerProfile.aadhaarNumber || `XXXX-XXXX-${selectedDetails.farmerProfile.aadhaarLast4}` || 'N/A'}</p>
+                    <p><span className="font-semibold">Bank Account:</span> {selectedDetails.farmerProfile.bankAccountNumber || 'N/A'}</p>
+                    <p><span className="font-semibold">IFSC Code:</span> {selectedDetails.farmerProfile.bankIfscCode || 'N/A'}</p>
+                    <p><span className="font-semibold">Bank / Branch:</span> {selectedDetails.farmerProfile.bankName || 'N/A'} ({selectedDetails.farmerProfile.bankBranchName || 'N/A'})</p>
+                  </div>
                 </div>
               )}
 
               {selectedDetails.businessProfile && (
                 <div className="bg-blue-50/60 dark:bg-blue-950/30 p-4 rounded-xl border border-blue-100 dark:border-blue-900/40 text-xs space-y-2">
                   <h4 className="font-bold text-blue-800 dark:text-blue-300">🏢 Business Verification Info</h4>
-                  <p><span className="font-medium">Official Business Name:</span> {selectedDetails.businessProfile.officialName}</p>
-                  <p><span className="font-medium">GSTIN:</span> <span className="font-mono font-bold bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded">{selectedDetails.businessProfile.gstin || 'N/A'}</span></p>
-                  <p><span className="font-medium">Registration Number:</span> {selectedDetails.businessProfile.registrationNumber || 'N/A'}</p>
-                  <p><span className="font-medium">Monthly Demand:</span> {selectedDetails.businessProfile.monthlyRequirementKg} kg</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-blue-900 dark:text-blue-200">
+                    <p><span className="font-semibold">Business Name:</span> {selectedDetails.businessProfile.officialName || 'N/A'}</p>
+                    <p><span className="font-semibold">Contact Person:</span> {selectedDetails.businessProfile.authorizedPerson || 'N/A'}</p>
+                    <p><span className="font-semibold">GSTIN:</span> <span className="font-mono font-bold bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded">{selectedDetails.businessProfile.gstin || 'N/A'}</span></p>
+                    <p><span className="font-semibold">PAN Number:</span> <span className="font-mono font-bold bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded">{selectedDetails.businessProfile.panNumber || 'N/A'}</span></p>
+                  </div>
                 </div>
               )}
 
-              {/* Documents */}
+              {/* Documents with Per-Document Re-upload Action */}
               <div>
                 <h4 className="font-bold text-xs text-gray-900 dark:text-white mb-3">Submitted Verification Documents</h4>
                 {(!selectedDetails.documents || selectedDetails.documents.length === 0) ? (
                   <p className="text-xs text-gray-500 italic">No supporting documents attached to this application.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selectedDetails.documents.map((doc) => (
-                      <div key={doc.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-xs space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-gray-800 dark:text-gray-200">{doc.documentType}</span>
-                          <span className="text-[10px] text-gray-400">{(doc.fileSize / 1024).toFixed(0)} KB</span>
+                    {selectedDetails.documents.map((doc) => {
+                      const isFlagged = doc.verificationStatus === 'RE_UPLOAD_REQUESTED';
+                      const isEditing = activeDocForReupload === doc.id;
+
+                      return (
+                        <div key={doc.id} className={`p-3.5 rounded-xl border text-xs space-y-2.5 transition-all ${
+                          isFlagged
+                            ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700'
+                            : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-gray-800 dark:text-gray-200">{doc.documentType}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              doc.verificationStatus === 'VERIFIED'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : isFlagged
+                                ? 'bg-amber-200 text-amber-900'
+                                : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200'
+                            }`}>
+                              {doc.verificationStatus}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-gray-500 truncate">{doc.originalFilename}</p>
+
+                          {doc.rejectionReason && (
+                            <div className="p-2 bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 rounded text-[11px]">
+                              <strong>Note:</strong> {doc.rejectionReason}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2 pt-1">
+                            {doc.cloudinaryUrl && (
+                              <a
+                                href={doc.cloudinaryUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex-1 text-center py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-[11px] transition-colors"
+                              >
+                                🔍 View Doc
+                              </a>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveDocForReupload(isEditing ? null : doc.id);
+                                setDocReuploadReason('');
+                              }}
+                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-[11px] transition-colors whitespace-nowrap"
+                            >
+                              {isEditing ? 'Cancel' : 'Request Re-upload'}
+                            </button>
+                          </div>
+
+                          {/* Inline Re-upload Reason Input */}
+                          {isEditing && (
+                            <div className="pt-2 border-t border-amber-200 dark:border-amber-800 space-y-2">
+                              <input
+                                type="text"
+                                value={docReuploadReason}
+                                onChange={(e) => setDocReuploadReason(e.target.value)}
+                                placeholder="Why should this doc be re-uploaded? (e.g. Unclear, blurry, expired)"
+                                className="w-full text-xs p-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              />
+                              <button
+                                type="button"
+                                disabled={docProcessing || !docReuploadReason.trim()}
+                                onClick={() => handleDocReuploadRequest(doc.id)}
+                                className="w-full py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition"
+                              >
+                                {docProcessing ? 'Submitting...' : 'Confirm Request for this Document'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-[11px] text-gray-500 truncate">{doc.originalFilename}</p>
-                        {doc.cloudinaryUrl && (
-                          <a
-                            href={doc.cloudinaryUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-block w-full text-center py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-[11px] transition-colors"
-                          >
-                            🔍 Open Protected Document
-                          </a>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -178,12 +273,12 @@ export default function AdminVerifications() {
               <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Verification Note / Rejection Reason
+                    General Verification Note / Rejection Reason
                   </label>
                   <textarea
                     value={actionReason}
                     onChange={(e) => setActionReason(e.target.value)}
-                    placeholder="Enter approval notes or explanation if rejecting / requesting re-submission..."
+                    placeholder="Enter approval notes or explanation if rejecting / requesting overall re-submission..."
                     rows={2}
                     className="w-full text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white p-2.5"
                   />

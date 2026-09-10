@@ -11,7 +11,7 @@ import ExploreMarketplace from './pages/ExploreMarketplace';
 import Pricing from './pages/Pricing';
 import AboutUs from './pages/AboutUs';
 import Login from './pages/Login';
-import SignUp from './pages/SignUp';
+import SignUp from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';

@@ -37,16 +37,16 @@ export default function DocumentUpload({
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  const DEFAULT_MAX_DOC = 3 * 1024 * 1024;
+  const DEFAULT_MAX_DOC = 5 * 1024 * 1024;
   const DEFAULT_MAX_PHOTO = 5 * 1024 * 1024;
-  const DEFAULT_DOC_TYPES = ['application/pdf'];
+  const DEFAULT_DOC_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const DEFAULT_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
   const finalMaxSize = maxSize || (isPhoto ? DEFAULT_MAX_PHOTO : DEFAULT_MAX_DOC);
   const finalAllowedTypes = acceptTypes || (isPhoto ? DEFAULT_PHOTO_TYPES : DEFAULT_DOC_TYPES);
   const acceptAttr = isPhoto
     ? 'image/jpeg,image/jpg,image/png,image/webp'
-    : 'application/pdf';
+    : 'application/pdf,image/jpeg,image/jpg,image/png,image/webp';
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
@@ -59,14 +59,11 @@ export default function DocumentUpload({
     if (!finalAllowedTypes.includes(f.type)) {
       return isPhoto
         ? 'Photo must be JPG, JPEG, PNG, or WebP'
-        : 'Document must be a PDF file';
+        : 'Document must be a PDF or Image (JPG, PNG, WebP)';
     }
     const name = f.name.toLowerCase();
-    if (isPhoto && !name.match(/\.(jpg|jpeg|png|webp)$/)) {
-      return 'File extension does not match photo format';
-    }
-    if (!isPhoto && !name.endsWith('.pdf')) {
-      return 'File must have .pdf extension';
+    if (!name.match(/\.(pdf|jpg|jpeg|png|webp)$/)) {
+      return 'File must be a valid PDF or Image file';
     }
     if (f.size > finalMaxSize) {
       return `File too large. Maximum size is ${formatFileSize(finalMaxSize)}`;
@@ -136,11 +133,13 @@ export default function DocumentUpload({
       PENDING: 'bg-yellow-50 border-yellow-200 text-yellow-800',
       VERIFIED: 'bg-green-50 border-green-200 text-green-800',
       REJECTED: 'bg-red-50 border-red-200 text-red-800',
+      RE_UPLOAD_REQUESTED: 'bg-amber-50 border-amber-300 text-amber-900',
     };
     const statusLabels = {
       PENDING: '⏳ Pending Verification',
       VERIFIED: '✅ Verified',
       REJECTED: '❌ Rejected',
+      RE_UPLOAD_REQUESTED: '⚠️ Re-upload Requested',
     };
 
     return (

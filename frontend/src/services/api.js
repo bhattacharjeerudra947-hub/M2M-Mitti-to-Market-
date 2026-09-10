@@ -131,8 +131,14 @@ export async function updateFirebaseProfile(profileData) {
 
 /* ───────── Legacy Email/Password (kept for backward compatibility) ───────── */
 
-export async function register(name, email, phone, password, role, location) {
-  const result = await request('POST', '/auth/register', { name, email, phone, password, role, location }, false);
+export async function register(nameOrPayload, email, phone, password, role, location) {
+  let body;
+  if (typeof nameOrPayload === 'object' && nameOrPayload !== null) {
+    body = nameOrPayload;
+  } else {
+    body = { name: nameOrPayload, email, phone, password, role, location };
+  }
+  const result = await request('POST', '/auth/register', body, false);
   if (result.ok) storeTokens(result.data);
   return result;
 }
@@ -141,6 +147,51 @@ export async function login(email, password) {
   const result = await request('POST', '/auth/login', { email, password }, false);
   if (result.ok) storeTokens(result.data);
   return result;
+}
+
+/* ───────── MSG91 Mobile OTP ───────── */
+
+export async function sendMobileOtp(phone) {
+  return request('POST', '/auth/otp/send', { phone }, false);
+}
+
+export async function verifyMobileOtp(phone, otp) {
+  return request('POST', '/auth/otp/verify', { phone, otp }, false);
+}
+
+export async function resendMobileOtp(phone) {
+  return request('POST', '/auth/otp/retry', { phone }, false);
+}
+
+/* ───────── Bank IFSC Lookup ───────── */
+
+export async function lookupIfsc(ifscCode) {
+  if (!ifscCode || ifscCode.trim().length !== 11) {
+    return { ok: false, error: 'IFSC must be 11 characters' };
+  }
+  try {
+    const res = await fetch(`https://ifsc.razorpay.com/${ifscCode.trim().toUpperCase()}`);
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        ok: true,
+        bank: data.BANK,
+        branch: data.BRANCH,
+        city: data.CITY,
+        state: data.STATE,
+        address: data.ADDRESS,
+      };
+    }
+    return { ok: false, error: 'Bank branch not found for this IFSC code' };
+  } catch {
+    return { ok: false, error: 'Could not connect to IFSC service' };
+  }
+}
+
+/* ───────── Verification Re-submission ───────── */
+
+export async function resubmitVerification() {
+  return request('PUT', '/documents/resubmit');
 }
 
 export async function refreshToken() {

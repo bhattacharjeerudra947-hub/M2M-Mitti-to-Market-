@@ -19,6 +19,16 @@ public class FarmerProfileResponse {
     private String landOwnership;
     private String farmAddress;
     private String aadhaarLast4;
+    private String aadhaarNumber;
+    private String bankAccountNumber;
+    private String bankIfscCode;
+    private String bankBranchName;
+    private String bankName;
+    private String state;
+    private String district;
+    private String tehsil;
+    private String village;
+    private String pincode;
     private String identityDocType;
     private String identityDocStorageKey;
     private String identityDocFilename;
