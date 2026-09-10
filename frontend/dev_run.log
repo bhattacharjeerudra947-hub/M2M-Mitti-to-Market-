@@ -1,0 +1,24 @@
+
+> agri-marketplace@0.0.0 dev
+> vite
+
+Port 5173 is in use, trying another one...
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m250[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5174[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m21:16:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/FarmerDashboard.jsx, /src/index.css, /src/context/LanguageContext.jsx, /src/components/LanguageSelector.jsx, /src/components/TrendInsights.jsx, /src/components/VoiceAssistant.jsx, /src/components/MapRouteOptimizer.jsx[22m
+[2m21:16:52[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/LanguageContext.jsx[22m Could not Fast Refresh ("useLanguage" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m21:16:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/FarmerContext.jsx, /src/components/RoleChoiceModal.jsx, /src/components/AuthRequiredModal.jsx, /src/pages/Landing.jsx, /src/components/MessagePopup.jsx, /src/components/Footer.jsx, /src/components/GuestSignInGate.jsx, /src/components/Navbar.jsx, /src/components/LanguageSelector.jsx[22m
+[2m22:28:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/LanguageContext.jsx, /src/index.css, /src/components/LanguageSelector.jsx[22m
+[2m22:28:59[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/LanguageContext.jsx[22m Could not Fast Refresh ("useLanguage" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m22:28:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/FarmerContext.jsx, /src/components/RoleChoiceModal.jsx, /src/components/AuthRequiredModal.jsx, /src/pages/Landing.jsx, /src/components/MessagePopup.jsx, /src/components/Footer.jsx, /src/components/GuestSignInGate.jsx, /src/components/Navbar.jsx, /src/components/LanguageSelector.jsx[22m
+[2m22:28:59[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/FarmerContext.jsx[22m Could not Fast Refresh ("useFarmerLanguage" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m22:28:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/FarmerDashboard.jsx, /src/components/TrendInsights.jsx, /src/components/VoiceAssistant.jsx, /src/components/MapRouteOptimizer.jsx[22m
+[2m22:30:09[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/context/LanguageContext.jsx, /src/index.css, /src/components/LanguageSelector.jsx[22m
+[2m22:30:09[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/LanguageContext.jsx[22m Could not Fast Refresh ("useLanguage" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m22:30:09[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/FarmerContext.jsx, /src/components/RoleChoiceModal.jsx, /src/components/AuthRequiredModal.jsx, /src/pages/Landing.jsx, /src/components/MessagePopup.jsx, /src/components/Footer.jsx, /src/components/GuestSignInGate.jsx, /src/components/Navbar.jsx, /src/components/LanguageSelector.jsx[22m
+[2m22:30:09[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/FarmerContext.jsx[22m Could not Fast Refresh ("useFarmerLanguage" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m22:30:09[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/FarmerDashboard.jsx, /src/components/TrendInsights.jsx, /src/components/VoiceAssistant.jsx, /src/components/MapRouteOptimizer.jsx[22m
+[2m22:33:00[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mpublic/preview/admin-preview.html[22m

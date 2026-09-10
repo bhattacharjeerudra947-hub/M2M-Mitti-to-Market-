@@ -28,7 +28,7 @@
  *      <h1>{t('yourPage.heroTitle')}</h1>
  * See TRANSLATION_GUIDE.md at the project root for the full walkthrough.
  */
-import legacyTranslations, { LANGUAGES, getLanguageByCode, normaliseLangCode } from '../farmerTranslations';
+import legacyTranslations, { LANGUAGES, getLanguageByCode, normaliseLangCode } from '../farmerTranslations.js';
 
 import nav from './pages/nav';
 import footer from './pages/footer';

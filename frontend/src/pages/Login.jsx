@@ -19,7 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
-const from = redirectTo || (userRole === 'farmer' ? '/farmer' : '/business');
+const from = redirectTo || (userRole === 'admin' ? '/admin' : userRole === 'farmer' ? '/farmer' : '/business');
     navigate(from, { replace: true });
     return null;
   }
@@ -36,7 +36,11 @@ const from = redirectTo || (userRole === 'farmer' ? '/farmer' : '/business');
 
     if (result.ok) {
       const r = result.data.user?.role?.toLowerCase();
+<<<<<<< HEAD
       const dest = redirectTo || (r === 'farmer' ? '/farmer' : '/business');
+=======
+const dest = redirectTo || (r === 'admin' ? '/admin' : r === 'farmer' ? '/farmer' : '/business');
+>>>>>>> a69e03d (added admin and rephrase the guest)
       navigate(dest, { replace: true });
     } else {
       setError(result.error || 'Login failed. Please check your credentials.');
@@ -70,6 +74,15 @@ const from = redirectTo || (userRole === 'farmer' ? '/farmer' : '/business');
               <p className="text-sm text-gray-500 mb-5 leading-relaxed">Source fresh produce directly from farmers and FPOs.</p>
               <div className="flex items-center gap-2 text-sm font-semibold text-navy-800 group-hover:text-navy-900">Continue as Business <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
             </button>
+<<<<<<< HEAD
+=======
+            <button onClick={() => setRole('admin')} className="group bg-white rounded-3xl p-8 border-2 border-emerald-200 shadow-sm hover:border-emerald-500 hover:shadow-lg transition-all text-left">
+              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-4xl mb-5 group-hover:bg-emerald-100 border border-emerald-300 transition">🛡️</div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Admin</h2>
+              <p className="text-sm text-gray-500 mb-5 leading-relaxed">Access the admin control center.</p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 group-hover:text-emerald-800">Continue as Admin <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></div>
+            </button>
+>>>>>>> a69e03d (added admin and rephrase the guest)
           </div>
         </div>
       </div>
