@@ -35,7 +35,7 @@ export default function Footer() {
                 to={item.to}
                 className="text-xs text-navy-400 hover:text-mustard-300 transition"
               >
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
             <Link to="/signup" className="text-xs font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-3.5 py-1.5 rounded-lg transition">
