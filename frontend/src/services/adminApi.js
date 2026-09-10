@@ -25,12 +25,14 @@ export async function getStats() {
   return adminRequest('GET', '/stats');
 }
 
-export async function getUsers(role, verification, status, search) {
+export async function getUsers(role, verification, status, search, state, district) {
   const params = new URLSearchParams();
   if (role) params.append('role', role);
   if (verification) params.append('verification', verification);
   if (status) params.append('status', status);
   if (search) params.append('search', search);
+  if (state) params.append('state', state);
+  if (district) params.append('district', district);
   const q = params.toString() ? `?${params.toString()}` : '';
   return adminRequest('GET', `/users${q}`);
 }
@@ -85,8 +87,14 @@ export async function restoreUser(id, reason) {
   return adminRequest('PUT', `/users/${id}/restore`, { reason });
 }
 
-export async function getVerifications(status) {
-  const q = status ? `?status=${status}` : '';
+export async function getVerifications(status, role, state, district, search) {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (role) params.append('role', role);
+  if (state) params.append('state', state);
+  if (district) params.append('district', district);
+  if (search) params.append('search', search);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return adminRequest('GET', `/verifications${q}`);
 }
 

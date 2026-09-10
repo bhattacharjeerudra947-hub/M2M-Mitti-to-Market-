@@ -25,4 +25,7 @@ public class BusinessProfileRequest {
     private String authorizedPerson;
     private String requiredCrops;       // comma-separated: "Rice,Wheat"
     private Long monthlyRequirementKg;
+
+    private Double latitude;
+    private Double longitude;
 }
