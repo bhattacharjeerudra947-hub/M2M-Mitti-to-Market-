@@ -1,39 +1,16 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useLanguage } from './LanguageContext';
 
-const FarmerContext = createContext(null);
-
-const STORAGE_KEY = 'mitti2market_farmer_lang';
-const DEFAULT_LANG = 'en';
-
-function readSavedLang() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;
-  } catch {
-    return DEFAULT_LANG;
-  }
-}
-
+/**
+ * Backward-compatible shim — FarmerContext used to own the language state but
+ * was only mounted inside farmer routes, so public pages could not read it.
+ * Language state now lives in LanguageProvider (mounted globally in App.jsx).
+ * This shim keeps the old useFarmerLanguage() hook working everywhere, now
+ * app-wide, backed by the same single source of truth.
+ */
 export function FarmerProvider({ children }) {
-  const [language, setLanguageState] = useState(readSavedLang);
-
-  const setLanguage = useCallback((lang) => {
-    setLanguageState(lang);
-    try {
-      localStorage.setItem(STORAGE_KEY, lang);
-    } catch {
-      // localStorage unavailable — silent fail
-    }
-  }, []);
-
-  return (
-    <FarmerContext.Provider value={{ language, setLanguage }}>
-      {children}
-    </FarmerContext.Provider>
-  );
+  return children;
 }
 
 export function useFarmerLanguage() {
-  const ctx = useContext(FarmerContext);
-  if (!ctx) throw new Error('useFarmerLanguage must be used within FarmerProvider');
-  return ctx;
+  return useLanguage();
 }
