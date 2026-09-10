@@ -75,11 +75,33 @@ public class FarmerController {
         if (req.getAadhaarLast4() != null) profile.setAadhaarLast4(req.getAadhaarLast4());
         if (req.getIdentityDocType() != null) profile.setIdentityDocType(req.getIdentityDocType());
 
+        if (req.getAadhaarNumber() != null) {
+            profile.setAadhaarNumber(req.getAadhaarNumber());
+            if (req.getAadhaarNumber().length() >= 4) {
+                profile.setAadhaarLast4(req.getAadhaarNumber().substring(req.getAadhaarNumber().length() - 4));
+            }
+        }
+        if (req.getBankAccountNumber() != null) profile.setBankAccountNumber(req.getBankAccountNumber());
+        if (req.getBankIfscCode() != null) profile.setBankIfscCode(req.getBankIfscCode());
+        if (req.getBankBranchName() != null) profile.setBankBranchName(req.getBankBranchName());
+        if (req.getBankName() != null) profile.setBankName(req.getBankName());
+
+        if (req.getState() != null) { profile.setState(req.getState()); user.setState(req.getState()); }
+        if (req.getDistrict() != null) { profile.setDistrict(req.getDistrict()); user.setDistrict(req.getDistrict()); }
+        if (req.getTehsil() != null) { profile.setTehsil(req.getTehsil()); user.setTehsil(req.getTehsil()); }
+        if (req.getVillage() != null) { profile.setVillage(req.getVillage()); user.setVillage(req.getVillage()); }
+        if (req.getPincode() != null) { profile.setPincode(req.getPincode()); user.setPincode(req.getPincode()); }
+
         // Update user-level fields
         if (req.getFarmerCategory() != null) {
             try {
                 user.setFarmerType(User.FarmerType.valueOf(req.getFarmerCategory().toUpperCase()));
             } catch (IllegalArgumentException ignored) {}
+        }
+
+        // When KYC details are submitted, set verification status to PENDING
+        if (profile.getAadhaarNumber() != null && !profile.getAadhaarNumber().isBlank()) {
+            user.setVerificationStatus(User.VerificationStatus.PENDING);
         }
 
         // Check if profile is complete
@@ -129,6 +151,16 @@ public class FarmerController {
                 .landOwnership(p.getLandOwnership() != null ? p.getLandOwnership().name() : null)
                 .farmAddress(p.getFarmAddress())
                 .aadhaarLast4(p.getAadhaarLast4())
+                .aadhaarNumber(p.getAadhaarNumber())
+                .bankAccountNumber(p.getBankAccountNumber())
+                .bankIfscCode(p.getBankIfscCode())
+                .bankBranchName(p.getBankBranchName())
+                .bankName(p.getBankName())
+                .state(p.getState())
+                .district(p.getDistrict())
+                .tehsil(p.getTehsil())
+                .village(p.getVillage())
+                .pincode(p.getPincode())
                 .identityDocType(p.getIdentityDocType())
                 .identityDocStorageKey(p.getIdentityDocStorageKey())
                 .identityDocFilename(p.getIdentityDocFilename())

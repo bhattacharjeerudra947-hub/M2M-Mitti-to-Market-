@@ -59,12 +59,19 @@ public class BusinessController {
         }
         if (req.getOfficialName() != null) profile.setOfficialName(req.getOfficialName());
         if (req.getGstin() != null) profile.setGstin(req.getGstin());
+        if (req.getPanNumber() != null) profile.setPanNumber(req.getPanNumber());
         if (req.getRegistrationNumber() != null) profile.setRegistrationNumber(req.getRegistrationNumber());
         if (req.getBusinessAddress() != null) profile.setBusinessAddress(req.getBusinessAddress());
         if (req.getDepartmentName() != null) profile.setDepartmentName(req.getDepartmentName());
         if (req.getAuthorizedPerson() != null) profile.setAuthorizedPerson(req.getAuthorizedPerson());
         if (req.getRequiredCrops() != null) profile.setRequiredCrops(req.getRequiredCrops());
         if (req.getMonthlyRequirementKg() != null) profile.setMonthlyRequirementKg(req.getMonthlyRequirementKg());
+
+        if (req.getState() != null) { profile.setState(req.getState()); user.setState(req.getState()); }
+        if (req.getDistrict() != null) { profile.setDistrict(req.getDistrict()); user.setDistrict(req.getDistrict()); }
+        if (req.getTehsil() != null) { profile.setTehsil(req.getTehsil()); user.setTehsil(req.getTehsil()); }
+        if (req.getVillage() != null) { profile.setVillage(req.getVillage()); user.setVillage(req.getVillage()); }
+        if (req.getPincode() != null) { profile.setPincode(req.getPincode()); user.setPincode(req.getPincode()); }
 
         // Update user-level fields
         if (req.getBusinessType() != null) {
@@ -73,6 +80,12 @@ public class BusinessController {
             } catch (IllegalArgumentException ignored) {}
         }
         if (req.getOfficialName() != null) user.setOrganizationName(req.getOfficialName());
+
+        // When KYC details are submitted (GSTIN / PAN), set verification status to PENDING
+        if ((profile.getGstin() != null && !profile.getGstin().isBlank()) ||
+            (profile.getPanNumber() != null && !profile.getPanNumber().isBlank())) {
+            user.setVerificationStatus(User.VerificationStatus.PENDING);
+        }
 
         // Check if profile is complete
         if (profile.getBusinessType() != null && profile.getOfficialName() != null && !profile.getOfficialName().isBlank()) {
@@ -117,8 +130,14 @@ public class BusinessController {
                 .businessType(p.getBusinessType() != null ? p.getBusinessType().name() : null)
                 .officialName(p.getOfficialName())
                 .gstin(p.getGstin())
+                .panNumber(p.getPanNumber())
                 .registrationNumber(p.getRegistrationNumber())
                 .businessAddress(p.getBusinessAddress())
+                .state(p.getState())
+                .district(p.getDistrict())
+                .tehsil(p.getTehsil())
+                .village(p.getVillage())
+                .pincode(p.getPincode())
                 .departmentName(p.getDepartmentName())
                 .authorizedPerson(p.getAuthorizedPerson())
                 .registrationDocStorageKey(p.getRegistrationDocStorageKey())

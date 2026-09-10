@@ -1,6 +1,5 @@
 package com.mitti2market.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -11,10 +10,10 @@ public class RegisterRequest {
     @Size(min = 2, max = 100, message = "Name must be 2-100 characters")
     private String name;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    /** Email is optional */
     private String email;
 
+    @NotBlank(message = "Mobile number is required")
     private String phone;
 
     @NotBlank(message = "Password is required")
@@ -25,4 +24,14 @@ public class RegisterRequest {
     private String role;
 
     private String location;
+    private String state;
+    private String district;
+    private String tehsil;
+    private String village;
+    private String pincode;
+
+    /** For business registrations */
+    private String organizationName;
+    private String contactPersonName;
 }
+

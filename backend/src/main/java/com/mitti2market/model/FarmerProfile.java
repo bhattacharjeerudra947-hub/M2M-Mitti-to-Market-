@@ -50,6 +50,36 @@ public class FarmerProfile {
     @Column(columnDefinition = "TEXT")
     private String farmAddress;
 
+    private String state;
+
+    private String district;
+
+    private String tehsil;
+
+    private String village;
+
+    private String pincode;
+
+    /** 12-digit Aadhaar number */
+    @Column(name = "aadhaar_number", length = 12)
+    private String aadhaarNumber;
+
+    /** Bank Account Number */
+    @Column(name = "bank_account_number")
+    private String bankAccountNumber;
+
+    /** Bank IFSC Code */
+    @Column(name = "bank_ifsc_code", length = 20)
+    private String bankIfscCode;
+
+    /** Bank Branch Name (retrieved automatically via IFSC) */
+    @Column(name = "bank_branch_name")
+    private String bankBranchName;
+
+    /** Bank Name (retrieved automatically via IFSC) */
+    @Column(name = "bank_name")
+    private String bankName;
+
     /** Aadhaar last 4 digits only (for verification, never full number) */
     @Column(name = "aadhaar_last4", length = 4)
     private String aadhaarLast4;

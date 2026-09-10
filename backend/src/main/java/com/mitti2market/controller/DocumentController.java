@@ -81,20 +81,51 @@ public class DocumentController {
             // Upload to Cloudinary
             Map<String, String> uploadResult = cloudinary.uploadFile(file, folder, isImage);
 
-            // Save metadata in MySQL
-            SupportingDocument doc = SupportingDocument.builder()
-                    .user(user)
-                    .documentType(docType)
-                    .originalFilename(file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown")
-                    .cloudinaryPublicId(uploadResult.get("publicId"))
-                    .cloudinaryUrl(uploadResult.get("url"))
-                    .cloudinaryFolder(uploadResult.get("folder"))
-                    .fileSize(file.getSize())
-                    .mimeType(contentType != null ? contentType : "application/octet-stream")
-                    .verificationStatus(SupportingDocument.VerificationStatus.PENDING)
-                    .build();
+            // If user already has a document of this type, replace it
+            List<SupportingDocument> existing = documents.findByUserIdAndDocumentType(userId, docType);
+            SupportingDocument doc;
+            if (!existing.isEmpty()) {
+                doc = existing.get(0);
+                try {
+                    if (doc.getCloudinaryPublicId() != null) {
+                        cloudinary.deleteFile(doc.getCloudinaryPublicId(), isImage);
+                    }
+                } catch (Exception ignored) {}
+
+                doc.setOriginalFilename(file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown");
+                doc.setCloudinaryPublicId(uploadResult.get("publicId"));
+                doc.setCloudinaryUrl(uploadResult.get("url"));
+                doc.setCloudinaryFolder(uploadResult.get("folder"));
+                doc.setFileSize(file.getSize());
+                doc.setMimeType(contentType != null ? contentType : "application/octet-stream");
+                doc.setVerificationStatus(SupportingDocument.VerificationStatus.PENDING);
+                doc.setRejectionReason(null);
+            } else {
+                doc = SupportingDocument.builder()
+                        .user(user)
+                        .documentType(docType)
+                        .originalFilename(file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown")
+                        .cloudinaryPublicId(uploadResult.get("publicId"))
+                        .cloudinaryUrl(uploadResult.get("url"))
+                        .cloudinaryFolder(uploadResult.get("folder"))
+                        .fileSize(file.getSize())
+                        .mimeType(contentType != null ? contentType : "application/octet-stream")
+                        .verificationStatus(SupportingDocument.VerificationStatus.PENDING)
+                        .build();
+            }
 
             doc = documents.save(doc);
+
+            // If user was waiting for re-submission, reset to PENDING when re-uploaded
+            if (user.getVerificationStatus() == User.VerificationStatus.RE_SUBMISSION_REQUESTED) {
+                long remainingFlagged = documents.findByUserId(userId).stream()
+                        .filter(d -> d.getVerificationStatus() == SupportingDocument.VerificationStatus.RE_UPLOAD_REQUESTED)
+                        .count();
+                if (remainingFlagged == 0) {
+                    user.setVerificationStatus(User.VerificationStatus.PENDING);
+                    users.save(user);
+                }
+            }
 
             return ResponseEntity.ok(ApiResponse.ok("Document uploaded successfully", toResponse(doc)));
 
@@ -103,6 +134,30 @@ public class DocumentController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(ApiResponse.error("Failed to upload document: " + e.getMessage()));
         }
+    }
+
+    /**
+     * PUT /api/documents/resubmit
+     * User explicitly marks application as re-submitted for admin verification
+     */
+    @PutMapping("/resubmit")
+    public ResponseEntity<?> resubmitVerification(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        }
+
+        User user = users.findById(userId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("User not found"));
+        }
+
+        user.setVerificationStatus(User.VerificationStatus.PENDING);
+        users.save(user);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application re-submitted for admin verification", null));
     }
 
     /**
@@ -180,9 +235,6 @@ public class DocumentController {
             return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
         }
 
-        // TODO: Add proper admin role check
-        // For now, any authenticated user can access admin endpoints (for hackathon)
-
         List<SupportingDocument> docs = documents.findByVerificationStatus(
                 SupportingDocument.VerificationStatus.PENDING);
 
@@ -199,6 +251,7 @@ public class DocumentController {
             resp.put("fileSize", doc.getFileSize());
             resp.put("mimeType", doc.getMimeType());
             resp.put("verificationStatus", doc.getVerificationStatus().name());
+            resp.put("rejectionReason", doc.getRejectionReason());
             resp.put("uploadedAt", doc.getCreatedAt());
             return resp;
         }).toList();
@@ -261,6 +314,41 @@ public class DocumentController {
         documents.save(doc);
 
         return ResponseEntity.ok(ApiResponse.ok("Document rejected", toResponse(doc)));
+    }
+
+    /**
+     * PUT /api/admin/documents/{id}/request-reupload
+     * Admin requests user to re-upload this specific document with reason.
+     */
+    @PutMapping("/admin/{id}/request-reupload")
+    public ResponseEntity<?> requestDocReupload(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        }
+
+        SupportingDocument doc = documents.findById(id).orElse(null);
+        if (doc == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("Document not found"));
+        }
+
+        String reason = body.getOrDefault("reason", "Document is unclear or invalid. Please re-upload.");
+        doc.setVerificationStatus(SupportingDocument.VerificationStatus.RE_UPLOAD_REQUESTED);
+        doc.setRejectionReason(reason);
+        doc.setReviewedBy(userId);
+        doc.setReviewedAt(LocalDateTime.now());
+        documents.save(doc);
+
+        User user = doc.getUser();
+        user.setVerificationStatus(User.VerificationStatus.RE_SUBMISSION_REQUESTED);
+        user.setVerificationNotes(reason);
+        users.save(user);
+
+        return ResponseEntity.ok(ApiResponse.ok("Re-upload requested for document", toResponse(doc)));
     }
 
     // ═══════════════════════════════════════════════════════════════
