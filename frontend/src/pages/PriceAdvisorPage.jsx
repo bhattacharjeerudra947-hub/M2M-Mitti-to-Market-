@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import GuestSignInGate from '../components/GuestSignInGate';
+import { useAuth } from '../context/AuthContext';
 import { Brain, TrendingUp, TrendingDown, Minus, Info, Loader2, RefreshCw, Database, ShieldCheck } from 'lucide-react';
 import { apiGet } from '../api';
 
@@ -72,6 +74,7 @@ function DatasetEstimateCard({ cropName, state }) {
 }
 
 export default function PriceAdvisorPage() {
+  const { isGuestModeActive } = useAuth();
   const [crops, setCrops] = useState([]);
   const [selected, setSelected] = useState(null);
   const [analysis, setAnalysis] = useState(null);
@@ -81,6 +84,7 @@ export default function PriceAdvisorPage() {
 
   // Load all crop prices
   useEffect(() => {
+    if (isGuestModeActive) return;
     apiGet('/api/price-advisor/all')
       .then(data => {
         setCrops(data || []);
@@ -92,7 +96,7 @@ export default function PriceAdvisorPage() {
 
   // Load detailed analysis when crop is selected
   useEffect(() => {
-    if (!selected) return;
+    if (isGuestModeActive || !selected) return;
     setAnalyzing(true);
     const params = location ? `?location=${encodeURIComponent(location)}` : '';
     apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}${params}`)
@@ -112,6 +116,32 @@ export default function PriceAdvisorPage() {
     if (trend === 'Decreasing') return 'text-rose-600';
     return 'text-gray-700';
   };
+
+  if (isGuestModeActive) {
+    return (
+      <div className="flex min-h-screen bg-mustard-50/30">
+        <Sidebar role="farmer" />
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 bg-navy-900 rounded-xl flex items-center justify-center">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-navy-900">AI Price Advisor</h1>
+                <p className="text-navy-500 text-sm">Real-time market demand analysis and pricing recommendations</p>
+              </div>
+            </div>
+            <GuestSignInGate
+              title="AI Price Advisor"
+              description="Sign in to view personalized pricing advice, market trends and AI recommendations for your crops."
+              className="min-h-[300px]"
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">

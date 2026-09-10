@@ -7,6 +7,7 @@ import PriceChart from '../components/PriceChart';
 import OrderTracker from '../components/OrderTracker';
 import VoiceAssistant from '../components/VoiceAssistant';
 import TrendInsights from '../components/TrendInsights';
+import GuestSignInGate from '../components/GuestSignInGate';
 import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
 import DealAdvisorSummary from '../components/DealAdvisorSummary';
@@ -158,7 +159,16 @@ export default function FarmerDashboard() {
 
           {activeView === 'insights' && (
             <div className="mb-8">
-              <TrendInsights />
+              <GuestSignInGate
+                title={language === 'hi' ? 'बाज़ार और फसल जानकारी' : 'Market & Crop Insights'}
+                description={
+                  language === 'hi'
+                    ? 'व्यक्तिगत बाज़ार रुझान, मूल्य भविष्यवाणी और AI सिफारिशें देखने के लिए साइन इन करें।'
+                    : 'Sign in to view personalized market trends, price predictions and AI recommendations.'
+                }
+              >
+                <TrendInsights />
+              </GuestSignInGate>
             </div>
           )}
 
@@ -218,7 +228,7 @@ export default function FarmerDashboard() {
                     <MarketPricesLive limit={4} dark />
                   </div>
                   <button
-                    onClick={() => setActiveView('insights')}
+                    onClick={() => { if (isGuestModeActive) { openAuthRequired(); return; } setActiveView('insights'); }}
                     className="w-full mt-3 py-2 bg-white/10 rounded-xl text-xs font-semibold text-mustard-300 hover:bg-white/15 transition"
                   >
                     {language === 'hi' ? 'सभी रुझान देखें →' : 'View All Trends →'}
@@ -238,7 +248,16 @@ export default function FarmerDashboard() {
                 ) : (
                   <VoiceAssistant />
                 )}
-                <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
+                <GuestSignInGate
+                  title={language === 'hi' ? 'AI सिफारिशें' : 'AI Recommendations'}
+                  description={
+                    language === 'hi'
+                      ? 'अपनी फसल के लिए व्यक्तिगत AI सिफारिशें पाने के लिए साइन इन करें।'
+                      : 'Sign in to get personalized AI recommendations for your crops.'
+                  }
+                  className="h-full"
+                >
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 h-full">
                   <h3 className="text-sm font-bold text-navy-900 mb-3">
                     💡 {language === 'hi' ? 'AI सिफारिशें' : 'AI Recommendations'}
                   </h3>
@@ -250,7 +269,7 @@ export default function FarmerDashboard() {
                     ].map((rec, i) => (
                       <button
                         key={i}
-                        onClick={() => setActiveView('insights')}
+                        onClick={() => { if (isGuestModeActive) { openAuthRequired(); return; } setActiveView('insights'); }}
                         className="w-full text-left flex items-start gap-2.5 p-3 bg-navy-50/50 rounded-xl hover:bg-navy-50 transition"
                       >
                         <span className="text-lg mt-0.5">{rec.emoji}</span>
@@ -270,6 +289,7 @@ export default function FarmerDashboard() {
                     ))}
                   </div>
                 </div>
+                </GuestSignInGate>
               </div>
 
               {/* Price Advisor + Notifications */}

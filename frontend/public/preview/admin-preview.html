@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Miti2Market Admin Preview</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f7f8fa; color: #1f2937; }
+  .wrap { display: flex; min-height: 100vh; }
+  .sidebar { width: 260px; background: #0f2a3b; color: #fff; display: flex; flex-direction: column; }
+  .sidebar .brand { padding: 22px 18px; font-weight: 700; font-size: 15px; letter-spacing: .3px; }
+  .sidebar .brand small { display: block; font-weight: 500; color: #9bc; font-size: 11px; margin-top: 4px; }
+  .sidebar nav { padding: 14px 12px; flex: 1; }
+  .sidebar nav a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; color: #cbd5e1; text-decoration: none; border-radius: 10px; font-size: 14px; transition: .15s; }
+  .sidebar nav a:hover { background: #1b3a4d; color: #fff; }
+  .sidebar nav a.active { background: #166534; color: #fff; box-shadow: 0 6px 18px rgba(22,101,52,.25); }
+  .sidebar .userbox { margin: 14px 12px; padding: 14px; border-radius: 12px; background: #112634; border: 1px solid #1b3a4d; }
+  .sidebar .userbox .name { font-weight: 600; }
+  .sidebar .userbox .role { font-size: 11px; color: #5eead4; margin-top: 2px; }
+  .sidebar .logout { margin: 12px 12px 18px; padding: 10px; border-radius: 10px; background: transparent; border: 1px solid #475569; color: #cbd5e1; text-align: center; font-size: 13px; }
+  .main { flex: 1; padding: 26px 28px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .topbar h1 { margin: 0; font-size: 22px; }
+  .topbar .public { display: inline-flex; align-items: center; gap: 8px; background: #dcfce7; color: #166534; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 16px; padding: 16px 18px; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .card .label { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  .card .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .card .delta { font-size: 11px; color: #16a34a; margin-top: 4px; }
+  .section { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px 20px; margin-bottom: 18px; }
+  .section h2 { margin: 0 0 12px; font-size: 15px; }
+  .attention { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .alert { padding: 12px 14px; border-radius: 12px; border: 1px solid #fecaca; background: #fef2f2; }
+  .alert .num { font-size: 22px; font-weight: 700; color: #b91c1c; }
+  .alert .what { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .alert a { color: #047857; font-size: 12px; text-decoration: none; font-weight: 600; margin-top: 4px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+  td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; }
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .b-green { background: #dcfce7; color: #166534; }
+  .b-yellow { background: #fef9c3; color: #854d0e; }
+  .b-red { background: #fee2e2; color: #b91c1c; }
+  .b-gray { background: #e5e7eb; color: #374151; }
+  .footer { margin-top: 26px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="sidebar">
+    <div class="brand">Miti2Market <small>Admin Center</small></div>
+    <nav>
+      <a class="active" href="#dashboard">📊 Overview</a>
+      <a href="#users">👥 Users</a>
+      <a href="#verifications">✅ Verifications</a>
+      <a href="#reports">⚠️ Reports</a>
+      <a href="#feedback">💬 Feedback</a>
+      <a href="#deals">🤝 Deals</a>
+      <a href="#produce">🌾 Produce</a>
+      <a href="#disputes">⚖️ Disputes</a>
+      <a href="#audit">📜 Audit Log</a>
+      <a href="#settings">⚙️ Settings</a>
+    </nav>
+    <div class="userbox">
+      <div class="name">Rudra</div>
+      <div class="role">Administrator · ROLE_ADMIN</div>
+    </div>
+    <button class="logout">Sign Out</button>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1>Admin Dashboard</h1>
+      <span class="public">🌐 View Public Marketplace</span>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="label">Total Users</div>
+        <div class="value">1,247</div>
+        <div class="delta">+18 this week</div>
+      </div>
+      <div class="card">
+        <div class="label">Total Farmers</div>
+        <div class="value">612</div>
+        <div class="delta">Verified: 419</div>
+      </div>
+      <div class="card">
+        <div class="label">Total Buyers</div>
+        <div class="value">635</div>
+        <div class="delta">Businesses: 208</div>
+      </div>
+      <div class="card">
+        <div class="label">Active Produce</div>
+        <div class="value">1,184</div>
+        <div class="delta">listings online</div>
+      </div>
+      <div class="card">
+        <div class="label">Active Deals</div>
+        <div class="value">47</div>
+        <div class="delta">Completed: 186</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Requires Attention</h2>
+      <div class="attention">
+        <div class="alert">
+          <div class="num">7</div>
+          <div class="what">Pending verifications</div>
+          <a href="#verifications">Review verifications →</a>
+        </div>
+        <div class="alert">
+          <div class="num">3</div>
+          <div class="what">New reports</div>
+          <a href="#reports">Review reports →</a>
+        </div>
+        <div class="alert">
+          <div class="num">12</div>
+          <div class="what">New feedback submissions</div>
+          <a href="#feedback">Review feedback →</a>
+        </div>
+        <div class="alert">
+          <div class="num">2</div>
+          <div class="what">Open disputes</div>
+          <a href="#disputes">Review disputes →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Recent Activity</h2>
+      <table>
+        <thead>
+          <tr><th>Event</th><th>User</th><th>Time</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>User registered</td><td>ramesh.kumar@mail.com</td><td>3 min ago</td><td><span class="badge b-green">New</span></td></tr>
+          <tr><td>Verification submitted</td><td>priya@buyerco.in</td><td>18 min ago</td><td><span class="badge b-yellow">Pending</span></td></tr>
+          <tr><td>Feedback submitted</td><td>arjun.farmer@farm.in</td><td>1 hr ago</td><td><span class="badge b-gray">New</span></td></tr>
+          <tr><td>Report submitted</td><td>sneha@biz.com → Ramesh Kumar</td><td>2 hr ago</td><td><span class="badge b-red">Open</span></td></tr>
+          <tr><td>Deal completed</td><td>Deal #221</td><td>3 hr ago</td><td><span class="badge b-green">Done</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      Miti2Market Admin Control Center — real backend-driven statistics, user verification, reports, feedback, deals, produce moderation, disputes and audit logs.
+    </div>
+  </div>
+</div>
+</body>
+</html>

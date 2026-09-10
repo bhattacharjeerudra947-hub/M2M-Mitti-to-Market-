@@ -124,6 +124,16 @@ export async function getDeals(status) {
   return adminRequest('GET', `/deals${q}`);
 }
 
+export async function getProduce(status) {
+  const q = status ? `?status=${status}` : '';
+  return adminRequest('GET', `/produce${q}`);
+}
+
+export async function getDisputes(status) {
+  const q = status ? `?status=${status}` : '';
+  return adminRequest('GET', `/disputes${q}`);
+}
+
 export async function getAuditLog() {
   return adminRequest('GET', '/audit-log');
 }

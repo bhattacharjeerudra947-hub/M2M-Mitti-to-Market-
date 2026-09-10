@@ -51,6 +51,11 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminVerifications from './pages/admin/AdminVerifications';
 import AdminReports from './pages/admin/AdminReports';
 import AdminFeedback from './pages/admin/AdminFeedback';
+import AdminDeals from './pages/admin/AdminDeals';
+import AdminProduce from './pages/admin/AdminProduce';
+import AdminDisputes from './pages/admin/AdminDisputes';
+import AdminAuditLog from './pages/admin/AdminAuditLog';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -200,6 +205,11 @@ export default function App() {
             <Route path="verifications" element={<AdminVerifications />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="feedback" element={<AdminFeedback />} />
+            <Route path="deals" element={<AdminDeals />} />
+            <Route path="produce" element={<AdminProduce />} />
+            <Route path="disputes" element={<AdminDisputes />} />
+            <Route path="audit-log" element={<AdminAuditLog />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Live Locations — shared by farmer & buyer */}
