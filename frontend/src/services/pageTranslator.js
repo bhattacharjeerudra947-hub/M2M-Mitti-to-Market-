@@ -234,11 +234,15 @@ export function initPageTranslator() {
   applyDomSafetyPatch();
   setupBrandObserver();
 
-  // Create hidden translate container if missing
-  if (!document.getElementById('google_translate_element')) {
-    const el = document.createElement('div');
+  // Create hidden translate container if missing or ensure hidden styling
+  let el = document.getElementById('google_translate_element');
+  if (!el) {
+    el = document.createElement('div');
     el.id = 'google_translate_element';
+    el.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;visibility:hidden;';
     document.body.appendChild(el);
+  } else {
+    el.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:0;height:0;overflow:hidden;opacity:0;pointer-events:none;visibility:hidden;';
   }
 
   // Setup global Google Translate initialization callback
