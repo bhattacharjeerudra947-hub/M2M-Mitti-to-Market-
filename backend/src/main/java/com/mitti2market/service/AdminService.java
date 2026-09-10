@@ -31,13 +31,31 @@ public class AdminService {
     private final NotificationService notificationService;
 
     /** Calculate high-level platform statistics for the Admin Dashboard */
+    /** Calculate high-level platform statistics for the Admin Dashboard */
     public Map<String, Object> getPlatformStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalUsers", userRepository.count());
-        stats.put("verifiedUsers", userRepository.countByVerifiedTrue());
-        stats.put("pendingVerification", userRepository.countByVerificationStatus(VerificationStatus.PENDING));
-        stats.put("activeFarmers", userRepository.countByRole(Role.FARMER));
-        stats.put("activeBusinesses", userRepository.countByRole(Role.BUSINESS));
+        long totalUsers = userRepository.count();
+        long pending = userRepository.countByVerificationStatus(VerificationStatus.PENDING);
+        long approved = userRepository.countByVerificationStatus(VerificationStatus.VERIFIED);
+        long rejected = userRepository.countByVerificationStatus(VerificationStatus.REJECTED);
+        long reupload = userRepository.countByVerificationStatus(VerificationStatus.RE_SUBMISSION_REQUESTED);
+        long farmers = userRepository.countByRole(Role.FARMER);
+        long businesses = userRepository.countByRole(Role.BUSINESS);
+
+        // Exact requested summary metrics
+        stats.put("totalUsers", totalUsers);
+        stats.put("pendingApplications", pending);
+        stats.put("approvedUsers", approved);
+        stats.put("rejectedApplications", rejected);
+        stats.put("reuploadRequests", reupload);
+        stats.put("farmers", farmers);
+        stats.put("businesses", businesses);
+
+        // Legacy compatibility keys
+        stats.put("verifiedUsers", approved);
+        stats.put("pendingVerification", pending);
+        stats.put("activeFarmers", farmers);
+        stats.put("activeBusinesses", businesses);
         
         List<Produce.ProduceStatus> activeProduceStatuses = List.of(
                 Produce.ProduceStatus.AVAILABLE,
@@ -64,31 +82,45 @@ public class AdminService {
         return stats;
     }
 
-    /** Search and filter users for Admin User Management */
+    /** Search and filter users for Admin User Management & Verification Queue */
     public List<Map<String, Object>> searchUsers(String role, String verification, String status, String keyword) {
+        return searchUsers(role, verification, status, keyword, null, null);
+    }
+
+    public List<Map<String, Object>> searchUsers(String role, String verification, String status, String keyword, String state, String district) {
         List<User> users = userRepository.findAll();
 
         return users.stream().filter(u -> {
-            if (role != null && !role.isBlank()) {
+            if (role != null && !role.isBlank() && !role.equalsIgnoreCase("ALL")) {
                 if (u.getRole() == null || !u.getRole().name().equalsIgnoreCase(role)) return false;
             }
-            if (verification != null && !verification.isBlank()) {
-                if (verification.equalsIgnoreCase("VERIFIED") && !Boolean.TRUE.equals(u.getVerified())) return false;
+            if (verification != null && !verification.isBlank() && !verification.equalsIgnoreCase("ALL")) {
+                if ((verification.equalsIgnoreCase("VERIFIED") || verification.equalsIgnoreCase("APPROVED")) &&
+                        !Boolean.TRUE.equals(u.getVerified()) && u.getVerificationStatus() != VerificationStatus.VERIFIED) return false;
                 if (verification.equalsIgnoreCase("UNVERIFIED") && Boolean.TRUE.equals(u.getVerified())) return false;
                 if (verification.equalsIgnoreCase("PENDING") && u.getVerificationStatus() != VerificationStatus.PENDING) return false;
                 if (verification.equalsIgnoreCase("REJECTED") && u.getVerificationStatus() != VerificationStatus.REJECTED) return false;
-                if (verification.equalsIgnoreCase("RE_SUBMISSION_REQUESTED") && u.getVerificationStatus() != VerificationStatus.RE_SUBMISSION_REQUESTED) return false;
+                if ((verification.equalsIgnoreCase("RE_SUBMISSION_REQUESTED") || verification.equalsIgnoreCase("RE_UPLOAD_REQUESTED") || verification.equalsIgnoreCase("REUPLOAD"))
+                        && u.getVerificationStatus() != VerificationStatus.RE_SUBMISSION_REQUESTED) return false;
             }
-            if (status != null && !status.isBlank()) {
+            if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
                 if (u.getStatus() == null || !u.getStatus().name().equalsIgnoreCase(status)) return false;
             }
+            if (state != null && !state.isBlank() && !state.equalsIgnoreCase("ALL")) {
+                if (u.getState() == null || !u.getState().equalsIgnoreCase(state)) return false;
+            }
+            if (district != null && !district.isBlank() && !district.equalsIgnoreCase("ALL")) {
+                if (u.getDistrict() == null || !u.getDistrict().equalsIgnoreCase(district)) return false;
+            }
             if (keyword != null && !keyword.isBlank()) {
-                String k = keyword.toLowerCase();
+                String k = keyword.toLowerCase().trim();
                 boolean nameMatch = u.getName() != null && u.getName().toLowerCase().contains(k);
                 boolean emailMatch = u.getEmail() != null && u.getEmail().toLowerCase().contains(k);
                 boolean phoneMatch = u.getPhone() != null && u.getPhone().contains(k);
                 boolean orgMatch = u.getOrganizationName() != null && u.getOrganizationName().toLowerCase().contains(k);
-                if (!nameMatch && !emailMatch && !phoneMatch && !orgMatch) return false;
+                boolean villageMatch = u.getVillage() != null && u.getVillage().toLowerCase().contains(k);
+                boolean tehsilMatch = u.getTehsil() != null && u.getTehsil().toLowerCase().contains(k);
+                if (!nameMatch && !emailMatch && !phoneMatch && !orgMatch && !villageMatch && !tehsilMatch) return false;
             }
             return true;
         }).map(this::toUserSummary).toList();
@@ -320,11 +352,14 @@ public class AdminService {
                 : Boolean.TRUE.equals(user.getVerified()) ? "VERIFIED" : "NOT_VERIFIED");
         m.put("rating", user.getRating());
         m.put("location", user.getLocation());
+        m.put("country", "India");
         m.put("state", user.getState());
         m.put("district", user.getDistrict());
         m.put("tehsil", user.getTehsil());
         m.put("village", user.getVillage());
         m.put("pincode", user.getPincode());
+        m.put("latitude", user.getLatitude());
+        m.put("longitude", user.getLongitude());
         m.put("organizationName", user.getOrganizationName());
         m.put("statusReason", user.getStatusReason());
         m.put("verificationNotes", user.getVerificationNotes());

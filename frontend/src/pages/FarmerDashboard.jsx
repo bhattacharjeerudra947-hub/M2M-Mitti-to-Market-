@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useFarmerLanguage } from '../context/FarmerContext';
 import { t_key } from '../data/farmerTranslations';
 import { apiGet } from '../api';
+import VerificationStatusBanner from '../components/VerificationStatusBanner';
 
 function getGreetingKey() {
   const hour = new Date().getHours();
@@ -106,6 +107,9 @@ export default function FarmerDashboard() {
             </div>
             <LanguageSelector />
           </div>
+
+          {/* User Verification Status Alert / Re-upload Banner */}
+          <VerificationStatusBanner />
 
           {/* Quick Actions */}
           <div className="mb-8">

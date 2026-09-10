@@ -30,4 +30,7 @@ public class FarmerProfileRequest {
     private String tehsil;
     private String village;
     private String pincode;
+
+    private Double latitude;
+    private Double longitude;
 }
