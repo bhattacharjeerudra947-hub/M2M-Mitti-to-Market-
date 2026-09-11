@@ -1,11 +1,16 @@
 package com.mitti2market.controller;
 
+import com.mitti2market.config.TokenService;
 import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.model.SupportingDocument;
 import com.mitti2market.model.User;
 import com.mitti2market.model.User.Role;
+import com.mitti2market.repository.SupportingDocumentRepository;
 import com.mitti2market.repository.UserRepository;
+import com.mitti2market.service.CloudinaryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -15,9 +20,16 @@ import java.util.stream.Stream;
 public class UserController {
 
     private final UserRepository users;
+    private final TokenService tokens;
+    private final CloudinaryService cloudinary;
+    private final SupportingDocumentRepository documents;
 
-    public UserController(UserRepository users) {
+    public UserController(UserRepository users, TokenService tokens,
+                          CloudinaryService cloudinary, SupportingDocumentRepository documents) {
         this.users = users;
+        this.tokens = tokens;
+        this.cloudinary = cloudinary;
+        this.documents = documents;
     }
 
     @GetMapping("/{id}")
@@ -85,16 +97,111 @@ public class UserController {
         return m;
     }
 
+    /**
+     * POST /api/users/profile-picture
+     * Upload and set profile picture using Cloudinary.
+     * Validates JPG, JPEG, PNG, WEBP, max 5MB.
+     */
+    @PostMapping("/profile-picture")
+    public ResponseEntity<?> uploadProfilePicture(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam("file") MultipartFile file) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        }
+
+        User user = users.findById(userId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("User not found"));
+        }
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Please select an image file to upload"));
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().matches("^image/(jpeg|jpg|png|webp)$")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Profile picture must be JPG, JPEG, PNG, or WebP"));
+        }
+
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Profile picture exceeds 5MB limit"));
+        }
+
+        String firebaseUid = user.getFirebaseUid() != null ? user.getFirebaseUid() : "user_" + userId;
+        String folder = "mitti2market/users/" + firebaseUid + "/profile";
+
+        try {
+            if (user.getProfilePhotoPublicId() != null) {
+                try {
+                    cloudinary.deleteFile(user.getProfilePhotoPublicId(), true);
+                } catch (Exception ignored) {}
+            }
+
+            Map<String, String> uploadResult = cloudinary.uploadFile(file, folder, true);
+            String secureUrl = uploadResult.get("url");
+            String publicId = uploadResult.get("publicId");
+
+            user.setProfilePhotoUrl(secureUrl);
+            user.setProfilePhotoPublicId(publicId);
+            user = users.save(user);
+
+            // Record in supporting_documents
+            List<SupportingDocument> existing = documents.findByUserIdAndDocumentType(userId, SupportingDocument.DocumentType.PROFILE_PHOTO);
+            SupportingDocument doc;
+            if (!existing.isEmpty()) {
+                doc = existing.get(0);
+                doc.setOriginalFilename(file.getOriginalFilename() != null ? file.getOriginalFilename() : "profile.jpg");
+                doc.setCloudinaryUrl(secureUrl);
+                doc.setCloudinaryPublicId(publicId);
+                doc.setCloudinaryFolder(folder);
+                doc.setFileSize(file.getSize());
+                doc.setMimeType(contentType);
+                doc.setVerificationStatus(SupportingDocument.VerificationStatus.VERIFIED);
+            } else {
+                doc = SupportingDocument.builder()
+                        .user(user)
+                        .documentType(SupportingDocument.DocumentType.PROFILE_PHOTO)
+                        .originalFilename(file.getOriginalFilename() != null ? file.getOriginalFilename() : "profile.jpg")
+                        .cloudinaryUrl(secureUrl)
+                        .cloudinaryPublicId(publicId)
+                        .cloudinaryFolder(folder)
+                        .fileSize(file.getSize())
+                        .mimeType(contentType)
+                        .verificationStatus(SupportingDocument.VerificationStatus.VERIFIED)
+                        .build();
+            }
+            documents.save(doc);
+
+            return ResponseEntity.ok(ApiResponse.ok("Profile picture updated successfully", toDto(user)));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.error("Failed to upload profile picture: " + e.getMessage()));
+        }
+    }
+
+    private Long extractUserId(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
+        return tokens.validateAccessToken(authHeader.substring(7));
+    }
+
     private Map<String, Object> toDto(User user) {
-        return Map.of(
-                "id", user.getId(),
-                "name", user.getName() != null ? user.getName() : "",
-                "email", user.getEmail() != null ? user.getEmail() : "",
-                "phone", user.getPhone() != null ? user.getPhone() : "",
-                "role", user.getRole().name(),
-                "location", user.getLocation() != null ? user.getLocation() : "",
-                "organizationName", user.getOrganizationName() != null ? user.getOrganizationName() : ""
-        );
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", user.getId());
+        map.put("name", user.getName() != null ? user.getName() : "");
+        map.put("email", user.getEmail() != null ? user.getEmail() : "");
+        map.put("phone", user.getPhone() != null ? user.getPhone() : "");
+        map.put("role", user.getRole().name());
+        map.put("location", user.getLocation() != null ? user.getLocation() : "");
+        map.put("organizationName", user.getOrganizationName() != null ? user.getOrganizationName() : "");
+        map.put("verified", user.getVerified() != null && user.getVerified());
+        map.put("verificationStatus", user.getVerificationStatus() != null ? user.getVerificationStatus().name() : "NOT_VERIFIED");
+        map.put("verificationNotes", user.getVerificationNotes());
+        map.put("rating", user.getRating() != null ? user.getRating() : 0.0);
+        map.put("profilePhotoUrl", user.getProfilePhotoUrl() != null ? user.getProfilePhotoUrl() : "");
+        return map;
     }
 
     /** Approximate city-level coordinates for the map (demo lookup — labelled approximate). */

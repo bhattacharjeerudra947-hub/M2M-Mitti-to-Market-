@@ -1,5 +1,6 @@
 import { Link, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import AccessDenied from '../AccessDenied';
 
 export default function AdminLayout() {
   const { user, isAdmin, loading, logout } = useAuth();
@@ -14,8 +15,12 @@ export default function AdminLayout() {
   }
 
   // Strict Spring Security & Frontend Auth Protection
-  if (!user || !isAdmin) {
-    return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+  }
+
+  if (!isAdmin) {
+    return <AccessDenied requiredRole="ADMINISTRATOR" />;
   }
 
   const navItems = [

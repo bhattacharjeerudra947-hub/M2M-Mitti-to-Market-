@@ -62,7 +62,7 @@ export default function RoleChoiceModal() {
         {/* Options */}
         <div className="px-8 pt-8 pb-8 grid grid-cols-2 gap-4">
           <button
-            onClick={() => { enterGuestMode('farmer'); navigate('/farmer'); }}
+            onClick={() => { enterGuestMode('farmer'); navigate('/farmer', { replace: true }); }}
             className="group bg-white rounded-2xl p-6 border-2 border-navy-100 shadow-sm hover:border-mustard-400 hover:shadow-lg transition-all text-center"
           >
             <span className="text-4xl block mb-3">👨‍🌾</span>
@@ -71,7 +71,7 @@ export default function RoleChoiceModal() {
           </button>
 
           <button
-            onClick={() => { enterGuestMode('business'); navigate('/business'); }}
+            onClick={() => { enterGuestMode('business'); navigate('/business', { replace: true }); }}
             className="group bg-white rounded-2xl p-6 border-2 border-navy-100 shadow-sm hover:border-mustard-400 hover:shadow-lg transition-all text-center"
           >
             <span className="text-4xl block mb-3">🛒</span>

@@ -27,7 +27,7 @@ export default function VerificationStatusBanner() {
   };
 
   useEffect(() => {
-    if (status === 'RE_SUBMISSION_REQUESTED' || status === 'PENDING') {
+    if (status === 'RE_SUBMISSION_REQUESTED' || status === 'PENDING' || status === 'REJECTED') {
       fetchDocs();
     }
   }, [status, user?.id]);
@@ -35,7 +35,7 @@ export default function VerificationStatusBanner() {
   if (!user || status === 'VERIFIED') return null;
 
   // Find documents that need re-upload
-  const flaggedDocs = documents.filter((d) => d.verificationStatus === 'RE_UPLOAD_REQUESTED');
+  const flaggedDocs = documents.filter((d) => d.verificationStatus === 'RE_UPLOAD_REQUESTED' || d.verificationStatus === 'REJECTED');
 
   const handleReplacementUpload = async (file, docType) => {
     if (!file) return;
@@ -47,10 +47,15 @@ export default function VerificationStatusBanner() {
     setUploadingDocId(null);
 
     if (res.ok) {
-      setSuccessMsg('Replacement document uploaded successfully.');
-      fetchDocs();
+      setSuccessMsg('Document uploaded successfully. Application status submitted for verification.');
+      await fetchDocs();
+      // Refresh user profile from backend so updated verificationStatus is shown
+      const profRes = await getProfile();
+      if (profRes.ok && profRes.data) {
+        refreshUser(profRes.data);
+      }
     } else {
-      setErrorMsg(res.error || 'Failed to upload replacement document.');
+      setErrorMsg(res.error || 'Failed to upload document.');
     }
   };
 
@@ -226,21 +231,123 @@ export default function VerificationStatusBanner() {
         </div>
       )}
 
-      {/* 3. REJECTED BANNER */}
+      {/* 3. VERIFICATION LOST (REJECTED) BANNER */}
       {status === 'REJECTED' && (
-        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3 shadow-xs">
-          <XCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-          <div className="text-xs space-y-1">
-            <p className="font-bold text-red-900">
-              ❌ Application Rejected
-            </p>
-            <p className="text-red-800 leading-relaxed">
-              {user.verificationNotes || user.statusReason || 'Your verification application was rejected by the admin team.'}
-            </p>
-            <p className="text-[11px] text-red-600">
-              Please contact platform support if you believe this was an error.
-            </p>
+        <div className="p-5 rounded-2xl bg-red-50 border-2 border-red-300 shadow-sm space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-200 text-red-900 rounded-xl shrink-0 mt-0.5">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-red-200 text-red-900 uppercase tracking-wider">
+                ⚠ Verification Lost
+              </span>
+              <h3 className="text-base font-bold text-red-950 mt-1">
+                Verification Lost — Documents Rejected
+              </h3>
+              <p className="text-xs text-red-900 mt-1 leading-relaxed">
+                Your verified status has been lost because one or more submitted documents were rejected during administrative review.
+                Review the reason below and upload replacement documents to restore your verified standing.
+              </p>
+              {(user.verificationNotes || user.statusReason) && (
+                <div className="mt-2.5 p-3 bg-white rounded-xl border border-red-200 text-xs text-red-900">
+                  <strong>Rejection Reason:</strong> {user.verificationNotes || user.statusReason}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* List documents and allow re-upload */}
+          {loadingDocs ? (
+            <div className="p-4 text-center">
+              <Loader2 className="w-5 h-5 animate-spin text-red-700 mx-auto" />
+            </div>
+          ) : (
+            <div className="space-y-3 pt-1">
+              <h4 className="text-xs font-bold text-red-950">Update and Re-upload Your Verification Documents:</h4>
+              {documents.length > 0 ? (
+                documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-3.5 bg-white rounded-xl border border-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900">{doc.documentType}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          doc.verificationStatus === 'REJECTED'
+                            ? 'bg-red-100 text-red-800'
+                            : doc.verificationStatus === 'VERIFIED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {doc.verificationStatus}
+                        </span>
+                      </div>
+                      {doc.rejectionReason && (
+                        <p className="text-[11px] text-red-800 mt-1 italic">
+                          Issue: {doc.rejectionReason}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-gray-400 mt-0.5 truncate max-w-xs">
+                        Current file: {doc.originalFilename}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {doc.cloudinaryUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewDoc({
+                            isOpen: true,
+                            title: doc.documentType,
+                            url: doc.cloudinaryUrl,
+                            mimeType: doc.mimeType,
+                          })}
+                          className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition"
+                        >
+                          View Current
+                        </button>
+                      )}
+
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept=".pdf,image/jpeg,image/png,image/webp"
+                          disabled={uploadingDocId === doc.documentType}
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleReplacementUpload(e.target.files[0], doc.documentType);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs transition shadow-xs">
+                          {uploadingDocId === doc.documentType ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5" /> Re-upload Document
+                            </>
+                          )}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-3 bg-white border border-red-200 rounded-xl text-xs text-gray-600">
+                  Please upload your verification documents to restore verified status.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Feedback messages */}
+          {successMsg && <p className="text-xs text-emerald-700 font-semibold">{successMsg}</p>}
+          {errorMsg && <p className="text-xs text-red-600 font-semibold">{errorMsg}</p>}
         </div>
       )}
 

@@ -58,6 +58,32 @@ public class ProfileController {
         ));
     }
 
+    /** POST /api/profile/photo — set the current user's profile photo URL */
+    @PostMapping("/photo")
+    public ResponseEntity<?> setProfilePhoto(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody Map<String, String> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+
+        var userOpt = users.findById(userId);
+        if (userOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+
+        String photoUrl = body.get("profilePhotoUrl");
+        if (photoUrl == null || photoUrl.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "profilePhotoUrl is required"));
+        }
+
+        User user = userOpt.get();
+        user.setProfilePhotoUrl(photoUrl);
+        users.save(user);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Profile photo updated",
+                "profilePhotoUrl", photoUrl
+        ));
+    }
+
     private Long extractUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
         return tokens.validateAccessToken(authHeader.substring(7));
@@ -73,6 +99,7 @@ public class ProfileController {
                 .location(user.getLocation())
                 .verified(user.getVerified())
                 .rating(user.getRating())
+                .profilePhotoUrl(user.getProfilePhotoUrl())
                 .build();
     }
 }
