@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/profile")
+@RequestMapping({"/api/profile", "/api/users/profile"})
 public class ProfileController {
 
     private final UserRepository users;
@@ -74,13 +74,20 @@ public class ProfileController {
             return ResponseEntity.badRequest().body(Map.of("error", "profilePhotoUrl is required"));
         }
 
+        if (!photoUrl.contains("v=")) {
+            String separator = photoUrl.contains("?") ? "&" : "?";
+            photoUrl = photoUrl + separator + "v=" + System.currentTimeMillis();
+        }
+
         User user = userOpt.get();
         user.setProfilePhotoUrl(photoUrl);
-        users.save(user);
+        user = users.save(user);
 
         return ResponseEntity.ok(Map.of(
-                "message", "Profile photo updated",
-                "profilePhotoUrl", photoUrl
+                "success", true,
+                "message", "Profile photo uploaded successfully.",
+                "profilePhotoUrl", photoUrl,
+                "user", toDto(user)
         ));
     }
 

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
@@ -9,6 +9,7 @@ import SyncStatusBar from './SyncStatusBar';
 
 const farmerLinks = [
   { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/farmer/matches', icon: Sparkles, label: 'Live Matches', highlight: true },
   { to: '/farmer/produce', icon: Package, label: 'My Produce' },
   { to: '/farmer/add-produce', icon: PlusCircle, label: 'Add Produce' },
   { to: '/farmer/price-advisor', icon: Brain, label: 'AI Price Advisor' },
@@ -85,7 +86,13 @@ export default function Sidebar({ role = 'farmer' }) {
   const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
   const profileIcon = role === 'farmer' ? '👨‍🌾' : '🏪';
 
+  const effectivePhoto = user?.profilePhotoUrl || profilePhotoUrl;
+
   useEffect(() => {
+    if (user?.profilePhotoUrl) {
+      setProfilePhotoUrl(user.profilePhotoUrl);
+      return;
+    }
     if (isGuestModeActive) return; // Don't load docs for guests
     async function loadPhoto() {
       const result = await getMyDocuments();
@@ -95,7 +102,7 @@ export default function Sidebar({ role = 'farmer' }) {
       }
     }
     loadPhoto();
-  }, [isGuestModeActive]);
+  }, [user?.profilePhotoUrl, isGuestModeActive]);
 
   const handleLogout = () => {
     if (isGuestModeActive) {
@@ -135,8 +142,8 @@ export default function Sidebar({ role = 'farmer' }) {
       <div className="p-4">
         <Link to="/" className="flex items-center mb-6"><M2MLogo size="sm" /></Link>
         <div className="flex items-center gap-3 mb-6 p-3 bg-mustard-50 border border-mustard-200 rounded-xl">
-          {profilePhotoUrl ? (
-            <img src={profilePhotoUrl} alt="Profile" className="w-10 h-10 rounded-xl object-cover border border-mustard-300" />
+          {effectivePhoto ? (
+            <img src={effectivePhoto} alt="Profile" className="w-10 h-10 rounded-xl object-cover border border-mustard-300" />
           ) : (
             <span className="text-2xl">{profileIcon}</span>
           )}
