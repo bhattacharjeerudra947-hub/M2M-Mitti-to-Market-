@@ -208,7 +208,17 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
                 <h1 className="text-xl font-bold text-white">{profileData?.name || 'User'}</h1>
                 <p className="text-sm text-navy-300 capitalize">{role} Account</p>
               </div>
-              {profileData?.verified ? (
+              {profileData?.status === 'DEACTIVATED' ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-red-600/30 border border-red-400 rounded-full">
+                  <X className="w-4 h-4 text-red-400" />
+                  <span className="text-xs font-bold text-red-200">Deactivated by Admin</span>
+                </div>
+              ) : profileData?.status === 'SUSPENDED' ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-600/30 border border-amber-400 rounded-full">
+                  <AlertCircle className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-amber-200">Suspended by Admin</span>
+                </div>
+              ) : profileData?.verified ? (
                 <div className="flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full">
                   <CheckCircle2 className="w-4 h-4 text-green-400" />
                   <span className="text-xs font-semibold text-green-300">Verified</span>
@@ -221,6 +231,45 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
               )}
             </div>
           </div>
+
+          {/* Account Status Notice (Deactivated / Suspended) */}
+          {profileData?.status === 'DEACTIVATED' && (
+            <div className="m-6 p-4 rounded-2xl bg-red-50 border-2 border-red-300 text-xs text-red-950 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold uppercase tracking-wide text-red-800">⛔ Account Deactivated</span>
+                {profileData?.statusUpdatedBy && (
+                  <span className="text-[11px] text-red-700">By {profileData.statusUpdatedBy}</span>
+                )}
+              </div>
+              <p className="font-medium text-red-900 mt-1">
+                Reason: {profileData?.statusReason || 'Administrative policy moderation.'}
+              </p>
+              {profileData?.statusUpdatedAt && (
+                <p className="text-[11px] text-gray-500">
+                  Date: {new Date(profileData.statusUpdatedAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
+
+          {profileData?.status === 'SUSPENDED' && (
+            <div className="m-6 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-xs text-amber-950 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold uppercase tracking-wide text-amber-800">🚫 Account Suspended</span>
+                {profileData?.statusUpdatedBy && (
+                  <span className="text-[11px] text-amber-700">By {profileData.statusUpdatedBy}</span>
+                )}
+              </div>
+              <p className="font-medium text-amber-900 mt-1">
+                Reason: {profileData?.statusReason || 'Temporary administrative suspension.'}
+              </p>
+              {profileData?.statusUpdatedAt && (
+                <p className="text-[11px] text-gray-500">
+                  Date: {new Date(profileData.statusUpdatedAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* ─── Tabs ─── */}
           <div className="flex border-b border-gray-100">

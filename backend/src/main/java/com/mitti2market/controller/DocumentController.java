@@ -119,18 +119,19 @@ public class DocumentController {
 
             // If this is a profile photo, update the User entity directly
             if (docType == SupportingDocument.DocumentType.PROFILE_PHOTO) {
-                user.setProfilePhotoUrl(uploadResult.get("url"));
+                String secureUrl = uploadResult.get("url");
+                if (secureUrl != null) {
+                    String separator = secureUrl.contains("?") ? "&" : "?";
+                    secureUrl = secureUrl + separator + "v=" + System.currentTimeMillis();
+                }
+                user.setProfilePhotoUrl(secureUrl);
                 user.setProfilePhotoPublicId(uploadResult.get("publicId"));
                 users.save(user);
             } else {
-                // For supporting documents: if previously rejected or re-submission requested, reset user to PENDING
-                if (user.getVerificationStatus() == User.VerificationStatus.REJECTED
-                        || user.getVerificationStatus() == User.VerificationStatus.RE_SUBMISSION_REQUESTED
-                        || user.getVerificationStatus() == User.VerificationStatus.NOT_VERIFIED) {
-                    user.setVerificationStatus(User.VerificationStatus.PENDING);
-                    user.setVerificationNotes(null);
-                    users.save(user);
-                }
+                // For supporting documents: update verification status to DOCUMENTS_SUBMITTED
+                user.setVerificationStatus(User.VerificationStatus.DOCUMENTS_SUBMITTED);
+                user.setStatusUpdatedAt(LocalDateTime.now());
+                users.save(user);
             }
 
             return ResponseEntity.ok(ApiResponse.ok("Document uploaded successfully. Awaiting admin verification.", toResponse(doc)));
@@ -160,7 +161,9 @@ public class DocumentController {
             return ResponseEntity.status(404).body(ApiResponse.error("User not found"));
         }
 
-        user.setVerificationStatus(User.VerificationStatus.PENDING);
+        user.setVerificationStatus(User.VerificationStatus.DOCUMENTS_SUBMITTED);
+        user.setStatusUpdatedAt(LocalDateTime.now());
+        user.setStatusReason("Documents resubmitted by user for verification");
         users.save(user);
 
         return ResponseEntity.ok(ApiResponse.ok("Application re-submitted for admin verification", null));

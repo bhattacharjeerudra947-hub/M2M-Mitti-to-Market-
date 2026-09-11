@@ -26,6 +26,8 @@ public interface DealRepository extends JpaRepository<Deal, Long> {
     @Query("SELECT d FROM Deal d WHERE (d.farmer.id = :userId OR d.buyer.id = :userId) AND d.status = :status ORDER BY d.createdAt DESC")
     List<Deal> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") Deal.DealStatus status);
 
+    long countByStatus(Deal.DealStatus status);
+
     /** Max numeric sequence from deal IDs like M2M-2026-10003 (used to avoid duplicate IDs after restart) */
     @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(deal_id, '-', -1) AS UNSIGNED)), 10000) FROM deals", nativeQuery = true)
     long findMaxDealSequence();

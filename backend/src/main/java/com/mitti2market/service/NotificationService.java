@@ -17,6 +17,10 @@ public class NotificationService {
     private final UserRepository users;
 
     public void createNotification(Long userId, Notification.NotificationType type, String title, String body) {
+        createNotification(userId, type, title, body, null, null);
+    }
+
+    public void createNotification(Long userId, Notification.NotificationType type, String title, String body, Long referenceId, String referenceType) {
         User user = users.findById(userId).orElse(null);
         if (user == null) return;
         notifications.save(Notification.builder()
@@ -24,6 +28,8 @@ public class NotificationService {
                 .type(type)
                 .title(title)
                 .body(body)
+                .referenceId(referenceId)
+                .referenceType(referenceType)
                 .build());
     }
 

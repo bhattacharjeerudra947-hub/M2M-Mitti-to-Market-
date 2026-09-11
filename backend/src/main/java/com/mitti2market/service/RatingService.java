@@ -77,8 +77,8 @@ public class RatingService {
             userRepository.save(reviewee);
         }
 
-        notificationService.createNotification(revieweeId, Notification.NotificationType.DEAL_LOCKED,
-                "New Rating Received", reviewer.getName() + " rated your transaction " + rating + " stars.");
+        notificationService.createNotification(revieweeId, Notification.NotificationType.RATING_RECEIVED,
+                "New Rating Received", reviewer.getName() + " rated your transaction " + rating + " stars.", dealId, "DEAL");
 
         return dealRating;
     }
@@ -98,5 +98,30 @@ public class RatingService {
             m.put("createdAt", r.getCreatedAt());
             return m;
         }).toList();
+    }
+
+    /** Get public reviews for a user */
+    public List<Map<String, Object>> getReviewsForUser(Long userId) {
+        return ratingRepository.findByRevieweeIdOrderByCreatedAtDesc(userId).stream().map(r -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", r.getId());
+            m.put("dealId", r.getDeal().getId());
+            m.put("reviewerName", r.getReviewer().getName());
+            m.put("rating", r.getRating());
+            m.put("comment", r.getComment());
+            m.put("createdAt", r.getCreatedAt());
+            return m;
+        }).toList();
+    }
+
+    /** Get count and average for a user */
+    public Map<String, Object> getUserRatingSummary(Long userId) {
+        long count = ratingRepository.countByRevieweeId(userId);
+        Double avg = ratingRepository.getAverageRatingForUser(userId);
+        double roundedAvg = avg != null ? Math.round(avg * 10.0) / 10.0 : 0.0;
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("rating", roundedAvg);
+        m.put("reviewCount", count);
+        return m;
     }
 }
