@@ -32,5 +32,10 @@ public class AuthResponse {
         private Double rating;
         private String profilePhotoUrl;
         private String verificationNotes;
+        private String status;
+        private String statusReason;
+        private java.time.LocalDateTime statusUpdatedAt;
+        private java.time.LocalDateTime verifiedAt;
+        private String verifiedBy;
     }
 }

@@ -30,6 +30,8 @@ export default function AdminDashboard() {
       setLoading(false);
     }
     loadData();
+    const interval = setInterval(loadData, 25000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSearchUsers = async (e) => {
@@ -120,6 +122,59 @@ export default function AdminDashboard() {
     },
   ];
 
+  const marketplaceCards = [
+    {
+      title: 'Active Produce Listings',
+      value: stats?.activeProduce ?? 0,
+      subtitle: `${(stats?.totalProduceQuantity ?? 0).toLocaleString()} total units listed`,
+      icon: <span className="text-xl">🌾</span>,
+      link: '/admin/marketplace',
+      badge: 'Live Stock',
+    },
+    {
+      title: 'Completed Deals',
+      value: stats?.completedDeals ?? 0,
+      subtitle: `${stats?.totalDeals ?? 0} total deals (${stats?.activeDeals ?? 0} in progress)`,
+      icon: <span className="text-xl">🤝</span>,
+      link: '/admin/deals',
+      badge: 'Completed',
+    },
+    {
+      title: 'Gross Merchandise Value',
+      value: `₹${Number(stats?.totalGmv ?? 0).toLocaleString('en-IN')}`,
+      subtitle: 'From completed transactions',
+      icon: <TrendingUp className="w-5 h-5 text-emerald-600" />,
+      link: '/admin/deals',
+      badge: 'Settled GMV',
+    },
+    {
+      title: 'Open Reports',
+      value: stats?.openReports ?? 0,
+      subtitle: `${stats?.resolvedReports ?? 0} resolved`,
+      icon: <span className="text-xl">🚩</span>,
+      link: '/admin/reports',
+      badge: (stats?.openReports ?? 0) > 0 ? 'Requires Action' : 'All Clear',
+      highlight: (stats?.openReports ?? 0) > 0,
+    },
+    {
+      title: 'Platform Feedback',
+      value: stats?.totalFeedback ?? 0,
+      subtitle: `${stats?.unresolvedFeedback ?? 0} unresolved`,
+      icon: <span className="text-xl">💬</span>,
+      link: '/admin/feedback',
+      badge: 'User Voice',
+    },
+    {
+      title: 'Suspended Users',
+      value: stats?.suspendedUsers ?? 0,
+      subtitle: 'Account restrictions active',
+      icon: <XCircle className="w-5 h-5 text-red-500" />,
+      link: '/admin/users?status=SUSPENDED',
+      badge: 'Restricted',
+      highlight: (stats?.suspendedUsers ?? 0) > 0,
+    },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in">
       {/* Header Banner */}
@@ -181,6 +236,53 @@ export default function AdminDashboard() {
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1">
                   {card.title}
                 </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Marketplace, Deals & Moderation Summary */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+            Marketplace, Deals & Moderation Health
+          </h2>
+          <span className="text-xs text-gray-500 font-medium">Auto-refreshed live metrics</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {marketplaceCards.map((card, idx) => (
+            <Link
+              key={idx}
+              to={card.link}
+              className={`p-5 rounded-3xl border transition-all hover:shadow-md group flex flex-col justify-between ${
+                card.highlight
+                  ? 'bg-red-50/50 border-red-200 hover:border-red-300'
+                  : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-emerald-300'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="p-2.5 rounded-2xl bg-gray-50 dark:bg-gray-700/60 border border-gray-100 dark:border-gray-600">
+                  {card.icon}
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                  {card.badge}
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <span className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight group-hover:text-emerald-600 transition-colors">
+                  {card.value}
+                </span>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mt-1">
+                  {card.title}
+                </p>
+                {card.subtitle && (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    {card.subtitle}
+                  </p>
+                )}
               </div>
             </Link>
           ))}

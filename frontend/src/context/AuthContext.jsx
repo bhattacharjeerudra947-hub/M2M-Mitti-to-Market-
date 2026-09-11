@@ -14,7 +14,6 @@ export function AuthProvider({ children }) {
     const storedUser = api.getStoredUserData();
     if (storedUser && api.isLoggedIn()) {
       setUser(storedUser);
-      // Fetch fresh user profile from backend to ensure verificationStatus, profilePhotoUrl, etc. are accurate
       api.getMe().then((res) => {
         if (res.ok && res.data) {
           setUser(res.data);
@@ -24,6 +23,37 @@ export function AuthProvider({ children }) {
     }
     setLoading(false);
   }, []);
+
+  // Periodic background heartbeat (12s) and window focus sync so admin actions (verification, suspension) reflect live
+  useEffect(() => {
+    if (!api.isLoggedIn()) return;
+
+    const syncLiveProfile = async () => {
+      if (!api.isLoggedIn()) return;
+      try {
+        const res = await api.getMe();
+        if (res.ok && res.data) {
+          setUser((prev) => {
+            if (!prev || JSON.stringify(prev) !== JSON.stringify(res.data)) {
+              api.setStoredUserData(res.data);
+              return res.data;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // network retry silently
+      }
+    };
+
+    const interval = setInterval(syncLiveProfile, 12000);
+    window.addEventListener('focus', syncLiveProfile);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', syncLiveProfile);
+    };
+  }, [user?.id]);
 
   const login = useCallback(async (email, password, role) => {
     // Route to the role-locked backend endpoint. The backend enforces that the

@@ -17,7 +17,8 @@ export default function M2MLogo({ size = 'md', noLink = false, className = '' })
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <img
-        src="https://i.postimg.cc/L89VZ3GK/icon.png"
+        src="/logo-icon.png"
+        onError={(e) => { e.currentTarget.src = "https://i.postimg.cc/L89VZ3GK/icon.png"; }}
         alt="Mitti2Market logo"
         width={s}
         height={s}

@@ -365,6 +365,10 @@ export async function getFarmerProfile() {
   return request('GET', '/farmers/profile');
 }
 
+export async function getFarmerPublicProfile(id) {
+  return request('GET', `/users/${id}/public-profile`);
+}
+
 /* ───────── Business Profile ───────── */
 
 export async function saveBusinessProfile(profileData) {

@@ -148,8 +148,11 @@ public class AdminController {
     }
 
     @GetMapping("/reports")
-    public ResponseEntity<?> getReports(@RequestParam(required = false) String status) {
-        return ResponseEntity.ok(ApiResponse.ok(reportService.getReports(status)));
+    public ResponseEntity<?> getReports(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.ok(reportService.getReports(status, type, search)));
     }
 
     @PutMapping("/reports/{id}/resolve")
@@ -168,8 +171,15 @@ public class AdminController {
     @GetMapping("/feedback")
     public ResponseEntity<?> getFeedback(
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String status) {
-        return ResponseEntity.ok(ApiResponse.ok(feedbackService.getAllFeedback(category, status)));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String keyword) {
+        return ResponseEntity.ok(ApiResponse.ok(feedbackService.getAllFeedback(category, status, role, keyword)));
+    }
+
+    @GetMapping("/feedback/insights")
+    public ResponseEntity<?> getFeedbackInsights() {
+        return ResponseEntity.ok(ApiResponse.ok(feedbackService.getFeedbackInsights()));
     }
 
     @PutMapping("/feedback/{id}")

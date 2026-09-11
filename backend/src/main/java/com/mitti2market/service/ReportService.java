@@ -82,18 +82,31 @@ public class ReportService {
 
     /** List reports for Admin review */
     public List<Map<String, Object>> getReports(String status) {
-        List<Report> list;
-        if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
-            try {
-                list = reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.valueOf(status.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                list = reportRepository.findAllByOrderByCreatedAtDesc();
-            }
-        } else {
-            list = reportRepository.findAllByOrderByCreatedAtDesc();
-        }
+        return getReports(status, null, null);
+    }
 
-        return list.stream().map(this::toResponse).toList();
+    public List<Map<String, Object>> getReports(String status, String type, String keyword) {
+        List<Report> list = reportRepository.findAllByOrderByCreatedAtDesc();
+
+        return list.stream().filter(r -> {
+            if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
+                if (!r.getStatus().name().equalsIgnoreCase(status)) return false;
+            }
+            if (type != null && !type.isBlank() && !type.equalsIgnoreCase("ALL")) {
+                if (!r.getReportType().name().equalsIgnoreCase(type)) return false;
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                String k = keyword.toLowerCase().trim();
+                boolean descMatch = r.getDescription() != null && r.getDescription().toLowerCase().contains(k);
+                boolean reporterMatch = r.getReporter() != null && (
+                        (r.getReporter().getName() != null && r.getReporter().getName().toLowerCase().contains(k)) ||
+                        (r.getReporter().getEmail() != null && r.getReporter().getEmail().toLowerCase().contains(k)));
+                boolean targetUserMatch = r.getReportedUser() != null && r.getReportedUser().getName() != null && r.getReportedUser().getName().toLowerCase().contains(k);
+                boolean targetProduceMatch = r.getReportedProduce() != null && r.getReportedProduce().getName() != null && r.getReportedProduce().getName().toLowerCase().contains(k);
+                if (!descMatch && !reporterMatch && !targetUserMatch && !targetProduceMatch) return false;
+            }
+            return true;
+        }).map(this::toResponse).toList();
     }
 
     /** Get user's own submitted reports */
@@ -135,8 +148,9 @@ public class ReportService {
 
         auditLogService.log(adminId, "REPORT_" + newStatus.name(), "REPORT", reportId, adminNote, "Report #" + reportId + " status changed to " + newStatus.name());
 
-        notificationService.createNotification(report.getReporter().getId(), Notification.NotificationType.SYSTEM_ALERT,
-                "Report Update", "Your report #" + reportId + " status is now " + newStatus.name().toLowerCase().replace('_', ' ') + ".");
+        notificationService.createNotification(report.getReporter().getId(), Notification.NotificationType.REPORT_UPDATE,
+                "Report Update", "Your report #" + reportId + " status is now " + newStatus.name().toLowerCase().replace('_', ' ') + ".",
+                reportId, "REPORT");
 
         return report;
     }

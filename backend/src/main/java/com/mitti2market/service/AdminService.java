@@ -27,33 +27,56 @@ public class AdminService {
     private final DealRepository dealRepository;
     private final ReportRepository reportRepository;
     private final DisputeRepository disputeRepository;
+    private final FeedbackRepository feedbackRepository;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
 
     /** Calculate high-level platform statistics for the Admin Dashboard */
-    /** Calculate high-level platform statistics for the Admin Dashboard */
     public Map<String, Object> getPlatformStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
         long totalUsers = userRepository.count();
-        long pending = userRepository.countByVerificationStatus(VerificationStatus.PENDING);
-        long approved = userRepository.countByVerificationStatus(VerificationStatus.VERIFIED);
-        long rejected = userRepository.countByVerificationStatus(VerificationStatus.REJECTED);
-        long reupload = userRepository.countByVerificationStatus(VerificationStatus.RE_SUBMISSION_REQUESTED);
         long farmers = userRepository.countByRole(Role.FARMER);
         long businesses = userRepository.countByRole(Role.BUSINESS);
 
-        // Exact requested summary metrics
+        List<User> allUsers = userRepository.findAll();
+        long pending = allUsers.stream().filter(u ->
+                u.getVerificationStatus() == VerificationStatus.PENDING
+                || u.getVerificationStatus() == VerificationStatus.UNDER_REVIEW
+                || u.getVerificationStatus() == VerificationStatus.DOCUMENTS_SUBMITTED).count();
+
+        long verifiedUsers = allUsers.stream().filter(u ->
+                Boolean.TRUE.equals(u.getVerified())
+                || u.getVerificationStatus() == VerificationStatus.VERIFIED
+                || u.getVerificationStatus() == VerificationStatus.APPROVED).count();
+
+        long rejected = allUsers.stream().filter(u ->
+                u.getVerificationStatus() == VerificationStatus.REJECTED).count();
+
+        long reupload = allUsers.stream().filter(u ->
+                u.getVerificationStatus() == VerificationStatus.RE_SUBMISSION_REQUESTED
+                || u.getVerificationStatus() == VerificationStatus.RESUBMISSION_REQUIRED).count();
+
+        long activeUsers = userRepository.countByStatus(UserStatus.ACTIVE);
+        long suspendedUsers = userRepository.countByStatus(UserStatus.SUSPENDED);
+        long deactivatedUsers = userRepository.countByStatus(UserStatus.DEACTIVATED);
+
+        // Core 17 metrics
         stats.put("totalUsers", totalUsers);
-        stats.put("pendingApplications", pending);
-        stats.put("approvedUsers", approved);
-        stats.put("rejectedApplications", rejected);
-        stats.put("reuploadRequests", reupload);
         stats.put("farmers", farmers);
         stats.put("businesses", businesses);
-
-        // Legacy compatibility keys
-        stats.put("verifiedUsers", approved);
+        stats.put("verifiedUsers", verifiedUsers);
         stats.put("pendingVerification", pending);
+        stats.put("rejectedVerification", rejected);
+        stats.put("resubmissionRequired", reupload);
+        stats.put("activeUsers", activeUsers);
+        stats.put("suspendedUsers", suspendedUsers);
+        stats.put("deactivatedUsers", deactivatedUsers);
+
+        // Aliases for compatibility
+        stats.put("pendingApplications", pending);
+        stats.put("approvedUsers", verifiedUsers);
+        stats.put("rejectedApplications", rejected);
+        stats.put("reuploadRequests", reupload);
         stats.put("activeFarmers", farmers);
         stats.put("activeBusinesses", businesses);
         
@@ -63,6 +86,12 @@ public class AdminService {
                 Produce.ProduceStatus.PARTIALLY_SOLD
         );
         stats.put("activeProduce", produceRepository.countByStatusIn(activeProduceStatuses));
+
+        List<BuyerRequirement.RequirementStatus> activeReqStatuses = List.of(
+                BuyerRequirement.RequirementStatus.OPEN,
+                BuyerRequirement.RequirementStatus.PARTIALLY_FULFILLED
+        );
+        stats.put("activeRequirements", buyerRequirementRepository.countByStatusIn(activeReqStatuses));
 
         List<Deal.DealStatus> activeDealStatuses = List.of(
                 Deal.DealStatus.LOCK_PENDING,
@@ -76,7 +105,14 @@ public class AdminService {
                 Deal.DealStatus.DELIVERED
         );
         stats.put("activeDeals", dealRepository.findAll().stream().filter(d -> activeDealStatuses.contains(d.getStatus())).count());
+        stats.put("completedDeals", dealRepository.countByStatus(Deal.DealStatus.COMPLETED));
+        stats.put("cancelledDeals", dealRepository.countByStatus(Deal.DealStatus.CANCELLED));
         stats.put("openReports", reportRepository.countByStatus(Report.ReportStatus.OPEN));
+
+        long pendingFeedback = feedbackRepository.findAll().stream().filter(f ->
+                f.getStatus() == Feedback.FeedbackStatus.NEW || f.getStatus() == Feedback.FeedbackStatus.REVIEWING).count();
+        stats.put("pendingFeedback", pendingFeedback);
+
         stats.put("openDisputes", disputeRepository.findByStatusOrderByCreatedAtDesc(Dispute.DisputeStatus.OPEN).size());
 
         return stats;
@@ -95,14 +131,15 @@ public class AdminService {
                 if (u.getRole() == null || !u.getRole().name().equalsIgnoreCase(role)) return false;
             }
             if (verification != null && !verification.isBlank() && !verification.equalsIgnoreCase("ALL")) {
-                if ((verification.equalsIgnoreCase("VERIFIED") || verification.equalsIgnoreCase("APPROVED")) &&
-                        !Boolean.TRUE.equals(u.getVerified()) && u.getVerificationStatus() != VerificationStatus.VERIFIED) return false;
-                if (verification.equalsIgnoreCase("UNVERIFIED") && Boolean.TRUE.equals(u.getVerified())) return false;
-                if (verification.equalsIgnoreCase("PENDING") && u.getVerificationStatus() != VerificationStatus.PENDING) return false;
-                if ((verification.equalsIgnoreCase("REJECTED") || verification.equalsIgnoreCase("VERIFICATION_LOST") || verification.equalsIgnoreCase("LOST"))
-                        && u.getVerificationStatus() != VerificationStatus.REJECTED) return false;
-                if ((verification.equalsIgnoreCase("RE_SUBMISSION_REQUESTED") || verification.equalsIgnoreCase("RE_UPLOAD_REQUESTED") || verification.equalsIgnoreCase("REUPLOAD"))
-                        && u.getVerificationStatus() != VerificationStatus.RE_SUBMISSION_REQUESTED) return false;
+                String targetNorm = User.VerificationStatus.normalize(verification);
+                String userNorm = u.getStandardVerificationStatus();
+                if (targetNorm.equalsIgnoreCase("VERIFIED")) {
+                    if (!userNorm.equalsIgnoreCase("VERIFIED") && !Boolean.TRUE.equals(u.getVerified())) return false;
+                } else if (targetNorm.equalsIgnoreCase("UNVERIFIED")) {
+                    if (Boolean.TRUE.equals(u.getVerified()) || !userNorm.equalsIgnoreCase("UNVERIFIED")) return false;
+                } else {
+                    if (!userNorm.equalsIgnoreCase(targetNorm)) return false;
+                }
             }
             if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
                 if (u.getStatus() == null || !u.getStatus().name().equalsIgnoreCase(status)) return false;
@@ -147,6 +184,25 @@ public class AdminService {
         return details;
     }
 
+    public void validateVerificationTransition(VerificationStatus current, VerificationStatus next) {
+        String curr = current != null ? current.toStandardName() : "UNVERIFIED";
+        String target = next != null ? next.toStandardName() : "UNVERIFIED";
+
+        boolean valid = switch (target) {
+            case "UNDER_REVIEW" -> curr.equals("DOCUMENTS_SUBMITTED") || curr.equals("UNVERIFIED");
+            case "VERIFIED" -> curr.equals("UNDER_REVIEW") || curr.equals("DOCUMENTS_SUBMITTED");
+            case "REJECTED" -> curr.equals("UNDER_REVIEW") || curr.equals("DOCUMENTS_SUBMITTED") || curr.equals("VERIFIED");
+            case "RESUBMISSION_REQUIRED" -> curr.equals("UNDER_REVIEW") || curr.equals("DOCUMENTS_SUBMITTED") || curr.equals("REJECTED");
+            case "DOCUMENTS_SUBMITTED" -> curr.equals("RESUBMISSION_REQUIRED") || curr.equals("REJECTED") || curr.equals("UNVERIFIED");
+            case "UNVERIFIED" -> true;
+            default -> false;
+        };
+
+        if (!valid) {
+            throw new BadRequestException("Invalid verification transition from " + curr + " to " + target);
+        }
+    }
+
     /** Verify user account */
     @Transactional
     public User verifyUser(Long adminId, Long userId, String notes) {
@@ -154,11 +210,16 @@ public class AdminService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         User admin = userRepository.findById(adminId).orElse(null);
 
+        validateVerificationTransition(user.getVerificationStatus(), VerificationStatus.VERIFIED);
+
         user.setVerified(true);
         user.setVerificationStatus(VerificationStatus.VERIFIED);
         user.setVerifiedAt(LocalDateTime.now());
         user.setVerifiedBy(admin != null ? admin.getName() : "ADMIN");
-        user.setVerificationNotes(notes);
+        user.setVerificationNotes(notes != null ? notes : "Verified by Admin");
+        user.setStatusReason("Verification approved");
+        user.setStatusUpdatedAt(LocalDateTime.now());
+        user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
         // Update profile status if exists
@@ -174,10 +235,10 @@ public class AdminService {
             });
         }
 
-        auditLogService.log(adminId, "USER_VERIFIED", "USER", userId, notes, "Verified user account " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_VERIFIED_USER", "USER", userId, notes, "Verified user account " + user.getEmail());
 
         notificationService.createNotification(userId, Notification.NotificationType.VERIFICATION_APPROVED,
-                "Account Verified", "Your Mitti2Market account has been verified.");
+                "Account Verified", "Your Mitti2Market account has been verified successfully.", userId, "USER");
 
         return user;
     }
@@ -185,18 +246,28 @@ public class AdminService {
     /** Reject verification request */
     @Transactional
     public User rejectVerification(Long adminId, Long userId, String reason) {
+        if (reason == null || reason.trim().isBlank()) {
+            throw new BadRequestException("A rejection reason is required.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        User admin = userRepository.findById(adminId).orElse(null);
+
+        validateVerificationTransition(user.getVerificationStatus(), VerificationStatus.REJECTED);
 
         user.setVerified(false);
         user.setVerificationStatus(VerificationStatus.REJECTED);
-        user.setVerificationNotes(reason);
+        user.setVerificationNotes(reason.trim());
+        user.setStatusReason(reason.trim());
+        user.setStatusUpdatedAt(LocalDateTime.now());
+        user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
-        auditLogService.log(adminId, "USER_REJECTED", "USER", userId, reason, "Rejected verification for user " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_REJECTED_USER", "USER", userId, reason.trim(), "Rejected verification for user " + user.getEmail());
 
         notificationService.createNotification(userId, Notification.NotificationType.VERIFICATION_REJECTED,
-                "Verification Update", "Your verification request was rejected: " + reason);
+                "Verification Rejected", "Supporting document or details could not be verified: " + reason.trim(), userId, "USER");
 
         return user;
     }
@@ -204,18 +275,28 @@ public class AdminService {
     /** Request re-submission of documents */
     @Transactional
     public User requestResubmission(Long adminId, Long userId, String reason) {
+        if (reason == null || reason.trim().isBlank()) {
+            throw new BadRequestException("A reason for requesting resubmission is required.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        User admin = userRepository.findById(adminId).orElse(null);
+
+        validateVerificationTransition(user.getVerificationStatus(), VerificationStatus.RESUBMISSION_REQUIRED);
 
         user.setVerified(false);
-        user.setVerificationStatus(VerificationStatus.RE_SUBMISSION_REQUESTED);
-        user.setVerificationNotes(reason);
+        user.setVerificationStatus(VerificationStatus.RESUBMISSION_REQUIRED);
+        user.setVerificationNotes(reason.trim());
+        user.setStatusReason(reason.trim());
+        user.setStatusUpdatedAt(LocalDateTime.now());
+        user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
-        auditLogService.log(adminId, "USER_RESUBMISSION_REQUESTED", "USER", userId, reason, "Requested re-submission for user " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_REQUESTED_RESUBMISSION", "USER", userId, reason.trim(), "Requested document resubmission for user " + user.getEmail());
 
-        notificationService.createNotification(userId, Notification.NotificationType.VERIFICATION_REJECTED,
-                "Re-verification Requested", "Please update and re-submit your verification documents: " + reason);
+        notificationService.createNotification(userId, Notification.NotificationType.RESUBMISSION_REQUESTED,
+                "Documents Need Resubmission", "Please review and re-submit your verification documents: " + reason.trim(), userId, "USER");
 
         return user;
     }
@@ -225,6 +306,9 @@ public class AdminService {
     public User suspendUser(Long adminId, Long userId, String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be suspended.");
+        }
         User admin = userRepository.findById(adminId).orElse(null);
 
         user.setStatus(UserStatus.SUSPENDED);
@@ -233,10 +317,10 @@ public class AdminService {
         user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
-        auditLogService.log(adminId, "USER_SUSPENDED", "USER", userId, reason, "Suspended user account " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_SUSPENDED_USER", "USER", userId, reason, "Suspended user account " + user.getEmail());
 
         notificationService.createNotification(userId, Notification.NotificationType.ACCOUNT_SUSPENDED,
-                "Account Suspended", "Your account has been suspended: " + reason);
+                "Account Suspended", "Your account has been suspended: " + reason, userId, "USER");
 
         return user;
     }
@@ -254,10 +338,10 @@ public class AdminService {
         user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
-        auditLogService.log(adminId, "USER_UNSUSPENDED", "USER", userId, reason, "Unsuspended user account " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_RESTORED_USER", "USER", userId, reason, "Unsuspended user account " + user.getEmail());
 
-        notificationService.createNotification(userId, Notification.NotificationType.ACCOUNT_VERIFIED,
-                "Account Restored", "Your Mitti2Market account suspension has been lifted.");
+        notificationService.createNotification(userId, Notification.NotificationType.ACCOUNT_RESTORED,
+                "Account Restored", "Your account suspension has been lifted.", userId, "USER");
 
         return user;
     }
@@ -267,6 +351,9 @@ public class AdminService {
     public User deactivateUser(Long adminId, Long userId, String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        if (user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be deactivated.");
+        }
         User admin = userRepository.findById(adminId).orElse(null);
 
         user.setStatus(UserStatus.DEACTIVATED);
@@ -275,7 +362,10 @@ public class AdminService {
         user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
-        auditLogService.log(adminId, "USER_DEACTIVATED", "USER", userId, reason, "Deactivated user account " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_DEACTIVATED_USER", "USER", userId, reason, "Deactivated user account " + user.getEmail());
+
+        notificationService.createNotification(userId, Notification.NotificationType.ACCOUNT_DEACTIVATED,
+                "Account Deactivated", "Your account has been deactivated: " + reason, userId, "USER");
 
         return user;
     }
@@ -293,7 +383,10 @@ public class AdminService {
         user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
         userRepository.save(user);
 
-        auditLogService.log(adminId, "USER_RESTORED", "USER", userId, reason, "Restored user account " + user.getEmail());
+        auditLogService.log(adminId, "ADMIN_RESTORED_USER", "USER", userId, reason, "Restored user account " + user.getEmail());
+
+        notificationService.createNotification(userId, Notification.NotificationType.ACCOUNT_RESTORED,
+                "Account Restored", "Your account has been reactivated.", userId, "USER");
 
         return user;
     }
@@ -349,8 +442,8 @@ public class AdminService {
         m.put("role", user.getRole() != null ? user.getRole().name() : "USER");
         m.put("status", user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
         m.put("verified", user.getVerified());
-        m.put("verificationStatus", user.getVerificationStatus() != null ? user.getVerificationStatus().name()
-                : Boolean.TRUE.equals(user.getVerified()) ? "VERIFIED" : "NOT_VERIFIED");
+        m.put("verificationStatus", user.getVerificationStatus() != null ? user.getVerificationStatus().toStandardName()
+                : Boolean.TRUE.equals(user.getVerified()) ? "VERIFIED" : "UNVERIFIED");
         m.put("rating", user.getRating());
         m.put("location", user.getLocation());
         m.put("country", "India");
@@ -363,6 +456,8 @@ public class AdminService {
         m.put("longitude", user.getLongitude());
         m.put("organizationName", user.getOrganizationName());
         m.put("statusReason", user.getStatusReason());
+        m.put("statusUpdatedAt", user.getStatusUpdatedAt());
+        m.put("statusUpdatedBy", user.getStatusUpdatedBy());
         m.put("verificationNotes", user.getVerificationNotes());
         m.put("verifiedAt", user.getVerifiedAt());
         m.put("verifiedBy", user.getVerifiedBy());

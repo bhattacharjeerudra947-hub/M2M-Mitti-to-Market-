@@ -20,6 +20,10 @@ public interface DealRatingRepository extends JpaRepository<DealRating, Long> {
 
     List<DealRating> findByRevieweeId(Long revieweeId);
 
+    List<DealRating> findByRevieweeIdOrderByCreatedAtDesc(Long revieweeId);
+
+    long countByRevieweeId(Long revieweeId);
+
     @Query("SELECT AVG(dr.rating) FROM DealRating dr WHERE dr.reviewee.id = :userId")
     Double getAverageRatingForUser(@Param("userId") Long userId);
 }

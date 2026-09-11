@@ -144,8 +144,12 @@ export async function getVerifications(status, role, state, district, search) {
   return adminRequest('GET', `/verifications${q}`);
 }
 
-export async function getReports(status) {
-  const q = status ? `?status=${status}` : '';
+export async function getReports(status, type, search) {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (type) params.append('type', type);
+  if (search) params.append('search', search);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return adminRequest('GET', `/reports${q}`);
 }
 
@@ -153,12 +157,18 @@ export async function resolveReport(id, status, adminNote, actionType) {
   return adminRequest('PUT', `/reports/${id}/resolve`, { status, adminNote, actionType });
 }
 
-export async function getFeedback(category, status) {
+export async function getFeedback(category, status, role, keyword) {
   const params = new URLSearchParams();
   if (category) params.append('category', category);
   if (status) params.append('status', status);
+  if (role) params.append('role', role);
+  if (keyword) params.append('keyword', keyword);
   const q = params.toString() ? `?${params.toString()}` : '';
   return adminRequest('GET', `/feedback${q}`);
+}
+
+export async function getFeedbackInsights() {
+  return adminRequest('GET', '/feedback/insights');
 }
 
 export async function updateFeedback(id, status, adminResponse, adminNote) {
