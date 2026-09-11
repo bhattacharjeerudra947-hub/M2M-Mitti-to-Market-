@@ -35,8 +35,8 @@ public class AuthController {
         this.businessProfiles = businessProfiles;
     }
 
-    /** POST /api/auth/register */
-    @PostMapping("/register")
+    /** POST /api/auth/register or /api/auth/signup */
+    @PostMapping({"/register", "/signup"})
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
         // Validate phone
         String phone = req.getPhone() != null ? req.getPhone().replaceAll("\\s+", "").trim() : "";
@@ -146,7 +146,10 @@ public class AuthController {
     /** POST /api/auth/login — email or mobile number + BCrypt password */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
-        String identifier = req.getEmail() != null ? req.getEmail().trim() : "";
+        String identifier = req.getIdentifier();
+        if (identifier.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email or mobile number is required"));
+        }
         Optional<User> userOpt;
         if (identifier.contains("@")) {
             userOpt = users.findByEmail(identifier.toLowerCase());
@@ -187,22 +190,11 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        if (user.getStatus() == User.UserStatus.SUSPENDED) {
-            String msg = "Your account has been suspended by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
-        }
-
-        if (user.getStatus() == User.UserStatus.DEACTIVATED) {
-            String msg = "Your account has been deactivated by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            } else {
-                msg += ". Please contact support.";
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
+        if (user.getStatus() == User.UserStatus.DELETED) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "This account has been permanently deleted."
+            ));
         }
 
         if (req.getRole() != null && !req.getRole().trim().isEmpty()) {
@@ -210,9 +202,10 @@ public class AuthController {
                 User.Role expectedRole = User.Role.valueOf(req.getRole().trim().toUpperCase());
                 if (user.getRole() != expectedRole) {
                     String roleName = roleLabel(user.getRole());
-                    String msg = "failed to login";
+                    String msg = "failed to login: This account is registered as a " + roleName + ". Please use the " + roleName + " login.";
                     return ResponseEntity.status(403).body(Map.of(
                             "success", false,
+                            "code", "ROLE_MISMATCH",
                             "message", msg,
                             "error", msg
                     ));
@@ -235,7 +228,7 @@ public class AuthController {
      * POST /api/auth/farmer/login — only FARMER accounts may authenticate here.
      * Rejects BUSINESS and ADMIN accounts with 401 + a clear message.
      */
-    @PostMapping("/farmer/login")
+    @PostMapping({"/farmer/login", "/login/farmer"})
     public ResponseEntity<?> farmerLogin(@Valid @RequestBody LoginRequest req) {
         return roleLockedLogin(req, User.Role.FARMER, "Farmer");
     }
@@ -244,7 +237,7 @@ public class AuthController {
      * POST /api/auth/business/login — only BUSINESS accounts may authenticate here.
      * Rejects FARMER and ADMIN accounts with 401 + a clear message.
      */
-    @PostMapping("/business/login")
+    @PostMapping({"/business/login", "/login/business"})
     public ResponseEntity<?> businessLogin(@Valid @RequestBody LoginRequest req) {
         return roleLockedLogin(req, User.Role.BUSINESS, "Business/Buyer");
     }
@@ -255,7 +248,7 @@ public class AuthController {
      * This is a privileged endpoint; it is permitted by the public /api/auth/** matcher
      * but the method itself enforces admin-only access at the auth layer.
      */
-    @PostMapping("/admin/login")
+    @PostMapping({"/admin/login", "/login/admin"})
     public ResponseEntity<?> adminLogin(@Valid @RequestBody LoginRequest req) {
         return roleLockedLogin(req, User.Role.ADMIN, "Admin");
     }
@@ -266,7 +259,10 @@ public class AuthController {
      * match the expected role for this endpoint.
      */
     private ResponseEntity<?> roleLockedLogin(LoginRequest req, User.Role expectedRole, String portalName) {
-        String identifier = req.getEmail() != null ? req.getEmail().trim() : "";
+        String identifier = req.getIdentifier();
+        if (identifier.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email or mobile number is required"));
+        }
         Optional<User> userOpt;
         if (identifier.contains("@")) {
             userOpt = users.findByEmail(identifier.toLowerCase());
@@ -307,22 +303,11 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        if (user.getStatus() == User.UserStatus.SUSPENDED) {
-            String msg = "Your account has been suspended by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
-        }
-
-        if (user.getStatus() == User.UserStatus.DEACTIVATED) {
-            String msg = "Your account has been deactivated by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            } else {
-                msg += ". Please contact support.";
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
+        if (user.getStatus() == User.UserStatus.DELETED) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "This account has been permanently deleted."
+            ));
         }
 
         // Enforce role isolation at the backend — the account's role must match the
@@ -334,9 +319,10 @@ public class AuthController {
         // correct login portal rather than being left guessing.
         if (user.getRole() != expectedRole) {
             String roleName = roleLabel(user.getRole());
-            String msg = "failed to login";
+            String msg = "failed to login: This account is registered as a " + roleName + ". Please use the " + roleName + " login.";
             return ResponseEntity.status(403).body(Map.of(
                     "success", false,
+                    "code", "ROLE_MISMATCH",
                     "message", msg,
                     "error", msg
             ));
@@ -425,6 +411,9 @@ public class AuthController {
                 .status(user.getStatus() != null ? user.getStatus().name() : "ACTIVE")
                 .statusReason(user.getStatusReason())
                 .statusUpdatedAt(user.getStatusUpdatedAt())
+                .suspendedAt(user.getSuspendedAt())
+                .deactivatedAt(user.getDeactivatedAt())
+                .deletedAt(user.getDeletedAt())
                 .verifiedAt(user.getVerifiedAt())
                 .verifiedBy(user.getVerifiedBy())
                 .rating(user.getRating())

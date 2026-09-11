@@ -37,6 +37,7 @@ export default function AddProduce() {
     grade: 'A',
     pricePerUnit: '',
     location: '',
+    readyDate: '',
     description: '',
   });
 
@@ -286,6 +287,7 @@ export default function AddProduce() {
         quantity: Number(form.quantity),
         unit: form.unit,
         pricePerUnit: Number(form.pricePerUnit),
+        readyDate: form.readyDate || null,
         description: form.description.trim(),
         location: form.location.trim(),
         imageUrl: imageUrl,
@@ -333,9 +335,15 @@ export default function AddProduce() {
                   <CloudUpload className="w-3.5 h-3.5" /> Pending sync — check Offline Drafts in the sidebar
                 </p>
               )}
-              <div className="flex gap-3 justify-center">
+              <div className="flex flex-wrap gap-3 justify-center">
                 <button
-                  onClick={() => { setSubmitted(false); setForm({ name: '', category: 'Vegetables', quantity: '', unit: 'kg', grade: 'A', pricePerUnit: '', location: '', description: '' }); setImageFile(null); setImagePreview(null); setAiAnalysis(null); setShowAiPanel(false); }}
+                  onClick={() => navigate('/farmer/matches')}
+                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-primary-600 text-white font-bold rounded-xl hover:from-emerald-700 hover:to-primary-700 transition shadow-md flex items-center gap-1.5"
+                >
+                  <span>🎉</span> View Matches
+                </button>
+                <button
+                  onClick={() => { setSubmitted(false); setForm({ name: '', category: 'Vegetables', quantity: '', unit: 'kg', grade: 'A', pricePerUnit: '', location: '', readyDate: '', description: '' }); setImageFile(null); setImagePreview(null); setAiAnalysis(null); setShowAiPanel(false); }}
                   className="px-6 py-3 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition"
                 >
                   Add Another
@@ -602,6 +610,21 @@ export default function AddProduce() {
                   <input type="text" name="location" value={form.location} onChange={handleLocationChange}
                     placeholder="Nashik, Maharashtra" className="pl-11" />
                 </div>
+              </div>
+
+              {/* Expected Ready Date — for Matching Engine */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Expected Ready / Harvest Date</label>
+                <input
+                  type="date"
+                  name="readyDate"
+                  value={form.readyDate}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-50 border border-navy-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Optional. Used by AI to pair with bulk buyers needing delivery by a specific date.
+                </p>
               </div>
 
               {/* Description */}

@@ -124,6 +124,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- H2 in-memory DB for integration tests (no MySQL required) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- WebFlux -->
         <dependency>        
             <groupId>org.springframework.boot</groupId>

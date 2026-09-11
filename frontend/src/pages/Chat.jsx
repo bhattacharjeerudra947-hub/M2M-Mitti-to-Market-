@@ -287,9 +287,17 @@ export default function Chat() {
                     onClick={() => navigate(`/${sidebarRole}/chat/${conv.conversationId}/${conv.otherUserId}`)}
                     className="w-full bg-white rounded-xl border border-navy-100 p-4 flex items-center gap-4 hover:shadow-md transition text-left"
                   >
-                    <div className="w-12 h-12 bg-navy-100 rounded-full flex items-center justify-center text-lg font-bold text-navy-700 flex-shrink-0">
-                      {conv.otherUserName?.charAt(0) || '?'}
-                    </div>
+                    {conv.otherUserProfilePhotoUrl ? (
+                      <img
+                        src={conv.otherUserProfilePhotoUrl}
+                        alt={conv.otherUserName}
+                        className="w-12 h-12 rounded-full object-cover border border-navy-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-navy-100 rounded-full flex items-center justify-center text-lg font-bold text-navy-700 flex-shrink-0">
+                        {conv.otherUserName?.charAt(0) || '?'}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-semibold text-navy-900 text-sm">{conv.otherUserName}</p>
@@ -318,6 +326,8 @@ export default function Chat() {
     );
   }
 
+  const selectedConv = conversations.find(c => c.conversationId === conversationId);
+
   // Chat view
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -329,9 +339,17 @@ export default function Chat() {
             <button onClick={() => navigate(`/${sidebarRole}/chat`)} className="p-1 hover:bg-gray-100 rounded-lg transition">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
-            <div className="w-10 h-10 bg-navy-100 rounded-full flex items-center justify-center font-bold text-navy-700">
-              {conversations.find(c => c.conversationId === conversationId)?.otherUserName?.charAt(0) || '?'}
-            </div>
+            {selectedConv?.otherUserProfilePhotoUrl ? (
+              <img
+                src={selectedConv.otherUserProfilePhotoUrl}
+                alt={selectedConv.otherUserName}
+                className="w-10 h-10 rounded-full object-cover border border-navy-200"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-navy-100 rounded-full flex items-center justify-center font-bold text-navy-700">
+                {selectedConv?.otherUserName?.charAt(0) || '?'}
+              </div>
+            )}
             <div className="flex-1">
               <p className="font-semibold text-navy-900 text-sm">
                 {conversations.find(c => c.conversationId === conversationId)?.otherUserName || 'Chat'}
@@ -348,6 +366,28 @@ export default function Chat() {
               <span className="text-[10px] font-semibold text-emerald-600">Live</span>
             </div>
           </div>
+
+          {/* Deal Discussion Banner */}
+          {conversations.find(c => c.conversationId === conversationId)?.produceName && (
+            <div className="bg-gradient-to-r from-navy-950 via-navy-900 to-primary-950 text-white px-4 py-3 border-x border-navy-800 flex items-center justify-between shadow-inner">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🥭</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-mustard-300">
+                      {conversations.find(c => c.conversationId === conversationId)?.produceName} Deal
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-mustard-300 border border-mustard-400/30 text-[9px] font-extrabold tracking-wider uppercase">
+                      Deal Discussion
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-300 mt-0.5">
+                    Farmer ↔ {conversations.find(c => c.conversationId === conversationId)?.otherUserName || 'Buyer'} · Propose and negotiate price using [Make Offer]
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 bg-white border-x border-navy-100 p-4 overflow-y-auto">

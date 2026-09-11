@@ -1,16 +1,17 @@
 /**
- * Real-time message stream (Server-Sent Events).
+ * Real-time message and notification stream (Server-Sent Events).
  *
- * A single shared EventSource per tab; every component subscribes through
- * onMessage(). New messages are pushed by the backend and delivered to
- * listeners instantly — no waiting for the poll interval.
+ * A single shared EventSource per tab; components subscribe through
+ * onMessage() and onNotification(). New messages and notifications
+ * are pushed by the backend and delivered to listeners instantly.
  */
 
 const STREAM_URL = 'http://localhost:8080/api/messages/events';
 const RECONNECT_MS = 5000;
 
 let es = null;
-let listeners = new Set();
+let messageListeners = new Set();
+let notificationListeners = new Set();
 let reconnectTimer = null;
 let lastUserId = null;
 
@@ -34,6 +35,7 @@ function connect() {
 
   es = new EventSource(`${STREAM_URL}?token=${encodeURIComponent(token)}`);
 
+  // Listen to message events
   es.addEventListener('message', (event) => {
     let payload;
     try {
@@ -41,7 +43,20 @@ function connect() {
     } catch {
       return;
     }
-    listeners.forEach((fn) => {
+    messageListeners.forEach((fn) => {
+      try { fn(payload); } catch { /* listener errors must not break the stream */ }
+    });
+  });
+
+  // Listen to notification events (e.g. NEW_MATCH, DEAL_STARTED, DEAL_LOCKED)
+  es.addEventListener('notification', (event) => {
+    let payload;
+    try {
+      payload = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    notificationListeners.forEach((fn) => {
       try { fn(payload); } catch { /* listener errors must not break the stream */ }
     });
   });
@@ -59,21 +74,35 @@ function connect() {
 
 /** Subscribe to incoming messages. Returns an unsubscribe function. */
 export function onMessage(fn) {
-  listeners.add(fn);
+  messageListeners.add(fn);
   if (!es) connect();
   return () => {
-    listeners.delete(fn);
-    // Keep the stream open if other listeners exist; close if idle
-    if (listeners.size === 0 && es) {
-      es.close();
-      es = null;
-    }
+    messageListeners.delete(fn);
+    checkIdleAndClose();
   };
+}
+
+/** Subscribe to incoming notifications (matches, deals, offers). Returns an unsubscribe function. */
+export function onNotification(fn) {
+  notificationListeners.add(fn);
+  if (!es) connect();
+  return () => {
+    notificationListeners.delete(fn);
+    checkIdleAndClose();
+  };
+}
+
+function checkIdleAndClose() {
+  if (messageListeners.size === 0 && notificationListeners.size === 0 && es) {
+    es.close();
+    es = null;
+  }
 }
 
 /** Drop the connection (e.g. on logout). */
 export function closeMessageStream() {
-  listeners.clear();
+  messageListeners.clear();
+  notificationListeners.clear();
   if (reconnectTimer) clearTimeout(reconnectTimer);
   if (es) { es.close(); es = null; }
 }

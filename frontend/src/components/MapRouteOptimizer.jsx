@@ -303,27 +303,15 @@ export default function MapRouteOptimizer() {
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
-
-    // Start watching for movement
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-        setLocationState({ status: 'success', coords, error: null });
-      },
-      () => {}, // silent — already handled by getCurrentPosition
-      { enableHighAccuracy: false, timeout: 30000, maximumAge: 120000 }
-    );
   }, [language]);
 
   useEffect(() => {
-    // eslint-disable-next-line no-void -- fire-and-forget async geolocation request
+    // Single-shot geolocation query upon user request/load — no continuous watchPosition
     void requestLocation();
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
   }, [requestLocation]);

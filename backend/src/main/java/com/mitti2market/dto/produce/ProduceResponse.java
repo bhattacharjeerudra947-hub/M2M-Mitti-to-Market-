@@ -35,8 +35,23 @@ public class ProduceResponse {
     private String imageUrl;
     private Double aiSuggestedMinPrice;
     private Double aiSuggestedMaxPrice;
+    private java.time.LocalDate readyDate;
     private ProduceStatus status;
     private String adminRemovalReason;
+    private FarmerDto farmer;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FarmerDto {
+        private Long id;
+        private String name;
+        private String profilePhotoUrl;
+        private Boolean verified;
+        private Double rating;
+        private String location;
+    }
 }

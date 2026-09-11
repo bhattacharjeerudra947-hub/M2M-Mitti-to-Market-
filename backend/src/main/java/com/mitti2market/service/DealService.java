@@ -31,6 +31,7 @@ public class DealService {
     private final DealStateMachineService stateMachine;
     private final BuyerRequirementService requirementService;
     private final BuyerRequirementRepository requirements;
+    private final BuyerMatchRepository matchRepo;
 
     private static final AtomicLong DEAL_COUNTER = new AtomicLong(10000);
 
@@ -224,6 +225,16 @@ public class DealService {
                     "Deal Locked!", "Deal " + deal.getDealId() + " has been locked. Choose logistics to proceed.");
             notificationService.createNotification(deal.getBuyer().getId(), Notification.NotificationType.DEAL_LOCKED,
                     "Deal Locked!", "Deal " + deal.getDealId() + " has been locked. Choose logistics to proceed.");
+            // Update BuyerMatch status if linked
+            if (deal.getProduce() != null && deal.getBuyerRequirement() != null) {
+                final String lockedDealId = deal.getDealId();
+                matchRepo.findByProduceIdAndBuyerRequirementId(deal.getProduce().getId(), deal.getBuyerRequirement().getId())
+                        .ifPresent(m -> {
+                            m.setStatus(BuyerMatch.MatchStatus.DEAL_LOCKED);
+                            m.setDealId(lockedDealId);
+                            matchRepo.save(m);
+                        });
+            }
         } else {
             sendDealMessage(deal.getConversationId(), "⏳ " + (userId.equals(deal.getFarmer().getId()) ? "Farmer" : "Buyer") + " has confirmed the deal. Waiting for the other party to confirm.");
         }
