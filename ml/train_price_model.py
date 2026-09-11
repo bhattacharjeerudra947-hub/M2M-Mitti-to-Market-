@@ -1,224 +1,442 @@
 """
-Mitti2Market — Crop Price Prediction Pipeline
-==============================================
+Mitti2Market - AI Crop Price Advisor
+------------------------------------
 
-Trains crop price prediction models on the Kaggle dataset:
-    himanshu9648/crop-price-prediction-dataset-in-india
+Uses the local Kaggle historical crop-price dataset to train
+a machine-learning model for next-month price movement.
 
-Usage (requires Python 3.10+ with pandas, scikit-learn, kagglehub):
-    pip install kagglehub pandas scikit-learn numpy
-    python ml/train_price_model.py
+Input:
+    ml/data/crop_price_dataset.csv
 
-Outputs:
-    backend/data/crop_price_model.json
-        - per-(crop, state, month) median/modal price statistics
-        - model metadata (dataset version, trained-at, coverage, metrics)
-    backend/data/crop_price_metrics.json
-        - MAE / RMSE / R² for the tested model variants
-
-The Spring Boot backend (DatasetPriceService) loads crop_price_model.json
-at startup and serves predictions from it. When the model file is absent the
-backend falls back to the live data.gov.in mandi API and labels the source
-accordingly — it NEVER invents numbers.
-
-Dataset columns are INSPECTED at runtime (we do not hardcode column names);
-the loader maps whatever columns exist onto a canonical schema.
+Output:
+    ml/models/price_model.pkl
+    ml/models/model_metrics.json
 """
 
 import json
-import re
-import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 
-MODEL_OUT = Path(__file__).resolve().parent.parent / "backend" / "data" / "crop_price_model.json"
-METRICS_OUT = Path(__file__).resolve().parent.parent / "backend" / "data" / "crop_price_metrics.json"
-
-DATASET = "himanshu9648/crop-price-prediction-dataset-in-india"
-
-CANONICAL_CANDIDATES = {
-    "crop": ["crop", "commodity", "crop_name", "produce", "item"],
-    "state": ["state", "state_name"],
-    "district": ["district", "district_name"],
-    "market": ["market", "market_name", "mandi", "apmc"],
-    "date": ["date", "price_date", "arrival_date", "report_date"],
-    "month": ["month"],
-    "year": ["year"],
-    "min_price": ["min_price", "minimum_price", "min", "lower_price"],
-    "max_price": ["max_price", "maximum_price", "max", "upper_price"],
-    "modal_price": ["modal_price", "mode_price", "average_price", "avg_price", "mean_price", "price"],
-}
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
 
 
-def load_dataset():
-    """Load via kagglehub; print the actual columns so the mapping is transparent."""
-    try:
-        import kagglehub
-        from kagglehub import KaggleDatasetAdapter
-    except ImportError:
-        sys.exit("kagglehub not installed — run: pip install kagglehub pandas scikit-learn numpy")
+# ---------------------------------------------------------
+# PATHS
+# ---------------------------------------------------------
 
-    files = ["crop_price_prediction_dataset.csv", "Crop_Price_Prediction_Dataset.csv",
-             "crop_prices.csv", "data.csv"]
-    last_err = None
-    for f in files:
-        try:
-            df = kagglehub.load_dataset(KaggleDatasetAdapter.PANDAS, DATASET, f)
-            print(f"[load] file={f} rows={len(df)}")
-            print(f"[load] columns={list(df.columns)}")
-            print(df.head(3))
-            return df
-        except Exception as e:  # noqa: BLE001
-            last_err = e
-            continue
-    sys.exit(f"Could not load dataset file (tried {files}): {last_err}")
+BASE_DIR = Path(__file__).resolve().parent
+
+DATA_FILE = BASE_DIR / "data" / "crop_price_dataset.csv"
+MODEL_DIR = BASE_DIR / "models"
+
+MODEL_FILE = MODEL_DIR / "price_model.pkl"
+METRICS_FILE = MODEL_DIR / "model_metrics.json"
 
 
-def canonicalize(df: pd.DataFrame) -> pd.DataFrame:
-    """Map the dataset's actual columns onto the canonical schema."""
-    cols = {c.lower().strip(): c for c in df.columns}
-    out = pd.DataFrame()
-    for canon, candidates in CANONICAL_CANDIDATES.items():
-        found = None
-        for cand in candidates:
-            if cand in cols:
-                found = cols[cand]
-                break
-        if found is not None:
-            out[canon] = df[found]
-        else:
-            out[canon] = np.nan
+# ---------------------------------------------------------
+# LOAD DATA
+# ---------------------------------------------------------
 
-    # Derive month/year from date when absent
-    if out["date"].notna().any():
-        dates = pd.to_datetime(out["date"], errors="coerce")
-        if out["month"].isna().all():
-            out["month"] = dates.dt.month
-        if out["year"].isna().all():
-            out["year"] = dates.dt.year
+def load_data():
 
-    # Prefer modal price; fall back to mean of min/max
-    price = out["modal_price"]
-    fallback = (pd.to_numeric(out["min_price"], errors="coerce")
-                + pd.to_numeric(out["max_price"], errors="coerce")) / 2
-    out["price"] = pd.to_numeric(price, errors="coerce").fillna(fallback)
+    print("\n======================================")
+    print("Mitti2Market AI Price Advisor")
+    print("======================================")
 
-    keep = ["crop", "state", "district", "market", "month", "year", "price"]
-    out = out[keep].copy()
-    out["crop"] = out["crop"].astype(str).str.lower().str.strip()
-    out["state"] = out["state"].astype(str).str.lower().str.strip()
-    out = out.replace({"nan": np.nan, "none": np.nan})
-    out = out.dropna(subset=["crop", "price"])
-    out = out[out["price"] > 0]
-    # Trim outliers at the 1st/99th percentile per crop (winsorize, not delete)
-    out["price"] = out.groupby("crop")["price"].transform(
-        lambda s: s.clip(s.quantile(0.01), s.quantile(0.99)))
-    return out
+    print(f"\n[1] Loading dataset:")
+    print(DATA_FILE)
+
+    if not DATA_FILE.exists():
+        raise FileNotFoundError(
+            f"\nDataset not found:\n{DATA_FILE}\n"
+            "Make sure crop_price_dataset.csv is inside ml/data/"
+        )
+
+    df = pd.read_csv(DATA_FILE)
+
+    print(f"[OK] Rows: {len(df)}")
+    print(f"[OK] Columns: {list(df.columns)}")
+
+    return df
 
 
-def evaluate(df: pd.DataFrame) -> dict:
-    """Time-aware validation for 3 baseline regressors on month-level stats."""
-    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-    from sklearn.linear_model import LinearRegression
-    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-    from sklearn.model_selection import train_test_split
+# ---------------------------------------------------------
+# CLEAN DATA
+# ---------------------------------------------------------
 
-    work = df.dropna(subset=["month"]).copy()
-    if work["year"].isna().all():
-        work["year"] = 2024
-    work["month"] = work["month"].astype(int)
-    work["year"] = work["year"].astype(int)
+def clean_data(df):
 
-    # Feature matrix: one-hot crop/state + month/year
-    feats = pd.get_dummies(work[["crop", "state"]], prefix=["c", "s"], dummy_na=True)
-    feats["month_sin"] = np.sin(2 * np.pi * work["month"] / 12)
-    feats["month_cos"] = np.cos(2 * np.pi * work["month"] / 12)
-    feats["year"] = work["year"]
-    y = work["price"]
+    print("\n[2] Cleaning dataset...")
 
-    # Sort by time; take the LAST 20% as validation (time-aware split)
-    order = work.sort_values(["year", "month"]).index
-    feats = feats.loc[order]
-    y = y.loc[order]
-    split = int(len(feats) * 0.8)
-    X_tr, X_va, y_tr, y_va = feats.iloc[:split], feats.iloc[split:], y.iloc[:split], y.iloc[split:]
-    if len(X_va) == 0:
-        return {"error": "not enough data for time-aware split"}
+    # Standardize column names
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+    )
 
-    models = {
-        "linear_regression": LinearRegression(),
-        "random_forest": RandomForestRegressor(n_estimators=120, min_samples_leaf=5, n_jobs=-1, random_state=42),
-        "gradient_boosting": GradientBoostingRegressor(n_estimators=200, learning_rate=0.08, max_depth=5, random_state=42),
+    required = [
+        "month",
+        "commodity_name",
+        "avg_modal_price",
+        "avg_min_price",
+        "avg_max_price",
+    ]
+
+    for column in required:
+        if column not in df.columns:
+            raise ValueError(
+                f"Required column missing: {column}"
+            )
+
+    # Convert prices to numeric
+    price_columns = [
+        "avg_modal_price",
+        "avg_min_price",
+        "avg_max_price",
+    ]
+
+    for column in price_columns:
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce"
+        )
+
+    # Convert month from YYYY-MM-DD to datetime
+    df["month"] = pd.to_datetime(
+        df["month"],
+        errors="coerce"
+    )
+
+    # Extract month number for seasonality
+    df["month_number"] = df["month"].dt.month
+
+    # Extract year
+    df["year"] = df["month"].dt.year
+
+    # Remove invalid rows
+    df = df.dropna(
+        subset=[
+            "commodity_name",
+            "month",
+            "avg_modal_price"
+        ]
+    )
+
+    # Remove impossible prices
+    df = df[df["avg_modal_price"] > 0]
+
+    # Standardize crop names
+    df["commodity_name"] = (
+        df["commodity_name"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    print(f"[OK] Usable rows: {len(df)}")
+    print(
+        f"[OK] Commodities: "
+        f"{df['commodity_name'].nunique()}"
+    )
+
+    return df
+
+
+# ---------------------------------------------------------
+# CREATE ML FEATURES
+# ---------------------------------------------------------
+
+def create_features(df):
+
+    print("\n[3] Creating historical price features...")
+
+    # Sort by commodity and month
+    df = df.sort_values(
+        ["commodity_name", "month"]
+    ).copy()
+
+    # Previous price
+    df["previous_price"] = (
+        df.groupby("commodity_name")
+        ["avg_modal_price"]
+        .shift(1)
+    )
+
+    # Two months ago
+    df["price_lag_2"] = (
+        df.groupby("commodity_name")
+        ["avg_modal_price"]
+        .shift(2)
+    )
+
+    # Three months ago
+    df["price_lag_3"] = (
+        df.groupby("commodity_name")
+        ["avg_modal_price"]
+        .shift(3)
+    )
+
+    # Rolling 3-month average
+    df["rolling_3_month"] = (
+        df.groupby("commodity_name")
+        ["avg_modal_price"]
+        .transform(
+            lambda x: x.shift(1)
+            .rolling(3)
+            .mean()
+        )
+    )
+
+    # Price range
+    df["price_range"] = (
+        df["avg_max_price"]
+        - df["avg_min_price"]
+    )
+
+    # Month seasonality
+    df["month_sin"] = np.sin(
+        2 * np.pi * df["month_number"] / 12
+    )
+
+    df["month_cos"] = np.cos(
+        2 * np.pi * df["month_number"] / 12
+    )
+
+    # TARGET:
+    # Next available price
+    df["target_price"] = (
+        df.groupby("commodity_name")
+        ["avg_modal_price"]
+        .shift(-1)
+    )
+
+    # Remove rows where historical features
+    # or target cannot be calculated
+    df = df.dropna(
+        subset=[
+            "previous_price",
+            "price_lag_2",
+            "price_lag_3",
+            "rolling_3_month",
+            "target_price"
+        ]
+    )
+
+    print(
+        f"[OK] ML rows after feature engineering: "
+        f"{len(df)}"
+    )
+
+    return df
+
+
+# ---------------------------------------------------------
+# TRAIN MODEL
+# ---------------------------------------------------------
+
+def train_model(df):
+
+    print("\n[4] Preparing training data...")
+
+    features = [
+        "commodity_name",
+        "month_number",
+        "previous_price",
+        "price_lag_2",
+        "price_lag_3",
+        "rolling_3_month",
+        "price_range",
+        "month_sin",
+        "month_cos",
+    ]
+
+    X = df[features]
+    y = df["target_price"]
+
+    # Chronological split
+    split_index = int(len(df) * 0.8)
+
+    X_train = X.iloc[:split_index]
+    X_test = X.iloc[split_index:]
+
+    y_train = y.iloc[:split_index]
+    y_test = y.iloc[split_index:]
+
+    print(f"[OK] Training rows: {len(X_train)}")
+    print(f"[OK] Testing rows:  {len(X_test)}")
+
+    # Categorical feature
+    categorical_features = [
+        "commodity_name"
+    ]
+
+    numerical_features = [
+        "month_number",
+        "previous_price",
+        "price_lag_2",
+        "price_lag_3",
+        "rolling_3_month",
+        "price_range",
+        "month_sin",
+        "month_cos",
+    ]
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            (
+                "commodity",
+                OneHotEncoder(
+                    handle_unknown="ignore"
+                ),
+                categorical_features,
+            )
+        ],
+        remainder="passthrough"
+    )
+
+    model = RandomForestRegressor(
+        n_estimators=300,
+        min_samples_leaf=2,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    pipeline = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("model", model)
+        ]
+    )
+
+    print("\n[5] Training Random Forest...")
+
+    pipeline.fit(X_train, y_train)
+
+    print("[OK] Model training completed.")
+
+    # -----------------------------------------------------
+    # EVALUATION
+    # -----------------------------------------------------
+
+    print("\n[6] Evaluating model...")
+
+    predictions = pipeline.predict(X_test)
+
+    predictions = np.maximum(
+        predictions,
+        0
+    )
+
+    mae = mean_absolute_error(
+        y_test,
+        predictions
+    )
+
+    rmse = np.sqrt(
+        mean_squared_error(
+            y_test,
+            predictions
+        )
+    )
+
+    r2 = r2_score(
+        y_test,
+        predictions
+    )
+
+    metrics = {
+        "model": "RandomForestRegressor",
+        "training_rows": int(len(X_train)),
+        "testing_rows": int(len(X_test)),
+        "MAE": round(float(mae), 2),
+        "RMSE": round(float(rmse), 2),
+        "R2": round(float(r2), 4),
     }
 
-    results = {}
-    for name, model in models.items():
-        model.fit(X_tr, y_tr)
-        pred = np.maximum(model.predict(X_va), 0)
-        results[name] = {
-            "MAE": round(float(mean_absolute_error(y_va, pred)), 3),
-            "RMSE": round(float(np.sqrt(mean_squared_error(y_va, pred))), 3),
-            "R2": round(float(r2_score(y_va, pred)), 4),
-        }
-        print(f"[eval] {name}: {results[name]}")
-    return results
+    print("\n======================================")
+    print("MODEL RESULTS")
+    print("======================================")
+
+    print(f"MAE  : ₹{mae:.2f}")
+    print(f"RMSE : ₹{rmse:.2f}")
+    print(f"R²   : {r2:.4f}")
+
+    return pipeline, metrics
 
 
-def build_lookup(df: pd.DataFrame) -> dict:
-    """Aggregate price stats per (crop, state, month) — the shipped 'model'."""
-    grp = df.groupby(["crop", "state", "month"], dropna=True)["price"]
-    lookup = {}
-    for (crop, state, month), prices in grp:
-        key = f"{crop}|{state}|{int(month)}"
-        lookup[key] = {
-            "median": round(float(prices.median()), 2),
-            "p25": round(float(prices.quantile(0.25)), 2),
-            "p75": round(float(prices.quantile(0.75)), 2),
-            "samples": int(len(prices)),
-        }
-    # Crop-level fallback for (crop, month) and crop overall
-    for (crop, month), prices in df.groupby(["crop", "month"])["price"]:
-        lookup[f"{crop}||{int(month)}"] = {
-            "median": round(float(prices.median()), 2),
-            "p25": round(float(prices.quantile(0.25)), 2),
-            "p75": round(float(prices.quantile(0.75)), 2),
-            "samples": int(len(prices)),
-        }
-    for crop, prices in df.groupby("crop")["price"]:
-        lookup[f"{crop}||"] = {
-            "median": round(float(prices.median()), 2),
-            "p25": round(float(prices.quantile(0.25)), 2),
-            "p75": round(float(prices.quantile(0.75)), 2),
-            "samples": int(len(prices)),
-        }
-    return lookup
+# ---------------------------------------------------------
+# SAVE MODEL
+# ---------------------------------------------------------
 
+def save_model(model, metrics):
+
+    print("\n[7] Saving model...")
+
+    MODEL_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    joblib.dump(
+        model,
+        MODEL_FILE
+    )
+
+    with open(
+        METRICS_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            metrics,
+            f,
+            indent=4
+        )
+
+    print(
+        f"[OK] Model saved:\n{MODEL_FILE}"
+    )
+
+    print(
+        f"[OK] Metrics saved:\n{METRICS_FILE}"
+    )
+
+
+# ---------------------------------------------------------
+# MAIN
+# ---------------------------------------------------------
 
 def main():
-    print("== Mitti2Market crop price pipeline ==")
-    raw = load_dataset()
-    df = canonicalize(raw)
-    print(f"[clean] usable rows: {len(df)}  crops: {df['crop'].nunique()}  states: {df['state'].nunique()}")
 
-    metrics = evaluate(df)
-    lookup = build_lookup(df)
+    df = load_data()
 
-    MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
-    model = {
-        "trainedAt": datetime.now(timezone.utc).isoformat(),
-        "dataset": DATASET,
-        "rows": len(df),
-        "crops": sorted(df["crop"].dropna().unique().tolist()),
-        "states": sorted(df["state"].dropna().unique().tolist()),
-        "lookup": lookup,
-    }
-    MODEL_OUT.write_text(json.dumps(model))
-    METRICS_OUT.write_text(json.dumps(metrics, indent=2))
-    print(f"[done] model  -> {MODEL_OUT} ({MODEL_OUT.stat().st_size / 1e6:.1f} MB, {len(lookup)} keys)")
-    print(f"[done] metrics -> {METRICS_OUT}")
+    df = clean_data(df)
+
+    df = create_features(df)
+
+    model, metrics = train_model(df)
+
+    save_model(
+        model,
+        metrics
+    )
+
+    print("\n======================================")
+    print("SUCCESS")
+    print("======================================")
+
+    print(
+        "\nYour AI price model is ready."
+    )
 
 
 if __name__ == "__main__":
