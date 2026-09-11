@@ -8,6 +8,8 @@ import lombok.Data;
 @Builder
 @AllArgsConstructor
 public class AuthResponse {
+    @Builder.Default
+    private Boolean success = true;
     private String token;
     private String refreshToken;
     private String message;

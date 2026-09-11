@@ -27,6 +27,7 @@ public class BuyerRequirementService {
     private final UserRepository users;
     private final ProduceRepository produceRepo;
     private final NotificationService notificationService;
+    private final MatchingService matchingService;
 
     /** Create a new buyer requirement. */
     @Transactional
@@ -70,7 +71,10 @@ public class BuyerRequirementService {
             } catch (IllegalArgumentException ignored) {}
         }
 
-        return requirementRepo.save(req);
+        BuyerRequirement saved = requirementRepo.save(req);
+        // Two-way matching Trigger B: match existing active produce listings against this new requirement
+        matchingService.matchRequirementAgainstProduces(saved);
+        return saved;
     }
 
     /** List the buyer's own requirements. */
@@ -268,7 +272,9 @@ public class BuyerRequirementService {
         }
 
         req.setStatus(newStatus);
-        return requirementRepo.save(req);
+        BuyerRequirement saved = requirementRepo.save(req);
+        matchingService.handleRequirementStatusChange(saved);
+        return saved;
     }
 
     /** Safe response map — never exposes the buyer's full entity. */

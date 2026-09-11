@@ -9,10 +9,13 @@ import M2MLogo from '../components/M2MLogo';
 import { useAuth } from '../context/AuthContext';
 import {
   sendMobileOtp, verifyMobileOtp, resendMobileOtp, lookupIfsc,
-  uploadDocument, saveFarmerProfile, saveBusinessProfile, updateProfile
+  uploadDocument, saveFarmerProfile, saveBusinessProfile, updateProfile,
+  isLoggedIn
 } from '../services/api';
 import { INDIAN_STATES, getDistricts } from '../data/indiaLocations';
 import DocumentModalPreview from '../components/DocumentModalPreview';
+import TermsModal from '../components/TermsModal';
+import { FARMER_TERMS, BUSINESS_TERMS } from '../data/termsAndConditions';
 
 const DRAFT_STORAGE_KEY = 'm2m_signup_wizard_draft';
 
@@ -62,6 +65,7 @@ export default function SignUp() {
       bankIfscCode: '',
       bankName: '',
       bankBranchName: '',
+      bankPassbookDoc: null,
       farmerAgreeTerms: false,
       // Business KYC Details
       gstin: '',
@@ -93,6 +97,10 @@ export default function SignUp() {
   // Document Preview Modal
   const [previewDoc, setPreviewDoc] = useState({ isOpen: false, title: '', url: '', mimeType: '' });
 
+  // Terms & Conditions Modal
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsModalRole, setTermsModalRole] = useState('farmer');
+
   // Uploading states per document slot
   const [uploadingSlot, setUploadingSlot] = useState(null);
 
@@ -120,6 +128,18 @@ export default function SignUp() {
       setFormData((prev) => ({ ...prev, step: 5 }));
     }
   }, [isAuthenticated, user]);
+
+  // Check if session is authenticated
+  const isUserAuthenticated = isAuthenticated || isLoggedIn();
+
+  const handleAcceptTermsFromModal = (acceptedRole) => {
+    if (acceptedRole === 'farmer' || formData.accountType === 'farmer') {
+      update('farmerAgreeTerms', true);
+    }
+    if (acceptedRole === 'business' || formData.accountType === 'business') {
+      update('businessAgreeTerms', true);
+    }
+  };
 
   const update = (key, val) => {
     setFormData((prev) => ({ ...prev, [key]: val }));
@@ -420,14 +440,21 @@ export default function SignUp() {
   // ─────────────────────────────────────────────────────────────
   const handleDocumentFileSelect = async (file, docType, slotKey) => {
     if (!file) return;
+
+    if (!isAuthenticated && !isLoggedIn()) {
+      setGlobalError('Authentication required. Please complete your account registration in Step 2 or sign in before uploading verification documents.');
+      return;
+    }
+
     setUploadingSlot(slotKey);
     setGlobalError('');
 
     const res = await uploadDocument(file, docType);
     setUploadingSlot(null);
 
-    if (res.ok && res.data?.data) {
-      update(slotKey, res.data.data);
+    const docData = res.data?.data || res.data;
+    if (res.ok && docData) {
+      update(slotKey, docData);
     } else {
       setGlobalError(res.error || 'Document upload failed. Ensure file is under 5MB (PDF or JPG/PNG).');
     }
@@ -462,6 +489,9 @@ export default function SignUp() {
       }
       if (!formData.bankBranchName) {
         errs.bankIfscCode = 'Valid IFSC required to auto-fetch branch name';
+      }
+      if (!formData.bankPassbookDoc) {
+        errs.bankPassbookDoc = 'Bank Passbook / Cancelled Cheque upload is mandatory';
       }
       if (!formData.farmerAgreeTerms) {
         errs.farmerAgreeTerms = 'You must agree to the Terms & Conditions and Privacy Policy';
@@ -658,7 +688,8 @@ export default function SignUp() {
       <div className="max-w-2xl mx-auto">
         {/* Top Header & Logo */}
         <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="inline-flex items-center"><M2MLogo /></Link>            <Link to="/login" className="text-xs font-semibold text-navy-700 hover:underline">
+          <Link to="/" className="inline-flex items-center"><M2MLogo /></Link>
+          <Link to="/login" className="text-xs font-semibold text-navy-700 hover:underline">
             Already registered? Sign In
           </Link>
         </div>
@@ -702,6 +733,36 @@ export default function SignUp() {
             <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-200 rounded-2xl mb-6 text-xs text-red-700 animate-in fade-in">
               <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
               <span>{globalError}</span>
+            </div>
+          )}
+
+          {/* Unauthenticated Session Guard Banner for Steps 3 and 4 */}
+          {!isUserAuthenticated && formData.step >= 3 && (
+            <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 mb-6 space-y-3 animate-in fade-in">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-amber-950">Active Session Required for KYC & Verification</h4>
+                  <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                    You need an authenticated account to save location details and upload government verification documents. Please complete your registration at Step 2 or sign in if your account is already created.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => goToStep(2)}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Go to Step 2 (Create Account)
+                </button>
+                <Link
+                  to="/login"
+                  className="px-3 py-1.5 bg-white border border-amber-300 text-amber-950 hover:bg-amber-100 rounded-xl text-xs font-semibold transition shadow-2xs"
+                >
+                  Sign In to Existing Account
+                </Link>
+              </div>
             </div>
           )}
 
@@ -783,7 +844,7 @@ export default function SignUp() {
                   {formData.accountType === 'farmer' ? 'Farmer Basic Details' : 'Business Basic Details'}
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Verify your mobile number via MSG91 OTP and set account credentials
+                  Verify your mobile number and set account credentials
                 </p>
               </div>
 
@@ -870,22 +931,24 @@ export default function SignUp() {
                         }`}
                       />
                     </div>
-                    <button
-                      type="button"
-                      disabled={otpLoading || timerSeconds > 0 || formData.phone.length !== 10 || formData.otpVerified}
-                      onClick={handleSendOtp}
-                      className="px-4 py-2.5 bg-navy-900 text-white font-semibold rounded-xl text-xs hover:bg-navy-800 disabled:opacity-50 transition shrink-0 flex items-center gap-1.5"
-                    >
-                      {otpLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : timerSeconds > 0 ? (
-                        `Resend (${timerSeconds}s)`
-                      ) : formData.otpSent ? (
-                        'Resend OTP'
-                      ) : (
-                        'Send OTP'
-                      )}
-                    </button>
+                    {!formData.otpVerified && (
+                      <button
+                        type="button"
+                        disabled={otpLoading || timerSeconds > 0 || formData.phone.length !== 10}
+                        onClick={handleSendOtp}
+                        className="px-4 py-2.5 bg-navy-900 text-white font-semibold rounded-xl text-xs hover:bg-navy-800 disabled:opacity-50 transition shrink-0 flex items-center gap-1.5"
+                      >
+                        {otpLoading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : timerSeconds > 0 ? (
+                          `Resend (${timerSeconds}s)`
+                        ) : formData.otpSent ? (
+                          'Resend OTP'
+                        ) : (
+                          'Send OTP'
+                        )}
+                      </button>
+                    )}
                   </div>
                   {fieldErrors.phone && <p className="text-[11px] text-red-500 mt-1">{fieldErrors.phone}</p>}
                 </div>
@@ -929,7 +992,7 @@ export default function SignUp() {
                 {formData.otpVerified && (
                   <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold animate-in fade-in">
                     <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Mobile number verified successfully via MSG91</span>
+                    <span>Mobile number verified</span>
                   </div>
                 )}
               </div>
@@ -1282,7 +1345,7 @@ export default function SignUp() {
                     />
                   </div>
 
-                  {/* 4. Bank Details with Automatic IFSC Lookup */}
+                  {/* 4. Bank Details with Automatic IFSC Lookup & Passbook Upload */}
                   <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
                     <h3 className="font-bold text-xs text-gray-900 flex items-center gap-1.5">
                       <CreditCard className="w-4 h-4 text-emerald-600" /> Bank Account Details
@@ -1341,11 +1404,24 @@ export default function SignUp() {
                         </p>
                       </div>
                     )}
+
+                    {/* Integrated Bank Passbook Upload Slot */}
+                    <DocumentSlot
+                      label="Bank Passbook / Cancelled Cheque"
+                      slotKey="bankPassbookDoc"
+                      docType="BANK_PASSBOOK"
+                      mandatory={true}
+                      existingDoc={formData.bankPassbookDoc}
+                    />
                   </div>
 
-                  {/* 5. Terms & Policy Checkbox */}
+                  {/* 5. Terms & Conditions Agreement */}
                   <div className="pt-2">
-                    <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <label className={`flex items-start gap-3 cursor-pointer p-4 rounded-2xl transition ${
+                      fieldErrors.farmerAgreeTerms
+                        ? 'bg-red-50 border-2 border-red-300'
+                        : 'bg-amber-50/50 border border-amber-200/80 hover:border-amber-300'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={formData.farmerAgreeTerms}
@@ -1353,11 +1429,25 @@ export default function SignUp() {
                         className="mt-0.5 w-4 h-4 text-navy-900 rounded border-gray-300 focus:ring-mustard-400"
                       />
                       <span className="text-xs text-gray-700 leading-relaxed">
-                        I agree to the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong>.
+                        I have read, understood, and agree to the{' '}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTermsModalRole('farmer');
+                            setTermsModalOpen(true);
+                          }}
+                          className="font-bold text-navy-900 underline hover:text-mustard-700 inline-flex items-center gap-1"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-mustard-600 inline" />
+                          Terms & Conditions
+                        </button>
+                        , Code of Conduct, Document Verification Policies, and Privacy Policy. I confirm all submitted documents and bank details are authentic.
+                        <span className="text-red-500 font-bold ml-1">*</span>
                       </span>
                     </label>
                     {fieldErrors.farmerAgreeTerms && (
-                      <p className="text-[11px] text-red-500 mt-1 px-1">{fieldErrors.farmerAgreeTerms}</p>
+                      <p className="text-[11px] text-red-500 mt-1 px-1 font-semibold">{fieldErrors.farmerAgreeTerms}</p>
                     )}
                   </div>
                 </div>
@@ -1439,9 +1529,13 @@ export default function SignUp() {
                     />
                   </div>
 
-                  {/* 4. Terms & Policy Checkbox */}
+                  {/* 4. Terms & Conditions Agreement */}
                   <div className="pt-2">
-                    <label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <label className={`flex items-start gap-3 cursor-pointer p-4 rounded-2xl transition ${
+                      fieldErrors.businessAgreeTerms
+                        ? 'bg-red-50 border-2 border-red-300'
+                        : 'bg-slate-50 border border-slate-200 hover:border-slate-300'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={formData.businessAgreeTerms}
@@ -1449,11 +1543,25 @@ export default function SignUp() {
                         className="mt-0.5 w-4 h-4 text-navy-900 rounded border-gray-300 focus:ring-mustard-400"
                       />
                       <span className="text-xs text-gray-700 leading-relaxed">
-                        I agree to the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong>.
+                        I have read, understood, and agree to the{' '}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTermsModalRole('business');
+                            setTermsModalOpen(true);
+                          }}
+                          className="font-bold text-navy-900 underline hover:text-navy-700 inline-flex items-center gap-1"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-navy-800 inline" />
+                          Terms & Conditions
+                        </button>
+                        , Procurement Code of Conduct, Document Verification Requirements, and Privacy Policy. I confirm our enterprise credentials are valid.
+                        <span className="text-red-500 font-bold ml-1">*</span>
                       </span>
                     </label>
                     {fieldErrors.businessAgreeTerms && (
-                      <p className="text-[11px] text-red-500 mt-1 px-1">{fieldErrors.businessAgreeTerms}</p>
+                      <p className="text-[11px] text-red-500 mt-1 px-1 font-semibold">{fieldErrors.businessAgreeTerms}</p>
                     )}
                   </div>
                 </div>
@@ -1577,6 +1685,14 @@ export default function SignUp() {
         docTitle={previewDoc.title}
         docUrl={previewDoc.url}
         mimeType={previewDoc.mimeType}
+      />
+
+      {/* Terms & Conditions Modal */}
+      <TermsModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        role={termsModalRole}
+        onAccept={handleAcceptTermsFromModal}
       />
     </div>
   );

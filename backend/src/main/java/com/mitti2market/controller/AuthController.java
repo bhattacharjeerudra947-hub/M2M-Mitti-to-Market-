@@ -35,8 +35,8 @@ public class AuthController {
         this.businessProfiles = businessProfiles;
     }
 
-    /** POST /api/auth/register */
-    @PostMapping("/register")
+    /** POST /api/auth/register or /api/auth/signup */
+    @PostMapping({"/register", "/signup"})
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
         // Validate phone
         String phone = req.getPhone() != null ? req.getPhone().replaceAll("\\s+", "").trim() : "";
@@ -146,7 +146,10 @@ public class AuthController {
     /** POST /api/auth/login — email or mobile number + BCrypt password */
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
-        String identifier = req.getEmail() != null ? req.getEmail().trim() : "";
+        String identifier = req.getIdentifier();
+        if (identifier.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email or mobile number is required"));
+        }
         Optional<User> userOpt;
         if (identifier.contains("@")) {
             userOpt = users.findByEmail(identifier.toLowerCase());
@@ -210,9 +213,10 @@ public class AuthController {
                 User.Role expectedRole = User.Role.valueOf(req.getRole().trim().toUpperCase());
                 if (user.getRole() != expectedRole) {
                     String roleName = roleLabel(user.getRole());
-                    String msg = "failed to login";
+                    String msg = "failed to login: This account is registered as a " + roleName + ". Please use the " + roleName + " login.";
                     return ResponseEntity.status(403).body(Map.of(
                             "success", false,
+                            "code", "ROLE_MISMATCH",
                             "message", msg,
                             "error", msg
                     ));
@@ -235,7 +239,7 @@ public class AuthController {
      * POST /api/auth/farmer/login — only FARMER accounts may authenticate here.
      * Rejects BUSINESS and ADMIN accounts with 401 + a clear message.
      */
-    @PostMapping("/farmer/login")
+    @PostMapping({"/farmer/login", "/login/farmer"})
     public ResponseEntity<?> farmerLogin(@Valid @RequestBody LoginRequest req) {
         return roleLockedLogin(req, User.Role.FARMER, "Farmer");
     }
@@ -244,7 +248,7 @@ public class AuthController {
      * POST /api/auth/business/login — only BUSINESS accounts may authenticate here.
      * Rejects FARMER and ADMIN accounts with 401 + a clear message.
      */
-    @PostMapping("/business/login")
+    @PostMapping({"/business/login", "/login/business"})
     public ResponseEntity<?> businessLogin(@Valid @RequestBody LoginRequest req) {
         return roleLockedLogin(req, User.Role.BUSINESS, "Business/Buyer");
     }
@@ -255,7 +259,7 @@ public class AuthController {
      * This is a privileged endpoint; it is permitted by the public /api/auth/** matcher
      * but the method itself enforces admin-only access at the auth layer.
      */
-    @PostMapping("/admin/login")
+    @PostMapping({"/admin/login", "/login/admin"})
     public ResponseEntity<?> adminLogin(@Valid @RequestBody LoginRequest req) {
         return roleLockedLogin(req, User.Role.ADMIN, "Admin");
     }
@@ -266,7 +270,10 @@ public class AuthController {
      * match the expected role for this endpoint.
      */
     private ResponseEntity<?> roleLockedLogin(LoginRequest req, User.Role expectedRole, String portalName) {
-        String identifier = req.getEmail() != null ? req.getEmail().trim() : "";
+        String identifier = req.getIdentifier();
+        if (identifier.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email or mobile number is required"));
+        }
         Optional<User> userOpt;
         if (identifier.contains("@")) {
             userOpt = users.findByEmail(identifier.toLowerCase());
@@ -334,9 +341,10 @@ public class AuthController {
         // correct login portal rather than being left guessing.
         if (user.getRole() != expectedRole) {
             String roleName = roleLabel(user.getRole());
-            String msg = "failed to login";
+            String msg = "failed to login: This account is registered as a " + roleName + ". Please use the " + roleName + " login.";
             return ResponseEntity.status(403).body(Map.of(
                     "success", false,
+                    "code", "ROLE_MISMATCH",
                     "message", msg,
                     "error", msg
             ));

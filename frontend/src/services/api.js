@@ -304,19 +304,40 @@ export async function updateProfilePhoto(photoUrl) {
 }
 
 export async function uploadProfilePicture(file) {
+  let token = getStoredToken();
+  if (!token) {
+    return { ok: false, error: 'Authentication required. Please sign in to upload profile photo.' };
+  }
+
   const formData = new FormData();
   formData.append('file', file);
 
-  const token = getStoredToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const headers = { Authorization: `Bearer ${token}` };
 
   try {
-    const res = await fetch(`${API_BASE}/users/profile-picture`, {
+    let res = await fetch(`${API_BASE}/users/profile-picture`, {
       method: 'POST',
       headers,
       body: formData,
     });
+
+    if (res.status === 401) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        token = getStoredToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+          res = await fetch(`${API_BASE}/users/profile-picture`, {
+            method: 'POST',
+            headers,
+            body: formData,
+          });
+        }
+      } else {
+        clearTokens();
+        return { ok: false, error: 'Session expired. Please sign in again.' };
+      }
+    }
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       const userData = data.data || data;
@@ -387,20 +408,42 @@ export async function getBusinessProfile() {
  * @param {string} documentType - e.g. PROFILE_PHOTO, IDENTITY_DOC, BUSINESS_REGISTRATION
  */
 export async function uploadDocument(file, documentType) {
+  let token = getStoredToken();
+  if (!token) {
+    return { ok: false, error: 'Authentication required. Please sign in or register to upload documents.' };
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('documentType', documentType);
 
-  const token = getStoredToken();
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const headers = { Authorization: `Bearer ${token}` };
 
   try {
-    const res = await fetch(`${API_BASE}/documents/upload`, {
+    let res = await fetch(`${API_BASE}/documents/upload`, {
       method: 'POST',
       headers,
       body: formData,
     });
+
+    // If 401, attempt to refresh token and retry upload once
+    if (res.status === 401) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        token = getStoredToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+          res = await fetch(`${API_BASE}/documents/upload`, {
+            method: 'POST',
+            headers,
+            body: formData,
+          });
+        }
+      } else {
+        clearTokens();
+        return { ok: false, error: 'Session expired. Please sign in again.' };
+      }
+    }
     const data = await res.json().catch(() => ({}));
     if (res.ok) return { ok: true, data };
     return { ok: false, error: data.message || data.error || 'Upload failed' };

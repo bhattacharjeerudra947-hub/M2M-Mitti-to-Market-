@@ -22,6 +22,7 @@ public class ProduceService {
     private final ProduceRepository produceRepository;
     private final UserRepository userRepository;
     private final MarketDataService marketDataService;
+    private final MatchingService matchingService;
 
     public ProduceResponse create(ProduceRequest request) {
         User farmer = userRepository.findById(request.getFarmerId())
@@ -54,7 +55,7 @@ public class ProduceService {
                 .pricePerUnit(request.getPricePerUnit())
                 .description(request.getDescription())
                 .location(request.getLocation())
-                .imageUrl(request.getImageUrl())
+                .readyDate(request.getReadyDate())
                 .idempotencyKey(key)
                 .status(ProduceStatus.AVAILABLE)
                 .build();
@@ -64,6 +65,8 @@ public class ProduceService {
 
         try {
             Produce saved = produceRepository.save(produce);
+            // Two-way matching Trigger A: match against existing active bulk requirements
+            matchingService.matchProduceAgainstRequirements(saved);
             return toResponse(saved);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             // Unique-constraint race: two identical requests arrived concurrently.
@@ -180,11 +183,14 @@ public class ProduceService {
         produce.setDescription(request.getDescription());
         produce.setLocation(request.getLocation());
         produce.setImageUrl(request.getImageUrl());
+        produce.setReadyDate(request.getReadyDate());
 
         // Recompute AI price band on update
         computeAiPriceBand(produce);
 
         Produce saved = produceRepository.save(produce);
+        // Retrigger matching on changes
+        matchingService.matchProduceAgainstRequirements(saved);
         return toResponse(saved);
     }
 
@@ -194,6 +200,7 @@ public class ProduceService {
 
         produce.setStatus(status);
         Produce saved = produceRepository.save(produce);
+        matchingService.handleProduceStatusChange(saved);
         return toResponse(saved);
     }
 
@@ -203,6 +210,7 @@ public class ProduceService {
         // Soft delete: mark status as REMOVED instead of dropping row
         produce.setStatus(ProduceStatus.REMOVED);
         produceRepository.save(produce);
+        matchingService.handleProduceStatusChange(produce);
     }
 
     /**
@@ -237,11 +245,21 @@ public class ProduceService {
         Double rating = farmer != null ? farmer.getRating() : 0.0;
         String farmerType = farmer != null && farmer.getFarmerType() != null ? farmer.getFarmerType().name() : null;
 
+        ProduceResponse.FarmerDto farmerDto = farmer != null ? ProduceResponse.FarmerDto.builder()
+                .id(farmer.getId())
+                .name(farmer.getName())
+                .profilePhotoUrl(photoUrl)
+                .verified(isVer)
+                .rating(rating)
+                .location(farmer.getLocation())
+                .build() : null;
+
         return ProduceResponse.builder()
                 .id(produce.getId())
                 .farmerId(farmer != null ? farmer.getId() : null)
                 .farmerName(farmer != null ? farmer.getName() : null)
                 .farmerProfilePhotoUrl(photoUrl)
+                .farmer(farmerDto)
                 .farmerVerified(isVer)
                 .farmerRating(rating)
                 .farmerType(farmerType)
@@ -257,6 +275,7 @@ public class ProduceService {
                 .description(produce.getDescription())
                 .location(produce.getLocation())
                 .imageUrl(produce.getImageUrl())
+                .readyDate(produce.getReadyDate())
                 .aiSuggestedMinPrice(produce.getAiSuggestedMinPrice())
                 .aiSuggestedMaxPrice(produce.getAiSuggestedMaxPrice())
                 .status(produce.getStatus())

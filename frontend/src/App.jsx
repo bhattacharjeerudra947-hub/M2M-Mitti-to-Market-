@@ -44,7 +44,9 @@ import DealWorkspace from './pages/DealWorkspace';
 import OfflineDrafts from './pages/OfflineDrafts';
 import DealAdvisor from './pages/DealAdvisor';
 import BuyerRequirements from './pages/BuyerRequirements';
+import FarmerMatches from './pages/FarmerMatches';
 import MessagePopup from './components/MessagePopup';
+import LiveNotificationToast from './components/LiveNotificationToast';
 import Locations from './pages/Locations';
 import RoleChoiceModal from './components/RoleChoiceModal';
 import AuthRequiredModal from './components/AuthRequiredModal';
@@ -194,6 +196,7 @@ export default function App() {
       <AuthProvider>
         <GlobalAccountStatusBanner />
         <MessagePopup />
+        <LiveNotificationToast />
         <RoleChoiceModal />
         <AuthRequiredModal />
         <RouteFade>
@@ -226,6 +229,7 @@ export default function App() {
             <Route index element={<FarmerDashboard />} />
             <Route path="produce" element={<FarmerProducts />} />
             <Route path="add-produce" element={<AddProduce />} />
+            <Route path="matches" element={<FarmerMatches />} />
             <Route path="price-advisor" element={<PriceAdvisorPage />} />
             <Route path="buyer-requests" element={<BuyerRequests />} />
             <Route path="deal-advisor" element={<DealAdvisor />} />

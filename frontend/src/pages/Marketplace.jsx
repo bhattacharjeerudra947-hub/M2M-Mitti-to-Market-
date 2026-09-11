@@ -167,7 +167,18 @@ export default function Marketplace() {
                           <span className="w-3.5 h-3.5">📍</span>
                           {product.location || 'India'}
                         </span>
-                        {product.farmerName && <span>by {product.farmerName}</span>}
+                        {product.farmerName && (
+                          <span className="flex items-center gap-1.5">
+                            {(product.farmerProfilePhotoUrl || product.farmer?.profilePhotoUrl) && (
+                              <img
+                                src={product.farmerProfilePhotoUrl || product.farmer?.profilePhotoUrl}
+                                alt={product.farmerName}
+                                className="w-4 h-4 rounded-full object-cover border border-gray-200"
+                              />
+                            )}
+                            by {product.farmerName}
+                          </span>
+                        )}
                       </div>
                     </div>
 
