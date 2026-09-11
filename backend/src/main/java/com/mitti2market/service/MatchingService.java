@@ -139,9 +139,7 @@ public class MatchingService {
         List<String> reasons = new ArrayList<>();
 
         // 1. Crop Match (30%)
-        String pCrop = produce.getName() != null ? produce.getName().trim().toLowerCase() : "";
-        String rCrop = req.getCrop() != null ? req.getCrop().trim().toLowerCase() : "";
-        boolean cropMatch = isCropCompatible(pCrop, rCrop);
+        boolean cropMatch = com.mitti2market.util.CropNormalizer.matches(produce.getName(), req.getCrop());
         eval.isCropMatch = cropMatch;
 
         if (cropMatch) {
@@ -175,7 +173,7 @@ public class MatchingService {
             eval.matchType = MatchType.PARTIAL;
         }
 
-        // 3. Price Match (20%)
+        // 3. Price Match (20%) - Deterministic ±5% or ₹5 rule
         Double pPrice = produce.getPricePerUnit();
         Double rMin = req.getMinPrice();
         Double rMax = req.getMaxPrice();
@@ -184,15 +182,24 @@ public class MatchingService {
             if (rMax == null && rMin == null) {
                 totalScore += 20;
                 reasons.add("✓ Price compatible (₹" + pPrice + "/" + produce.getUnit() + ")");
-            } else if (rMax != null && pPrice <= rMax) {
-                totalScore += 20;
-                reasons.add("✓ Price compatible (Farmer ₹" + pPrice + " ≤ Buyer budget ₹" + rMax + ")");
-            } else if (rMax != null && pPrice <= rMax * 1.15) {
-                totalScore += 10;
-                reasons.add("⚠ Price negotiable (Farmer ₹" + pPrice + " close to Buyer budget ₹" + rMax + ")");
             } else {
-                totalScore += 2;
-                reasons.add("✗ Farmer price ₹" + pPrice + " above buyer budget ₹" + rMax);
+                double targetPrice = rMax != null ? rMax : (rMin != null ? rMin : pPrice);
+                double diff = Math.abs(pPrice - targetPrice);
+                double pctDiff = targetPrice > 0 ? (diff / targetPrice) * 100.0 : 0.0;
+
+                if (rMax != null && pPrice <= rMax) {
+                    totalScore += 20;
+                    reasons.add("✓ Price compatible (Farmer ₹" + pPrice + " ≤ Buyer budget ₹" + rMax + ")");
+                } else if (pctDiff <= 5.0 || diff <= 5.0) {
+                    totalScore += 18;
+                    reasons.add("✓ Price within ±5% / ₹5 threshold (Farmer ₹" + pPrice + " vs Target ₹" + targetPrice + ")");
+                } else if (rMax != null && pPrice <= rMax * 1.15) {
+                    totalScore += 10;
+                    reasons.add("⚠ Price negotiable (Farmer ₹" + pPrice + " close to Buyer budget ₹" + rMax + ")");
+                } else {
+                    totalScore += 2;
+                    reasons.add("✗ Farmer price ₹" + pPrice + " exceeds buyer budget ₹" + rMax);
+                }
             }
         } else {
             totalScore += 10;
@@ -255,32 +262,10 @@ public class MatchingService {
     }
 
     private boolean isCropCompatible(String crop1, String crop2) {
-        if (crop1.isEmpty() || crop2.isEmpty()) return false;
-        if (crop1.equals(crop2)) return true;
-        if (crop1.contains(crop2) || crop2.contains(crop1)) return true;
-
-        // Common synonyms / transliterations
-        Map<String, Set<String>> synonyms = Map.of(
-                "mango", Set.of("aam", "alphonso", "kesar", "dasheri", "langra"),
-                "potato", Set.of("aloo", "alu"),
-                "tomato", Set.of("tamatar"),
-                "onion", Set.of("pyaz", "kanda"),
-                "wheat", Set.of("gehun", "gehu"),
-                "rice", Set.of("chawal", "dhan", "basmati"),
-                "banana", Set.of("kela"),
-                "apple", Set.of("seb")
-        );
-
-        for (Map.Entry<String, Set<String>> entry : synonyms.entrySet()) {
-            boolean has1 = crop1.contains(entry.getKey()) || entry.getValue().stream().anyMatch(crop1::contains);
-            boolean has2 = crop2.contains(entry.getKey()) || entry.getValue().stream().anyMatch(crop2::contains);
-            if (has1 && has2) return true;
-        }
-
-        return false;
+        return com.mitti2market.util.CropNormalizer.matches(crop1, crop2);
     }
 
-    private BuyerMatch saveOrUpdateMatch(Produce produce, BuyerRequirement req, MatchEvaluation eval, boolean notifyFarmer) {
+    private BuyerMatch saveOrUpdateMatch(Produce produce, BuyerRequirement req, MatchEvaluation eval, boolean notifyParties) {
         Optional<BuyerMatch> existingOpt = matchRepo.findByProduceIdAndBuyerRequirementId(produce.getId(), req.getId());
 
         String reasonsJson;
@@ -319,26 +304,22 @@ public class MatchingService {
 
         match = matchRepo.save(match);
 
-        // Notify the FARMER (and ONLY the farmer receives actionable match prompt!)
-        if (isBrandNew && notifyFarmer && produce.getFarmer() != null) {
-            notifyFarmerOfMatch(match, produce, req, eval.score);
+        // Notify BOTH Farmer and Buyer when a new match is generated (with deduplication)
+        if (isBrandNew && notifyParties && match.getNotifiedAt() == null) {
+            match.setNotifiedAt(LocalDateTime.now());
+            match = matchRepo.save(match);
+            notifyPartiesOfMatch(match, produce, req, eval.score);
         }
 
         return match;
     }
 
-    private void notifyFarmerOfMatch(BuyerMatch match, Produce produce, BuyerRequirement req, int score) {
-        match.setNotifiedAt(LocalDateTime.now());
-        matchRepo.save(match);
-
+    private void notifyPartiesOfMatch(BuyerMatch match, Produce produce, BuyerRequirement req, int score) {
         String buyerName = req.getBuyer() != null ? req.getBuyer().getName() : "Bulk Buyer";
+        String farmerName = produce.getFarmer() != null ? produce.getFarmer().getName() : "Farmer";
         String cropName = produce.getName();
         String reqQty = (req.getRemainingQuantity() != null ? req.getRemainingQuantity() : req.getQuantity()) + " " + req.getUnit();
         String budget = req.getMaxPrice() != null ? ("₹" + req.getMaxPrice() + "/" + req.getUnit()) : "Market Rate";
-
-        String title = "🎉 NEW MATCH FOUND";
-        String body = "Your " + cropName + " listing matches a bulk buyer.\n" +
-                buyerName + "\nWants: " + reqQty + "\nBudget: up to " + budget + "\nAI Match: " + score + "%";
 
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("matchId", match.getId());
@@ -347,6 +328,7 @@ public class MatchingService {
         meta.put("crop", cropName);
         meta.put("score", score);
         meta.put("buyerName", buyerName);
+        meta.put("farmerName", farmerName);
 
         String metaJson;
         try {
@@ -355,15 +337,39 @@ public class MatchingService {
             metaJson = "{}";
         }
 
-        notificationService.createNotification(
-                produce.getFarmer().getId(),
-                Notification.NotificationType.NEW_MATCH,
-                title,
-                body,
-                match.getId(),
-                "MATCH",
-                metaJson
-        );
+        // Notify Farmer
+        if (produce.getFarmer() != null) {
+            String farmerTitle = "🎉 NEW MATCH FOUND";
+            String farmerBody = "Your " + cropName + " listing matches a bulk buyer.\n" +
+                    buyerName + "\nWants: " + reqQty + "\nBudget: up to " + budget + "\nAI Match: " + score + "%";
+
+            notificationService.createNotification(
+                    produce.getFarmer().getId(),
+                    Notification.NotificationType.NEW_MATCH,
+                    farmerTitle,
+                    farmerBody,
+                    match.getId(),
+                    "MATCH",
+                    metaJson
+            );
+        }
+
+        // Notify Buyer as well
+        if (req.getBuyer() != null) {
+            String buyerTitle = "🌾 NEW CROP SUPPLY MATCH";
+            String buyerBody = "A farmer (" + farmerName + ") has supply matching your bulk requirement for " + cropName +
+                    " (" + produce.getQuantity() + " " + produce.getUnit() + " at ₹" + produce.getPricePerUnit() + "/" + produce.getUnit() + "). Match: " + score + "%";
+
+            notificationService.createNotification(
+                    req.getBuyer().getId(),
+                    Notification.NotificationType.NEW_MATCH,
+                    buyerTitle,
+                    buyerBody,
+                    match.getId(),
+                    "MATCH",
+                    metaJson
+            );
+        }
     }
 
     /**

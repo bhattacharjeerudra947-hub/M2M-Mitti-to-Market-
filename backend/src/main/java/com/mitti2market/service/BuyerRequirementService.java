@@ -122,12 +122,16 @@ public class BuyerRequirementService {
         BuyerRequirement req = requirementRepo.findById(requirementId)
                 .orElseThrow(() -> new ResourceNotFoundException("Requirement", "id", requirementId));
 
-        List<Produce> candidates = produceRepo.findByNameContainingIgnoreCase(req.getCrop());
+        List<Produce> allProduces = produceRepo.findAll();
         List<Map<String, Object>> matches = new ArrayList<>();
 
-        for (Produce p : candidates) {
+        int reqQty = req.getRemainingQuantity() != null ? req.getRemainingQuantity() :
+                     (req.getRequiredQuantity() != null ? req.getRequiredQuantity() : req.getQuantity());
+
+        for (Produce p : allProduces) {
             if (p.getStatus() != ProduceStatus.AVAILABLE && p.getStatus() != ProduceStatus.LOW_STOCK && p.getStatus() != ProduceStatus.PARTIALLY_SOLD) continue;
-            if (p.getQuantity() < req.getQuantity()) continue;
+            if (p.getQuantity() == null || p.getQuantity() <= 0) continue;
+            if (!com.mitti2market.util.CropNormalizer.matches(p.getName(), req.getCrop())) continue;
 
             Map<String, Object> match = new LinkedHashMap<>();
             match.put("produceId", p.getId());
@@ -136,19 +140,40 @@ public class BuyerRequirementService {
             match.put("unit", p.getUnit());
             match.put("pricePerUnit", p.getPricePerUnit());
             match.put("location", p.getLocation());
-            match.put("farmerId", p.getFarmer().getId());
-            match.put("farmerName", p.getFarmer().getName());
-            match.put("farmerVerified", p.getFarmer().getVerified());
+            if (p.getFarmer() != null) {
+                match.put("farmerId", p.getFarmer().getId());
+                match.put("farmerName", p.getFarmer().getName());
+                match.put("farmerVerified", p.getFarmer().getVerified());
+            } else {
+                match.put("farmerId", null);
+                match.put("farmerName", "Unknown Farmer");
+                match.put("farmerVerified", false);
+            }
             match.put("imageUrl", p.getImageUrl());
 
-            // Price compatibility
+            // Quantity status
+            boolean fullQuantity = p.getQuantity() >= reqQty;
+            match.put("fullQuantity", fullQuantity);
+            match.put("quantityNote", fullQuantity ? "Full requirement met" : "Partial supply (" + p.getQuantity() + " " + p.getUnit() + ")");
+
+            // Price compatibility (with deterministic ±5% / ₹5 threshold)
+            Double pPrice = p.getPricePerUnit();
             boolean priceOk = true;
             String priceNote = "Within target price";
-            if (req.getMaxPrice() != null && p.getPricePerUnit() > req.getMaxPrice()) {
-                priceOk = false;
-                priceNote = "Above your max price of ₹" + req.getMaxPrice();
-            } else if (req.getMinPrice() != null && p.getPricePerUnit() < req.getMinPrice()) {
-                priceNote = "Below your min price of ₹" + req.getMinPrice();
+            if (pPrice != null) {
+                if (req.getMaxPrice() != null && pPrice > req.getMaxPrice()) {
+                    double diff = pPrice - req.getMaxPrice();
+                    double pctDiff = req.getMaxPrice() > 0 ? (diff / req.getMaxPrice()) * 100.0 : 0.0;
+                    if (pctDiff <= 5.0 || diff <= 5.0) {
+                        priceOk = true;
+                        priceNote = "Negotiable (Within 5% / ₹5 of max budget)";
+                    } else {
+                        priceOk = false;
+                        priceNote = "Above max price of ₹" + req.getMaxPrice();
+                    }
+                } else if (req.getMinPrice() != null && pPrice < req.getMinPrice()) {
+                    priceNote = "Below min price of ₹" + req.getMinPrice();
+                }
             }
             match.put("priceCompatible", priceOk);
             match.put("priceNote", priceNote);
@@ -156,8 +181,12 @@ public class BuyerRequirementService {
             matches.add(match);
         }
 
-        // Best matches first
-        matches.sort((a, b) -> Boolean.compare(!(Boolean) b.get("priceCompatible"), !(Boolean) a.get("priceCompatible")));
+        // Best matches first (price compatible and then full quantity)
+        matches.sort((a, b) -> {
+            int cmpPrice = Boolean.compare((Boolean) b.get("priceCompatible"), (Boolean) a.get("priceCompatible"));
+            if (cmpPrice != 0) return cmpPrice;
+            return Boolean.compare((Boolean) b.get("fullQuantity"), (Boolean) a.get("fullQuantity"));
+        });
         return matches;
     }
 

@@ -31,6 +31,7 @@ public class AdminController {
     private final DealRepository dealRepository;
     private final DisputeRepository disputeRepository;
     private final ProduceService produceService;
+    private final AppealService appealService;
     private final TokenService tokens;
 
     private Long extractAdminId(String authHeader) {
@@ -134,6 +135,46 @@ public class AdminController {
         String reason = body != null ? (String) body.getOrDefault("reason", "Account restored.") : "Account restored.";
         User user = adminService.restoreUser(adminId, id, reason);
         return ResponseEntity.ok(ApiResponse.ok("User restored", adminService.toUserSummary(user)));
+    }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<?> deleteUser(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        Long adminId = extractAdminId(authHeader);
+        String reason = body != null ? (String) body.getOrDefault("reason", "Account deleted by admin.") : "Account deleted by admin.";
+        User user = adminService.deleteUser(adminId, id, reason);
+        return ResponseEntity.ok(ApiResponse.ok("User deleted successfully", adminService.toUserSummary(user)));
+    }
+
+    // ─── Appeal Management Endpoints ─────────────────────────────────
+
+    @GetMapping("/appeals")
+    public ResponseEntity<?> getAppeals(@RequestParam(required = false) String status) {
+        return ResponseEntity.ok(ApiResponse.ok(appealService.getAppealsForAdmin(status)));
+    }
+
+    @GetMapping("/appeals/{id}")
+    public ResponseEntity<?> getAppealDetails(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(appealService.getAppealDetails(id)));
+    }
+
+    @PutMapping("/appeals/{id}/review")
+    public ResponseEntity<?> reviewAppeal(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id) {
+        Long adminId = extractAdminId(authHeader);
+        return ResponseEntity.ok(ApiResponse.ok("Appeal marked under review", appealService.markUnderReview(adminId, id)));
+    }
+
+    @PutMapping("/appeals/{id}/decide")
+    public ResponseEntity<?> decideAppeal(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable Long id,
+            @RequestBody com.mitti2market.dto.appeal.AppealDecisionRequest request) {
+        Long adminId = extractAdminId(authHeader);
+        return ResponseEntity.ok(ApiResponse.ok("Appeal decision recorded", appealService.decideAppeal(adminId, id, request)));
     }
 
     @GetMapping("/verifications")

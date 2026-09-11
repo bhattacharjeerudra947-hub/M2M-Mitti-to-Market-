@@ -201,3 +201,25 @@ export async function getDisputes(status) {
 export async function getAuditLog() {
   return adminRequest('GET', '/audit-log');
 }
+
+export async function deleteUser(id, reason) {
+  const params = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+  return adminRequest('DELETE', `/users/${id}${params}`);
+}
+
+export async function getAppeals(status) {
+  const q = status ? `?status=${status}` : '';
+  return adminRequest('GET', `/appeals${q}`);
+}
+
+export async function getAppealDetails(id) {
+  return adminRequest('GET', `/appeals/${id}`);
+}
+
+export async function reviewAppeal(id, adminNotes) {
+  return adminRequest('PUT', `/appeals/${id}/review`, { adminNotes });
+}
+
+export async function decideAppeal(id, decision, adminNotes) {
+  return adminRequest('PUT', `/appeals/${id}/decide`, { decision, adminNotes });
+}

@@ -66,6 +66,8 @@ export default function Profile() {
   const [farmerProfile, setFarmerProfile] = useState(null);
   const [businessProfile, setBusinessProfile] = useState(null);
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'documents'
+  const [showGpsModal, setShowGpsModal] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -139,6 +141,44 @@ export default function Profile() {
     setForm({ name: profileData?.name || '', phone: profileData?.phone || '', location: profileData?.location || '' });
     setEditing(false);
     setError('');
+  };
+
+  const fetchCurrentLocation = () => {
+    setShowGpsModal(false);
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          // One-shot reverse geocoding using open nominatim
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          if (res.ok) {
+            const data = await res.json();
+            const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || data.address?.state_district;
+            const state = data.address?.state;
+            const formatted = [city, state].filter(Boolean).join(', ') || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setForm((prev) => ({ ...prev, location: formatted }));
+            setSuccess(`Location updated to ${formatted}`);
+            setTimeout(() => setSuccess(''), 3000);
+          } else {
+            setForm((prev) => ({ ...prev, location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` }));
+          }
+        } catch {
+          setForm((prev) => ({ ...prev, location: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}` }));
+        } finally {
+          setLocating(false);
+        }
+      },
+      (err) => {
+        setLocating(false);
+        setError('Unable to fetch your GPS coordinates. Please enter your location manually.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const handleDocumentUploaded = async (doc) => {
@@ -327,10 +367,25 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
 
                 {/* Location */}
                 <div>
-                  <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1.5">Location</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide">Location</label>
+                    {editing && (
+                      <button
+                        type="button"
+                        onClick={() => setShowGpsModal(true)}
+                        disabled={locating}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1 transition"
+                      >
+                        {locating ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
+                        Use Current Location
+                      </button>
+                    )}
+                  </div>
                   {editing ? (
-                    <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition" /></div>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition" placeholder="e.g. Nashik, Maharashtra" />
+                    </div>
                   ) : (
                     <p className="text-sm text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-400" />{profileData?.location || '—'}</p>
                   )}
@@ -470,6 +525,37 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
           </div>
         </div>
       </div>
+
+      {/* GPS Confirmation Modal */}
+      {showGpsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mb-4">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Use Current Location</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Mitti to Market respects your privacy. We only take a single GPS reading now to populate your city and state on your profile. We do NOT continuously track your location.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowGpsModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={fetchCurrentLocation}
+                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-sm"
+              >
+                Allow Location Access
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

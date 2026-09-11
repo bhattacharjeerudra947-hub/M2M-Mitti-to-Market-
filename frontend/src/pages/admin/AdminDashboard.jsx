@@ -91,6 +91,7 @@ export default function AdminDashboard() {
   ];
 
   const attentionItems = [
+    { to: '/admin/appeals', label: 'Suspension appeals awaiting review', count: stats?.pendingAppeals, urgent: true },
     { to: '/admin/verifications?status=PENDING', label: 'Verifications awaiting review', count: stats?.pendingVerification, urgent: true },
     { to: '/admin/reports', label: 'Open reports to investigate', count: stats?.openReports, urgent: true },
     { to: '/admin/feedback', label: 'New feedback submissions', count: stats?.pendingFeedback },

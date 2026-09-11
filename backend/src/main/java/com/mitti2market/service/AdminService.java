@@ -30,6 +30,7 @@ public class AdminService {
     private final FeedbackRepository feedbackRepository;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final AppealRepository appealRepository;
 
     /** Calculate high-level platform statistics for the Admin Dashboard */
     public Map<String, Object> getPlatformStats() {
@@ -59,6 +60,7 @@ public class AdminService {
         long activeUsers = userRepository.countByStatus(UserStatus.ACTIVE);
         long suspendedUsers = userRepository.countByStatus(UserStatus.SUSPENDED);
         long deactivatedUsers = userRepository.countByStatus(UserStatus.DEACTIVATED);
+        long pendingAppeals = appealRepository.countByStatus(Appeal.AppealStatus.PENDING);
 
         // Core 17 metrics
         stats.put("totalUsers", totalUsers);
@@ -71,6 +73,7 @@ public class AdminService {
         stats.put("activeUsers", activeUsers);
         stats.put("suspendedUsers", suspendedUsers);
         stats.put("deactivatedUsers", deactivatedUsers);
+        stats.put("pendingAppeals", pendingAppeals);
 
         // Aliases for compatibility
         stats.put("pendingApplications", pending);
@@ -387,6 +390,50 @@ public class AdminService {
 
         notificationService.createNotification(userId, Notification.NotificationType.ACCOUNT_RESTORED,
                 "Account Restored", "Your account has been reactivated.", userId, "USER");
+
+        return user;
+    }
+
+    /** Admin action to permanently/soft delete user account safely */
+    @Transactional
+    public User deleteUser(Long adminId, Long userId, String reason) {
+        if (adminId != null && adminId.equals(userId)) {
+            throw new BadRequestException("You cannot delete your own admin account.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        User admin = adminId != null ? userRepository.findById(adminId).orElse(null) : null;
+
+        user.setStatus(UserStatus.DELETED);
+        user.setDeletedAt(LocalDateTime.now());
+        user.setPasswordHash(""); // Revoke credentials immediately
+        user.setStatusReason(reason != null && !reason.isBlank() ? reason : "Account deleted by administration.");
+        user.setStatusUpdatedAt(LocalDateTime.now());
+        user.setStatusUpdatedBy(admin != null ? admin.getName() : "ADMIN");
+        userRepository.save(user);
+
+        // Deactivate any active produce listings
+        List<Produce> userProduces = produceRepository.findByFarmerId(userId);
+        for (Produce p : userProduces) {
+            if (p.getStatus() == Produce.ProduceStatus.AVAILABLE || p.getStatus() == Produce.ProduceStatus.LOW_STOCK) {
+                p.setStatus(Produce.ProduceStatus.REMOVED);
+                produceRepository.save(p);
+            }
+        }
+
+        // Cancel any open buyer requirements
+        List<BuyerRequirement> userReqs = buyerRequirementRepository.findByBuyerIdOrderByCreatedAtDesc(userId);
+        for (BuyerRequirement r : userReqs) {
+            if (r.getStatus() == BuyerRequirement.RequirementStatus.OPEN || r.getStatus() == BuyerRequirement.RequirementStatus.MATCHED) {
+                r.setStatus(BuyerRequirement.RequirementStatus.CANCELLED);
+                buyerRequirementRepository.save(r);
+            }
+        }
+
+        auditLogService.log(adminId, "ADMIN_DELETED_USER", "USER", userId, reason,
+                "Deleted user account " + user.getName() + " (" + (user.getEmail() != null ? user.getEmail() : user.getPhone()) + ")");
 
         return user;
     }

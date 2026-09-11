@@ -122,13 +122,21 @@ public class TwoWayMatchingAndDealTest {
         BuyerMatch match = matches.get(0);
         assertTrue(match.getMatchScore() >= 90, "AI match score should be >= 90%, actual: " + match.getMatchScore());
 
-        // Verify Notification sent to FARMER
-        assertEquals(1, notificationService.notifications.size());
-        Notification n = notificationService.notifications.get(0);
-        assertEquals(farmer.getId(), n.getUser().getId());
-        assertEquals(Notification.NotificationType.NEW_MATCH, n.getType());
-        assertTrue(n.getTitle().contains("MATCH FOUND"));
-        assertTrue(n.getBody().contains("ABC Foods"));
+        // Verify Notification sent to BOTH Farmer and Buyer
+        assertEquals(2, notificationService.notifications.size());
+        Notification nFarmer = notificationService.notifications.stream()
+                .filter(notif -> notif.getUser().getId().equals(farmer.getId()))
+                .findFirst().orElse(null);
+        assertNotNull(nFarmer);
+        assertEquals(Notification.NotificationType.NEW_MATCH, nFarmer.getType());
+        assertTrue(nFarmer.getTitle().contains("MATCH FOUND"));
+        assertTrue(nFarmer.getBody().contains("ABC Foods"));
+
+        Notification nBuyer = notificationService.notifications.stream()
+                .filter(notif -> notif.getUser().getId().equals(buyer.getId()))
+                .findFirst().orElse(null);
+        assertNotNull(nBuyer);
+        assertEquals(Notification.NotificationType.NEW_MATCH, nBuyer.getType());
 
         // 3. Absolute Rule Test: Buyer cannot start deal
         assertThrows(BadRequestException.class, () -> {
@@ -141,9 +149,12 @@ public class TwoWayMatchingAndDealTest {
         assertEquals("conv-1-2-p101", dealStartResult.get("conversationId"));
         assertEquals(MatchStatus.DEAL_STARTED.name(), dealStartResult.get("status"));
 
-        // Verify buyer is notified that farmer started the deal
-        assertEquals(2, notificationService.notifications.size());
-        Notification buyerNotif = notificationService.notifications.get(1);
+        // Verify buyer is notified that farmer started the deal (now 3 notifications total: 2 for match + 1 for deal started)
+        assertEquals(3, notificationService.notifications.size());
+        Notification buyerNotif = notificationService.notifications.stream()
+                .filter(notif -> notif.getType() == Notification.NotificationType.DEAL_STARTED)
+                .findFirst().orElse(null);
+        assertNotNull(buyerNotif);
         assertEquals(buyer.getId(), buyerNotif.getUser().getId());
         assertEquals(Notification.NotificationType.DEAL_STARTED, buyerNotif.getType());
         assertTrue(buyerNotif.getTitle().contains("Deal Initiated"));
@@ -202,12 +213,20 @@ public class TwoWayMatchingAndDealTest {
         BuyerMatch match = matches.get(0);
         assertTrue(match.getMatchScore() >= 90, "AI match score should be >= 90%, actual: " + match.getMatchScore());
 
-        // Verify Farmer receives match notification
-        assertEquals(1, notificationService.notifications.size());
-        Notification n = notificationService.notifications.get(0);
-        assertEquals(farmer.getId(), n.getUser().getId());
-        assertEquals(Notification.NotificationType.NEW_MATCH, n.getType());
-        assertTrue(n.getTitle().contains("MATCH FOUND"));
+        // Verify Notification sent to BOTH Farmer and Buyer
+        assertEquals(2, notificationService.notifications.size());
+        Notification nFarmer = notificationService.notifications.stream()
+                .filter(notif -> notif.getUser().getId().equals(farmer.getId()))
+                .findFirst().orElse(null);
+        assertNotNull(nFarmer);
+        assertEquals(Notification.NotificationType.NEW_MATCH, nFarmer.getType());
+        assertTrue(nFarmer.getTitle().contains("MATCH FOUND"));
+
+        Notification nBuyer = notificationService.notifications.stream()
+                .filter(notif -> notif.getUser().getId().equals(buyer.getId()))
+                .findFirst().orElse(null);
+        assertNotNull(nBuyer);
+        assertEquals(Notification.NotificationType.NEW_MATCH, nBuyer.getType());
     }
 
     /**
@@ -530,10 +549,6 @@ public class TwoWayMatchingAndDealTest {
         public List<Produce> findAll(Sort sort) { return findAll(); }
         @Override
         public Page<Produce> findAll(Pageable pageable) { return null; }
-        @Override
-        public long countByStatusIn(List<Produce.ProduceStatus> statuses) {
-            return data.values().stream().filter(p -> statuses.contains(p.getStatus())).count();
-        }
     }
 
     static class InMemoryRequirementRepository implements BuyerRequirementRepository {
@@ -635,13 +650,5 @@ public class TwoWayMatchingAndDealTest {
         public List<BuyerRequirement> findAll(Sort sort) { return findAll(); }
         @Override
         public Page<BuyerRequirement> findAll(Pageable pageable) { return null; }
-        @Override
-        public long countByStatusIn(List<BuyerRequirement.RequirementStatus> statuses) {
-            return data.values().stream().filter(r -> statuses.contains(r.getStatus())).count();
-        }
-        @Override
-        public List<BuyerRequirement> findByCropIgnoreCaseAndStatus(String crop, BuyerRequirement.RequirementStatus status) {
-            return data.values().stream().filter(r -> r.getCrop().equalsIgnoreCase(crop) && r.getStatus() == status).toList();
-        }
     }
 }

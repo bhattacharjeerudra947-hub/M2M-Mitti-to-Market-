@@ -84,12 +84,13 @@ export default function BulkOrder() {
 
   const loadMatches = async (reqId) => {
     setLoadingMatches(true);
+    setError('');
     try {
       const data = await apiGet(`/api/requirements/${reqId}/matches`);
-      setMatches({ requirementId: reqId, supply: data || [] });
+      setMatches({ requirementId: reqId, supply: Array.isArray(data) ? data : [] });
     } catch (err) {
       if (err.message?.includes('Session expired')) { navigate('/login'); return; }
-      setError(err.message);
+      setError(`Failed to retrieve matches: ${err.message || 'Server error'}`);
     } finally {
       setLoadingMatches(false);
     }
