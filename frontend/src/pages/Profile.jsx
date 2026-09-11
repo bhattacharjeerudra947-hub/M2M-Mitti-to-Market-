@@ -37,6 +37,8 @@ const DOC_TYPE_LABELS = {
   PROFILE_PHOTO: '📷 Profile Photo',
   AADHAAR_CARD: '🪪 Aadhaar Card',
   IDENTITY_DOC: '📄 Identity Document',
+  LAND_CULTIVATION_PROOF: '🌾 Land / Cultivation Proof',
+  BANK_PASSBOOK: '🏦 Bank Passbook / Cheque',
   BUSINESS_REGISTRATION: '📋 Business Registration',
   GST_CERTIFICATE: '📜 GST Certificate',
   PAN_CARD: '💳 PAN Card',

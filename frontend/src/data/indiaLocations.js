@@ -195,7 +195,7 @@ export const INDIA_LOCATIONS = {
     "Samba", "Shopian", "Srinagar", "Udhampur"
   ],
   "Ladakh": [
-    "Kargil", "Leh"
+    "Changthang", "Drass", "Kargil", "Leh", "Nubra", "Sham", "Zanskar"
   ],
   "Lakshadweep": [
     "Lakshadweep"
