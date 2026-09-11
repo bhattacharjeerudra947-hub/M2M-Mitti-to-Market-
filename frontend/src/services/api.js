@@ -338,7 +338,10 @@ export async function uploadProfilePicture(file) {
         return { ok: false, error: 'Session expired. Please sign in again.' };
       }
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 616472b0728fdd33270a2185308c69c4bb3dcc28
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
       const userData = data.data || data;
@@ -445,7 +448,10 @@ export async function uploadDocument(file, documentType) {
         return { ok: false, error: 'Session expired. Please sign in again.' };
       }
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 616472b0728fdd33270a2185308c69c4bb3dcc28
     const data = await res.json().catch(() => ({}));
     if (res.ok) return { ok: true, data };
     return { ok: false, error: data.message || data.error || 'Upload failed' };
@@ -460,4 +466,18 @@ export async function getMyDocuments() {
 
 export async function deleteDocument(documentId) {
   return request('DELETE', `/documents/${documentId}`);
+}
+
+/* ───────── Appeals ───────── */
+
+export async function submitAppeal(data) {
+  return request('POST', '/appeals', data);
+}
+
+export async function getMyAppeals() {
+  return request('GET', '/appeals/my');
+}
+
+export async function getAppeal(id) {
+  return request('GET', `/appeals/${id}`);
 }

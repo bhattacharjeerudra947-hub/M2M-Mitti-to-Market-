@@ -319,7 +319,6 @@ export default function FarmerRegistration() {
               label="Profile Photo"
               isPhoto={true}
             />
-
             {/* Terms & Conditions Agreement */}
             <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3 pt-3">
               <div className="flex items-center justify-between gap-3">

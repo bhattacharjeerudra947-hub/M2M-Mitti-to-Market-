@@ -124,6 +124,15 @@ public class OrderService {
             order.setExpectedDeliveryDate(request.getExpectedDeliveryDate());
         }
 
+        // If delivered and produce quantity is 0 or less, ensure SOLD_OUT status
+        if (request.getStatus() == OrderStatus.DELIVERED && order.getProduce() != null) {
+            Produce produce = order.getProduce();
+            if (produce.getQuantity() != null && produce.getQuantity() <= 0) {
+                produce.setStatus(ProduceStatus.SOLD_OUT);
+                produceRepository.save(produce);
+            }
+        }
+
         Order saved = orderRepository.save(order);
         return toResponse(saved);
     }
@@ -140,31 +149,34 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         Order saved = orderRepository.save(order);
 
-        // Restore quantity to produce listing
+        // Restore quantity to produce listing if produce exists
         Produce produce = order.getProduce();
-        produce.setQuantity(produce.getQuantity() + order.getQuantity());
+        if (produce != null && order.getQuantity() != null) {
+            int currentQty = produce.getQuantity() != null ? produce.getQuantity() : 0;
+            produce.setQuantity(currentQty + order.getQuantity());
 
-        // Restore produce status if it was LOW_STOCK or SOLD_OUT
-        if (produce.getStatus() == ProduceStatus.SOLD_OUT || produce.getStatus() == ProduceStatus.LOW_STOCK) {
-            produce.setStatus(ProduceStatus.AVAILABLE);
+            // Restore produce status if it was LOW_STOCK or SOLD_OUT
+            if (produce.getStatus() == ProduceStatus.SOLD_OUT || produce.getStatus() == ProduceStatus.LOW_STOCK) {
+                produce.setStatus(ProduceStatus.AVAILABLE);
+            }
+            produceRepository.save(produce);
         }
-
-        produceRepository.save(produce);
 
         return toResponse(saved);
     }
 
     private OrderResponse toResponse(Order order) {
+        if (order == null) return null;
         return OrderResponse.builder()
                 .id(order.getId())
-                .produceId(order.getProduce().getId())
-                .produceName(order.getProduce().getName())
-                .buyerId(order.getBuyer().getId())
-                .buyerName(order.getBuyer().getName())
-                .farmerId(order.getFarmer().getId())
-                .farmerName(order.getFarmer().getName())
-                .quantity(order.getQuantity())
-                .totalPrice(order.getTotalPrice())
+                .produceId(order.getProduce() != null ? order.getProduce().getId() : null)
+                .produceName(order.getProduce() != null ? order.getProduce().getName() : "Produce Item")
+                .buyerId(order.getBuyer() != null ? order.getBuyer().getId() : null)
+                .buyerName(order.getBuyer() != null ? order.getBuyer().getName() : "Buyer")
+                .farmerId(order.getFarmer() != null ? order.getFarmer().getId() : null)
+                .farmerName(order.getFarmer() != null ? order.getFarmer().getName() : "Farmer")
+                .quantity(order.getQuantity() != null ? order.getQuantity() : 0)
+                .totalPrice(order.getTotalPrice() != null ? order.getTotalPrice() : 0.0)
                 .deliveryAddress(order.getDeliveryAddress())
                 .status(order.getStatus())
                 .logisticsPartner(order.getLogisticsPartner())

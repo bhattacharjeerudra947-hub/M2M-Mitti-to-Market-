@@ -109,6 +109,12 @@ public class User {
 
     private String statusUpdatedBy;
 
+    private LocalDateTime suspendedAt;
+
+    private LocalDateTime deactivatedAt;
+
+    private LocalDateTime deletedAt;
+
     @Builder.Default
     private Double rating = 0.0;
 
@@ -135,8 +141,11 @@ public class User {
 
     public enum UserStatus {
         ACTIVE,
+        PENDING_VERIFICATION,
+        REJECTED,
         SUSPENDED,
-        DEACTIVATED
+        DEACTIVATED,
+        DELETED
     }
 
     public enum AuthProvider {

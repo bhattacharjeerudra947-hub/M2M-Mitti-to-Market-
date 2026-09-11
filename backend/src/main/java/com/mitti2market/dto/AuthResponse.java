@@ -8,6 +8,8 @@ import lombok.Data;
 @Builder
 @AllArgsConstructor
 public class AuthResponse {
+    @Builder.Default
+    private Boolean success = true;
     private String token;
     private String refreshToken;
     private String message;
@@ -35,6 +37,9 @@ public class AuthResponse {
         private String status;
         private String statusReason;
         private java.time.LocalDateTime statusUpdatedAt;
+        private java.time.LocalDateTime suspendedAt;
+        private java.time.LocalDateTime deactivatedAt;
+        private java.time.LocalDateTime deletedAt;
         private java.time.LocalDateTime verifiedAt;
         private String verifiedBy;
     }

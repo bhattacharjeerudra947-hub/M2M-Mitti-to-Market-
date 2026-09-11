@@ -15,22 +15,44 @@ public class NotificationService {
 
     private final NotificationRepository notifications;
     private final UserRepository users;
+    private final MessageEventService messageEventService;
 
     public void createNotification(Long userId, Notification.NotificationType type, String title, String body) {
-        createNotification(userId, type, title, body, null, null);
+        createNotification(userId, type, title, body, null, null, null);
     }
 
     public void createNotification(Long userId, Notification.NotificationType type, String title, String body, Long referenceId, String referenceType) {
+        createNotification(userId, type, title, body, referenceId, referenceType, null);
+    }
+
+    public Notification createNotification(Long userId, Notification.NotificationType type, String title, String body, Long referenceId, String referenceType, String metadata) {
         User user = users.findById(userId).orElse(null);
-        if (user == null) return;
-        notifications.save(Notification.builder()
+        if (user == null) return null;
+
+        Notification notif = notifications.save(Notification.builder()
                 .user(user)
                 .type(type)
                 .title(title)
                 .body(body)
                 .referenceId(referenceId)
                 .referenceType(referenceType)
+                .metadata(metadata)
                 .build());
+
+        // Instant SSE push for real-time popups/toasts
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", notif.getId());
+        payload.put("type", notif.getType().name());
+        payload.put("title", notif.getTitle());
+        payload.put("body", notif.getBody());
+        payload.put("referenceId", notif.getReferenceId());
+        payload.put("referenceType", notif.getReferenceType());
+        payload.put("metadata", notif.getMetadata());
+        payload.put("createdAt", notif.getCreatedAt());
+
+        messageEventService.publishNotification(userId, payload);
+
+        return notif;
     }
 
     public List<Map<String, Object>> getForUser(Long userId) {
@@ -43,6 +65,7 @@ public class NotificationService {
                     map.put("body", n.getBody());
                     map.put("referenceId", n.getReferenceId());
                     map.put("referenceType", n.getReferenceType());
+                    map.put("metadata", n.getMetadata());
                     map.put("read", n.getIsRead());
                     map.put("createdAt", n.getCreatedAt());
                     return map;
@@ -55,5 +78,12 @@ public class NotificationService {
 
     public void markAllRead(Long userId) {
         notifications.markAllAsRead(userId);
+    }
+
+    public void markAsRead(Long notificationId) {
+        notifications.findById(notificationId).ifPresent(n -> {
+            n.setIsRead(true);
+            notifications.save(n);
+        });
     }
 }

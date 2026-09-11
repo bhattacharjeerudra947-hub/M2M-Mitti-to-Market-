@@ -76,11 +76,12 @@ export default function BuyerRequirements() {
   const viewMatches = async (reqId) => {
     setLoadingMatches(true);
     setMatches(null);
+    setError('');
     try {
       const data = await apiGet(`/api/requirements/${reqId}/matches`);
-      setMatches({ requirementId: reqId, supply: data || [] });
+      setMatches({ requirementId: reqId, supply: Array.isArray(data) ? data : [] });
     } catch (err) {
-      setError(err.message);
+      setError(`Failed to retrieve matches: ${err.message || 'Server error'}`);
     } finally {
       setLoadingMatches(false);
     }
@@ -283,11 +284,35 @@ export default function BuyerRequirements() {
                   )}
                   {matches?.requirementId === req.id && !loadingMatches && (
                     <div className="mt-4 border-t border-gray-100 pt-3">
-                      <p className="text-xs font-bold text-navy-900 mb-2 flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Matching farmer supply</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-bold text-navy-900 flex items-center gap-1">
+                          <Truck className="w-3.5 h-3.5 text-navy-700" />
+                          {matches.supply.length > 0 ? `Matching farmer supply (${matches.supply.length})` : 'Matching farmer supply'}
+                        </p>
+                        {matches.supply.length > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
+                            ✓ Matching farmer found
+                          </span>
+                        )}
+                      </div>
+
                       {matches.supply.length === 0 ? (
-                        <p className="text-xs text-gray-500">No farmer listings currently match this requirement.</p>
+                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 text-center">
+                          <p className="text-xs font-semibold text-navy-800">No matching farmers currently.</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Your bulk requirement is active. We'll notify you when suitable produce becomes available.</p>
+                        </div>
                       ) : (
                         <div className="space-y-2">
+                          <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                            <span className="text-base">⏳</span>
+                            <div>
+                              <p className="font-bold">Awaiting Farmer Initiation</p>
+                              <p className="text-[11px] text-amber-800/90 mt-0.5">
+                                Matching farmers have been notified of your requirement. Under Mitti2Market rules, deals are initiated by the farmer to confirm their readiness.
+                              </p>
+                            </div>
+                          </div>
+
                           {matches.supply.map(s => (
                             <div key={s.produceId} className="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100">
                               <div>

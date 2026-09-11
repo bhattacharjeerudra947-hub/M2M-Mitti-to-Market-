@@ -443,7 +443,10 @@ export default function BusinessRegistration() {
                 </div>
               )}
             </div>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 616472b0728fdd33270a2185308c69c4bb3dcc28
             {/* Terms & Conditions Agreement */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 pt-3">
               <div className="flex items-center justify-between gap-3">

@@ -27,6 +27,7 @@ public class DealCompletionService {
     private final DealService dealService;
     private final BuyerRequirementService requirementService;
     private final NotificationService notificationService;
+    private final com.mitti2market.repository.BuyerMatchRepository matchRepo;
 
     /**
      * Complete a deal and synchronize every downstream record.
@@ -43,6 +44,14 @@ public class DealCompletionService {
         // 2. Fulfil the linked buyer requirement (auto FULFILLED at 0 remaining)
         requirementService.fulfillForDeal(deal);
 
+        // Update BuyerMatch status if linked
+        if (deal.getProduce() != null && deal.getBuyerRequirement() != null) {
+            matchRepo.findByProduceIdAndBuyerRequirementId(deal.getProduce().getId(), deal.getBuyerRequirement().getId())
+                    .ifPresent(m -> {
+                        m.setStatus(com.mitti2market.model.BuyerMatch.MatchStatus.COMPLETED);
+                        matchRepo.save(m);
+                    });
+        }
         // 3. Send deal completed notifications to both parties
         if (deal.getFarmer() != null) {
             notificationService.createNotification(

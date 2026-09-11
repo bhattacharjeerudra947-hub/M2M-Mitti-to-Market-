@@ -108,6 +108,7 @@ public class MessageController {
             map.put("id", m.getId());
             map.put("senderId", m.getSender().getId());
             map.put("senderName", m.getSender().getName());
+            map.put("senderProfilePhotoUrl", m.getSender().getProfilePhotoUrl());
             map.put("content", m.getContent());
             map.put("createdAt", m.getCreatedAt());
             map.put("read", m.getRead());
@@ -135,6 +136,7 @@ public class MessageController {
             map.put("id", m.getId());
             map.put("senderId", m.getSender().getId());
             map.put("senderName", m.getSender().getName());
+            map.put("senderProfilePhotoUrl", m.getSender().getProfilePhotoUrl());
             map.put("content", m.getContent());
             map.put("createdAt", m.getCreatedAt());
             map.put("read", m.getRead());
