@@ -1,20 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDeals } from '../../services/adminApi';
+import { Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, genericStatusInfo, selectCls } from '../../components/admin/ui/adminUi';
 
 const DEAL_STATUSES = [
   'ALL', 'NEGOTIATING', 'LOCK_PENDING', 'LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED',
   'PICKUP_SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED',
   'COMPLETED', 'CANCELLED', 'DISPUTED',
 ];
-
-const STATUS_COLORS = {
-  COMPLETED: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300',
-  CANCELLED: 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300',
-  DISPUTED: 'bg-yellow-100 dark:bg-yellow-950/60 text-yellow-700 dark:text-yellow-300',
-  LOCKED: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300',
-  IN_TRANSIT: 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300',
-  DELIVERED: 'bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300',
-};
 
 export default function AdminDeals() {
   const [deals, setDeals] = useState([]);
@@ -26,87 +18,72 @@ export default function AdminDeals() {
     setLoading(true);
     setError('');
     const res = await getDeals(status);
-    if (res.ok) setDeals(res.data || []);
+    if (res.ok) setDeals(Array.isArray(res.data) ? res.data : []);
     else setError(res.error);
     setLoading(false);
   }, [status]);
 
-  useEffect(() => {
-    fetchDeals();
-  }, [fetchDeals]);
+  useEffect(() => { fetchDeals(); }, [fetchDeals]);
+
+  const st = (d) => genericStatusInfo(d.status);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Deals &amp; Order Monitoring</h2>
-            <p className="text-xs text-gray-500 mt-1">Every farmer↔buyer transaction on the platform.</p>
-          </div>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full md:w-56 text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2.5 text-gray-900 dark:text-white"
-          >
-            {DEAL_STATUSES.map((s) => (
-              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Deals</h2>
+          <p className="mt-0.5 text-[13px] text-gray-500">Every farmer and buyer transaction on the platform.</p>
         </div>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className={selectCls} aria-label="Filter by status">
+          {DEAL_STATUSES.map((s) => (
+            <option key={s} value={s}>{s === 'ALL' ? 'Status: All' : `Status: ${s.replace(/_/g, ' ').toLowerCase()}`}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div></div>
-        ) : error ? (
-          <div className="p-12 text-center text-sm text-red-600">{error}</div>
-        ) : deals.length === 0 ? (
-          <div className="p-12 text-center text-gray-500 text-sm">No deals match the selected status.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
-                  <th className="p-4">Deal</th>
-                  <th className="p-4">Farmer</th>
-                  <th className="p-4">Buyer</th>
-                  <th className="p-4">Produce</th>
-                  <th className="p-4">Quantity</th>
-                  <th className="p-4">Agreed Price</th>
-                  <th className="p-4">Total</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4">Created</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                {deals.map((d) => (
-                  <tr key={d.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-                    <td className="p-4 font-mono font-semibold text-gray-700 dark:text-gray-200">{d.dealId}</td>
-                    <td className="p-4">
-                      <p className="font-semibold text-gray-900 dark:text-white">{d.farmer?.name}</p>
-                      <p className="text-[11px] text-gray-400">{d.farmer?.email}</p>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-semibold text-gray-900 dark:text-white">{d.buyer?.name}</p>
-                      <p className="text-[11px] text-gray-400">{d.buyer?.email}</p>
-                    </td>
-                    <td className="p-4 font-medium text-gray-800 dark:text-gray-200">{d.cropName || d.produce?.name || '—'}</td>
-                    <td className="p-4 text-gray-700 dark:text-gray-300">{d.quantity}{d.unit ? ` ${d.unit}` : ''}</td>
-                    <td className="p-4 text-gray-700 dark:text-gray-300">₹{d.agreedPrice?.toLocaleString?.() ?? '—'}/kg</td>
-                    <td className="p-4 font-semibold text-gray-900 dark:text-white">₹{d.totalAmount?.toLocaleString?.() ?? '—'}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${STATUS_COLORS[d.status] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                        {d.status?.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="p-4 text-gray-500 text-[11px]">{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {error && !loading ? (
+        <div className="bg-white border border-gray-200 rounded-xl"><ErrorState message={error} onRetry={fetchDeals} /></div>
+      ) : (
+        <Table
+          columns={[
+            { key: 'deal', label: 'Deal ID' },
+            { key: 'farmer', label: 'Farmer' },
+            { key: 'buyer', label: 'Buyer' },
+            { key: 'produce', label: 'Produce' },
+            { key: 'qty', label: 'Quantity' },
+            { key: 'price', label: 'Agreed price' },
+            { key: 'total', label: 'Total' },
+            { key: 'status', label: 'Status' },
+            { key: 'created', label: 'Created' },
+          ]}
+        >
+          {loading ? (
+            <TableSkeleton rows={8} cols={9} />
+          ) : deals.length === 0 ? (
+            <tr><td colSpan={9}><EmptyState title="No deals found" hint="No marketplace transactions match this status yet." /></td></tr>
+          ) : (
+            deals.map((d) => (
+              <tr key={d.id} className="hover:bg-gray-50/60 transition-colors">
+                <Td><span className="font-mono text-xs font-medium text-gray-900">{d.dealId}</span></Td>
+                <Td>
+                  <span className="block text-[13px] font-medium text-gray-900">{d.farmer?.name ?? '—'}</span>
+                  <span className="block text-xs text-gray-500">{d.farmer?.email}</span>
+                </Td>
+                <Td>
+                  <span className="block text-[13px] font-medium text-gray-900">{d.buyer?.name ?? '—'}</span>
+                  <span className="block text-xs text-gray-500">{d.buyer?.email}</span>
+                </Td>
+                <Td>{d.cropName || d.produce?.name || '—'}</Td>
+                <Td><span className="tabular-nums whitespace-nowrap">{d.quantity ? `${d.quantity}${d.unit ? ` ${d.unit}` : ''}` : '—'}</span></Td>
+                <Td><span className="tabular-nums whitespace-nowrap">{d.agreedPrice != null ? `₹${Number(d.agreedPrice).toLocaleString()}` : '—'}</span></Td>
+                <Td><span className="tabular-nums font-medium text-gray-900 whitespace-nowrap">{d.totalAmount != null ? `₹${Number(d.totalAmount).toLocaleString()}` : '—'}</span></Td>
+                <Td><StatusDot tone={st(d).tone} label={(d.status || '').replace(/_/g, ' ').toLowerCase()} /></Td>
+                <Td><span className="text-xs text-gray-500 whitespace-nowrap">{d.createdAt ? new Date(d.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</span></Td>
+              </tr>
+            ))
+          )}
+        </Table>
+      )}
     </div>
   );
 }
