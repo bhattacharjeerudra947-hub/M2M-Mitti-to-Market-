@@ -54,6 +54,18 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.ok("Notifications marked as read", null));
     }
 
+    @PutMapping("/{id}/read")
+    public ResponseEntity<?> markAsRead(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long id) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        notificationService.markAsRead(id);
+        return ResponseEntity.ok(ApiResponse.ok("Notification marked as read", null));
+    }
+
     private Long extractUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
         return tokens.validateAccessToken(authHeader.substring(7));

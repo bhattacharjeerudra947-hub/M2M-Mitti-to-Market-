@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import RoleChoiceModal from './RoleChoiceModal';
 import LanguageSelector from './LanguageSelector';
+import NotificationPanel from './NotificationPanel';
 
 export default function Navbar({ dark = false }) {
   const [open, setOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const { isAuthenticated, user, openRoleChoice } = useAuth();
   const { t } = useLanguage();
   const { pathname } = useLocation();
@@ -75,12 +77,23 @@ export default function Navbar({ dark = false }) {
           <div className="hidden md:flex items-center gap-4">
             <LanguageSelector compact />
             {isAuthenticated ? (
-              <Link
-                to={role === 'farmer' ? '/farmer' : '/business'}
-                className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition"
-              >
-                {t('nav.myDashboard')}
-              </Link>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNotifications(prev => !prev)}
+                  className={`relative p-2 rounded-xl transition ${dark ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-navy-600 hover:text-navy-900 hover:bg-navy-50'}`}
+                  title="Notifications"
+                  aria-label="Notifications"
+                >
+                  <NotificationPanel compact />
+                </button>
+                <Link
+                  to={role === 'farmer' ? '/farmer' : '/business'}
+                  className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition shadow-sm"
+                >
+                  {t('nav.myDashboard')}
+                </Link>
+              </div>
             ) : (
               <>
                 <Link to="/login" className={`text-[13px] font-medium ${linkColor} transition`}>{t('nav.signIn')}</Link>
@@ -95,11 +108,24 @@ export default function Navbar({ dark = false }) {
           </div>
 
           {/* Mobile toggle */}
-          <button className="md:hidden p-2" onClick={() => setOpen(!open)}>
-            {open
-              ? <X className={`w-5 h-5 ${dark ? 'text-white' : 'text-navy-900'}`} />
-              : <Menu className={`w-5 h-5 ${dark ? 'text-white' : 'text-navy-900'}`} />}
-          </button>
+          <div className="md:hidden flex items-center gap-2">
+            {isAuthenticated && (
+              <button
+                type="button"
+                onClick={() => setShowNotifications(prev => !prev)}
+                className={`p-2 rounded-xl transition ${dark ? 'text-white/80' : 'text-navy-600'}`}
+                title="Notifications"
+                aria-label="Notifications"
+              >
+                <NotificationPanel compact />
+              </button>
+            )}
+            <button className="p-2" onClick={() => setOpen(!open)} aria-label="Toggle navigation menu">
+              {open
+                ? <X className={`w-5 h-5 ${dark ? 'text-white' : 'text-navy-900'}`} />
+                : <Menu className={`w-5 h-5 ${dark ? 'text-white' : 'text-navy-900'}`} />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -126,6 +152,16 @@ export default function Navbar({ dark = false }) {
                 <button onClick={() => { setOpen(false); openRoleChoice(); }} className="block w-full text-center px-5 py-2.5 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl">{t('nav.getStarted')}</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Notification popup modal */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-navy-900/30 backdrop-blur-sm" onClick={() => setShowNotifications(false)} />
+          <div className="absolute right-4 sm:right-8 top-16 w-96 max-w-[calc(100vw-2rem)] z-50 animate-in fade-in zoom-in-95">
+            <NotificationPanel />
           </div>
         </div>
       )}

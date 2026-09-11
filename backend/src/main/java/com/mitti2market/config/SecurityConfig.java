@@ -74,6 +74,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/stats").permitAll()
                 // Open buyer requirements — public demand board (guest-browsable)
                 .requestMatchers(HttpMethod.GET, "/api/requirements").permitAll()
+                // Public rating endpoints — anyone can view a user's reviews/summary
+                .requestMatchers(HttpMethod.GET, "/api/deals/users/*/ratings").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/deals/users/*/rating-summary").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/deals/*/ratings").permitAll()
+                // Public user profile (farmer/buyer detail pages)
+                .requestMatchers(HttpMethod.GET, "/api/users/*/profile-public").permitAll()
+
 
                 // ─── Admin endpoints (require ADMIN role) ───
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")

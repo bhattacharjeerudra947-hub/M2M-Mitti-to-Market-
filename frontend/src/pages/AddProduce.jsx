@@ -1,7 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { MapPin, Package, X, Camera, Image, FileImage, Loader2, Brain, TrendingUp, TrendingDown, Minus, Info, WifiOff, Save, CloudUpload } from 'lucide-react';
+import {
+  MapPin, Package, X, Camera, Image, FileImage, Loader2, Brain,
+  TrendingUp, TrendingDown, Minus, Info, WifiOff, Save, CloudUpload,
+  Navigation, LocateFixed, Check,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiPost, apiUpload, apiGet } from '../api';
 import { saveDraft, queueDraft, deleteDraft, getDraft, useSyncStatus } from '../utils/syncQueue';
@@ -10,6 +14,11 @@ import { idbSupported } from '../utils/idb';
 export default function AddProduce() {
   const navigate = useNavigate();
   const { user, isGuestModeActive, openAuthRequired } = useAuth();
+
+  // Compute registered profile location
+  const profileLocation = user?.location
+    || [user?.village, user?.tehsil, user?.district, user?.state].filter(Boolean).join(', ')
+    || '';
 
   // Gate: guests cannot add produce
   if (isGuestModeActive) {
@@ -36,10 +45,14 @@ export default function AddProduce() {
     unit: 'kg',
     grade: 'A',
     pricePerUnit: '',
-    location: '',
+    location: profileLocation,
     readyDate: '',
     description: '',
   });
+
+  const [locationMode, setLocationMode] = useState('profile'); // 'profile' | 'live' | 'custom'
+  const [locating, setLocating] = useState(false);
+  const [locationStatusMsg, setLocationStatusMsg] = useState('');
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -65,6 +78,13 @@ export default function AddProduce() {
   const categories = ['Vegetables', 'Fruits', 'Grains', 'Spices', 'Dairy', 'Pulses', 'Oilseeds', 'Other'];
   const units = ['kg', 'quintal', 'tonne', 'dozen', 'piece', 'bunch', 'pack'];
 
+  // Auto-sync profile location if user data loads later
+  useEffect(() => {
+    if (profileLocation && !form.location) {
+      setForm(prev => ({ ...prev, location: profileLocation }));
+    }
+  }, [profileLocation]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
@@ -83,6 +103,55 @@ export default function AddProduce() {
     if (form.name.trim().length >= 3 && value.trim().length >= 3) {
       fetchAiSuggestion(form.name.trim(), value.trim());
     }
+  };
+
+  const handleUseProfileLocation = () => {
+    setLocationMode('profile');
+    const loc = profileLocation || '';
+    setForm(prev => ({ ...prev, location: loc }));
+    setLocationStatusMsg(loc ? `Using profile location: ${loc}` : 'No profile location saved.');
+    if (form.name.trim().length >= 3 && loc.trim().length >= 3) {
+      fetchAiSuggestion(form.name.trim(), loc.trim());
+    }
+  };
+
+  const handleFetchLiveLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocationMode('live');
+    setLocating(true);
+    setLocationStatusMsg('Fetching live GPS coordinates...');
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let formatted = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          if (res.ok) {
+            const data = await res.json();
+            const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || data.address?.state_district || data.address?.suburb;
+            const state = data.address?.state;
+            formatted = [city, state].filter(Boolean).join(', ') || formatted;
+          }
+        } catch {}
+
+        setForm(prev => ({ ...prev, location: formatted }));
+        setLocationStatusMsg(`Live location fetched: ${formatted}`);
+        setLocating(false);
+
+        if (form.name.trim().length >= 3 && formatted.trim().length >= 3) {
+          fetchAiSuggestion(form.name.trim(), formatted.trim());
+        }
+      },
+      (err) => {
+        setLocating(false);
+        setLocationStatusMsg('Could not get live GPS. You can type your location manually.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const fetchAiSuggestion = useCallback(async (cropName, location) => {
@@ -602,14 +671,74 @@ export default function AddProduce() {
                 )}
               </div>
 
-              {/* Location — triggers re-analysis */}
+              {/* Location Selector (Profile Location vs Live GPS vs Manual) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Location *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700">Produce / Farm Location *</label>
+                  <span className="text-[11px] font-medium text-navy-500">
+                    {locationMode === 'profile' && 'Using Profile Address'}
+                    {locationMode === 'live' && 'Using Live GPS'}
+                    {locationMode === 'custom' && 'Custom Location'}
+                  </span>
+                </div>
+
+                {/* Quick Selection Buttons */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={handleUseProfileLocation}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                      locationMode === 'profile'
+                        ? 'bg-navy-900 text-white border-navy-900 shadow-sm'
+                        : 'bg-white text-navy-700 border-navy-200 hover:bg-mustard-50/50'
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">Profile Location</span>
+                    {locationMode === 'profile' && <Check className="w-3.5 h-3.5 ml-0.5" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFetchLiveLocation}
+                    disabled={locating}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                      locationMode === 'live'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                        : 'bg-white text-navy-700 border-navy-200 hover:bg-emerald-50/50'
+                    } disabled:opacity-50`}
+                  >
+                    {locating ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <LocateFixed className="w-3.5 h-3.5 flex-shrink-0 text-emerald-500" />
+                    )}
+                    <span className="truncate">{locating ? 'Locating...' : 'Use Current Live GPS'}</span>
+                  </button>
+                </div>
+
+                {/* Location text input (editable) */}
                 <div className="relative">
                   <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input type="text" name="location" value={form.location} onChange={handleLocationChange}
-                    placeholder="Nashik, Maharashtra" className="pl-11" />
+                  <input
+                    type="text"
+                    name="location"
+                    value={form.location}
+                    onChange={handleLocationChange}
+                    placeholder="e.g. Nashik, Maharashtra"
+                    className="pl-11"
+                  />
                 </div>
+
+                {locationStatusMsg ? (
+                  <p className="text-[11px] text-emerald-700 mt-1 flex items-center gap-1">
+                    <Check className="w-3 h-3 flex-shrink-0" /> {locationStatusMsg}
+                  </p>
+                ) : profileLocation ? (
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Registered Profile: <span className="text-gray-600 font-medium">{profileLocation}</span>
+                  </p>
+                ) : null}
               </div>
 
               {/* Expected Ready Date — for Matching Engine */}

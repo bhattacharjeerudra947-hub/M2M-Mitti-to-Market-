@@ -72,9 +72,13 @@ export default function AccountStatusScreen() {
       setSubmitting(true);
       const res = await submitAppeal({
         reason: reason.trim(),
+        message: reason.trim(),
         contactPhone: contactPhone.trim() || undefined,
+        phone: contactPhone.trim() || undefined,
         contactEmail: contactEmail.trim() || undefined,
+        email: contactEmail.trim() || undefined,
         attachmentUrl: attachmentUrl.trim() || undefined,
+        documentUrl: attachmentUrl.trim() || undefined,
       });
 
       if (res.ok) {

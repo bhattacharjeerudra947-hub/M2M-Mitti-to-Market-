@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
-import { Package, Truck, Clock, Check, ChevronRight, Filter } from 'lucide-react';
+import { Package, Truck, Clock, Check, ChevronRight, Filter, Star } from 'lucide-react';
 import { getFarmerDeals, getBuyerDeals } from '../api/dealApi';
+import DealRatingModal from '../components/DealRatingModal';
 
 const STATUS_LABELS = {
   NEGOTIATING: '💬 Bargaining', LOCK_PENDING: '⏳ Confirming', LOCKED: '🔒 Deal Locked',
@@ -48,8 +49,9 @@ export default function MyDeals() {
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [ratingModalDeal, setRatingModalDeal] = useState(null);
 
-  useEffect(() => {
+  const fetchDealsList = () => {
     if (!user) return;
     const isFarmer = user.role === 'FARMER';
     const fetchDeals = isFarmer ? getFarmerDeals : getBuyerDeals;
@@ -57,6 +59,10 @@ export default function MyDeals() {
       .then(data => setDeals(data || []))
       .catch(() => {})
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDealsList();
   }, [user]);
 
   const isFarmer = user?.role === 'FARMER';
@@ -153,7 +159,25 @@ export default function MyDeals() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-[10px] text-gray-400">
+                  {deal.status === 'COMPLETED' && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Deal Completed
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRatingModalDeal(deal);
+                        }}
+                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition inline-flex items-center gap-1 shadow-xs"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-white" />
+                        Rate {isFarmer ? 'Buyer' : 'Farmer'}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[10px] text-gray-400 mt-2">
                     <span>Created {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString() : ''}</span>
                     {deal.lockedAt && <span>Locked {new Date(deal.lockedAt).toLocaleDateString()}</span>}
                     {deal.expectedDelivery && <span>ETA {new Date(deal.expectedDelivery).toLocaleDateString()}</span>}
@@ -161,6 +185,19 @@ export default function MyDeals() {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Deal Rating Modal */}
+          {ratingModalDeal && (
+            <DealRatingModal
+              isOpen={!!ratingModalDeal}
+              onClose={() => setRatingModalDeal(null)}
+              dealId={ratingModalDeal.id}
+              otherPartyName={isFarmer ? (ratingModalDeal.buyerName || ratingModalDeal.buyer?.name) : (ratingModalDeal.farmerName || ratingModalDeal.farmer?.name)}
+              onRatingSubmitted={() => {
+                fetchDealsList();
+              }}
+            />
           )}
         </div>
       </main>

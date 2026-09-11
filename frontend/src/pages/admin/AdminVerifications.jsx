@@ -9,6 +9,7 @@ import {
   Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, verificationStatusInfo,
   ConfirmDialog, Drawer, DrawerSection, KV, MetricStrip, Avatar, inputCls, selectCls,
 } from '../../components/admin/ui/adminUi';
+import { onNotification } from '../../utils/messageStream';
 
 export default function AdminVerifications() {
   const [activeTab, setActiveTab] = useState('PENDING');
@@ -44,17 +45,30 @@ export default function AdminVerifications() {
   const [toast, setToast] = useState(null);
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
 
-  const fetchQueue = useCallback(async () => {
-    setLoadingQueue(true);
+  const fetchQueue = useCallback(async (silent = false) => {
+    if (!silent) setLoadingQueue(true);
     setQueueError('');
     const verParam = activeTab === 'ALL' ? undefined : activeTab;
     const res = await getVerifications(verParam, roleFilter, stateFilter, districtFilter, searchQuery.trim() || undefined);
     if (res.ok) setApplications(Array.isArray(res.data) ? res.data : []);
-    else setQueueError(res.error || 'Unable to load verification queue');
-    setLoadingQueue(false);
+    else if (!silent) setQueueError(res.error || 'Unable to load verification queue');
+    if (!silent) setLoadingQueue(false);
   }, [activeTab, roleFilter, stateFilter, districtFilter, searchQuery]);
 
   useEffect(() => { fetchQueue(); }, [fetchQueue]);
+
+  // Real-time auto sync
+  useEffect(() => {
+    const interval = setInterval(() => fetchQueue(true), 6000);
+    const unsubscribe = onNotification(() => {
+      fetchQueue(true);
+      getStats().then((res) => { if (res.ok) setStats(res.data); });
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
+  }, [fetchQueue]);
 
   useEffect(() => {
     getStats().then((res) => { if (res.ok) setStats(res.data); });
@@ -65,7 +79,10 @@ export default function AdminVerifications() {
     setSelectedDetails(null);
     setLoadingDetails(true);
     const res = await getUserDetails(u.id);
-    if (res.ok) setSelectedDetails(res.data);
+    if (res.ok) {
+      setSelectedDetails(res.data);
+      if (res.data?.user) setSelectedUser(res.data.user);
+    }
     setLoadingDetails(false);
   };
 
@@ -89,14 +106,14 @@ export default function AdminVerifications() {
     }
     setActionProcessing(false);
     if (res && res.ok) {
+      const actedName = selectedUser.name || 'User';
+      const actedType = dialog.type;
       setDialog({ open: false, type: null });
-      showToast(dialog.type === 'VERIFY' ? `${selectedUser.name} verified` : dialog.type === 'REJECT' ? 'Verification rejected' : 'Resubmission requested');
-      const wasSelected = selectedUser;
       setSelectedUser(null);
       setSelectedDetails(null);
+      showToast(actedType === 'VERIFY' ? `✓ ${actedName} verified successfully` : actedType === 'REJECT' ? 'Verification rejected' : 'Resubmission requested');
       fetchQueue();
-      // Refresh drawer data if it was open
-      if (wasSelected) openDetails(wasSelected);
+      getStats().then((s) => { if (s.ok) setStats(s.data); });
     } else {
       setActionError(res?.error || 'Action failed. Please try again.');
     }

@@ -20,6 +20,7 @@ async function updateProfilePhoto(photoUrl) {
   return res.ok ? { ok: true, data } : { ok: false, error: data.error || data.message || 'Failed to set profile photo' };
 }
 import DocumentUpload from '../components/DocumentUpload';
+import { getUserRatings, getUserRatingSummary } from '../services/ratingApi';
 
 const STATUS_COLORS = {
   PENDING: 'bg-yellow-50 border-yellow-200 text-yellow-800',
@@ -65,7 +66,9 @@ export default function Profile() {
   const [documents, setDocuments] = useState([]);
   const [farmerProfile, setFarmerProfile] = useState(null);
   const [businessProfile, setBusinessProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'documents'
+  const [reviews, setReviews] = useState([]);
+  const [ratingSummary, setRatingSummary] = useState({ rating: 0, reviewCount: 0 });
+  const [activeTab, setActiveTab] = useState('info'); // 'info' | 'documents' | 'reviews'
   const [showGpsModal, setShowGpsModal] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -111,6 +114,23 @@ export default function Profile() {
     } else if (role === 'business') {
       const bp = await api.getBusinessProfile();
       if (bp.ok && bp.data?.data) setBusinessProfile(bp.data.data);
+    }
+
+    // 4. Load reviews received from counterparties
+    const targetUserId = currentProfile?.id || user?.id;
+    if (targetUserId) {
+      try {
+        const [revRes, sumRes] = await Promise.allSettled([
+          getUserRatings(targetUserId),
+          getUserRatingSummary(targetUserId),
+        ]);
+        if (revRes.status === 'fulfilled' && revRes.value?.ok) {
+          setReviews(revRes.value.data || []);
+        }
+        if (sumRes.status === 'fulfilled' && sumRes.value?.ok) {
+          setRatingSummary(sumRes.value.data || { rating: 0, reviewCount: 0 });
+        }
+      } catch {}
     }
 
     setLoading(false);
@@ -328,6 +348,10 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
                 <span className="absolute top-2 ml-1 w-5 h-5 bg-yellow-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{pendingCount}</span>
               )}
             </button>
+            <button onClick={() => setActiveTab('reviews')}
+              className={`flex-1 py-3 text-sm font-semibold transition relative ${activeTab === 'reviews' ? 'text-navy-900 border-b-2 border-navy-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              ⭐ Reviews {reviews.length > 0 && <span className="ml-1 text-xs text-amber-600 font-bold">({reviews.length})</span>}
+            </button>
           </div>
 
           <div className="p-6">
@@ -518,6 +542,79 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                     <p className="text-sm">No documents uploaded yet</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ Tab: Reviews & Feedback ═══ */}
+            {activeTab === 'reviews' && (
+              <div className="space-y-5">
+                {/* Rating Overview Card */}
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-amber-400 text-navy-950 rounded-2xl flex items-center justify-center text-2xl font-black shadow-sm">
+                      ★
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-extrabold text-navy-950">
+                          {ratingSummary.rating ? ratingSummary.rating.toFixed(1) : '0.0'}
+                        </span>
+                        <span className="text-xs text-navy-500 font-semibold">/ 5.0</span>
+                      </div>
+                      <p className="text-xs text-navy-600 font-medium mt-0.5">
+                        {ratingSummary.reviewCount || reviews.length} {ratingSummary.reviewCount === 1 ? 'Review' : 'Reviews'} from completed transactions
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-500 text-lg">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span key={star}>
+                        {star <= Math.round(ratingSummary.rating || 0) ? '★' : '☆'}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reviews List */}
+                {reviews.length > 0 ? (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-navy-900">Transaction Feedback & Ratings</h3>
+                    {reviews.map((rev) => (
+                      <div key={rev.id} className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs hover:border-amber-200 transition space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-navy-900">{rev.reviewerName || 'Trading Partner'}</span>
+                            {rev.dealId && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                Deal #{rev.dealId}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-gray-400">
+                            {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-amber-400 text-sm">
+                          {'★'.repeat(rev.rating || 5)}{'☆'.repeat(Math.max(0, 5 - (rev.rating || 5)))}
+                          <span className="text-xs text-gray-600 font-medium ml-1.5">({rev.rating}/5)</span>
+                        </div>
+                        {rev.comment && (
+                          <p className="text-xs text-gray-700 bg-gray-50/70 p-2.5 rounded-xl border border-gray-100 italic">
+                            "{rev.comment}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 px-4 rounded-2xl bg-gray-50/50 border border-gray-100">
+                    <span className="text-3xl block mb-2">⭐</span>
+                    <p className="text-sm font-semibold text-gray-700 mb-1">No Reviews Received Yet</p>
+                    <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                      Complete deals on Mitti2Market to receive ratings and feedback from your {role === 'farmer' ? 'buyers' : 'farmers'}.
+                    </p>
                   </div>
                 )}
               </div>
