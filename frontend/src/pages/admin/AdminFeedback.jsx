@@ -1,350 +1,268 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Star } from 'lucide-react';
 import { getFeedback, getFeedbackInsights, updateFeedback } from '../../services/adminApi';
+import {
+  Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, genericStatusInfo,
+  Drawer, DrawerSection, KV, MetricStrip, Avatar, inputCls, selectCls,
+} from '../../components/admin/ui/adminUi';
 
 export default function AdminFeedback() {
   const [feedbackList, setFeedbackList] = useState([]);
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [roleFilter, setRoleFilter] = useState('ALL');
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const [selectedFeedback, setSelectedFeedback] = useState(null);
-  const [statusInput, setStatusInput] = useState('RESOLVED');
-  const [responseInput, setResponseInput] = useState('');
-  const [noteInput, setNoteInput] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  // Review drawer
+  const [selected, setSelected] = useState(null);
+  const [responseText, setResponseText] = useState('');
+  const [newStatus, setNewStatus] = useState('REVIEWING');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [toast, setToast] = useState(null);
 
   const fetchFeedback = useCallback(async () => {
     setLoading(true);
-    const [listRes, insightsRes] = await Promise.all([
-      getFeedback(
-        categoryFilter === 'ALL' ? undefined : categoryFilter,
-        statusFilter === 'ALL' ? undefined : statusFilter,
-        roleFilter === 'ALL' ? undefined : roleFilter,
-        searchKeyword.trim() ? searchKeyword.trim() : undefined
-      ),
-      getFeedbackInsights()
-    ]);
-
-    if (listRes.ok) setFeedbackList(listRes.data || []);
-    if (insightsRes.ok) setInsights(insightsRes.data);
+    setError('');
+    const res = await getFeedback(
+      categoryFilter === 'ALL' ? undefined : categoryFilter,
+      statusFilter === 'ALL' ? undefined : statusFilter,
+      roleFilter === 'ALL' ? undefined : roleFilter,
+      searchQuery.trim() ? searchQuery.trim() : undefined
+    );
+    if (res.ok) setFeedbackList(Array.isArray(res.data) ? res.data : []);
+    else setError(res.error || 'Unable to load feedback');
     setLoading(false);
-  }, [categoryFilter, statusFilter, roleFilter, searchKeyword]);
+  }, [categoryFilter, statusFilter, roleFilter, searchQuery]);
+
+  useEffect(() => { fetchFeedback(); }, [fetchFeedback]);
 
   useEffect(() => {
-    fetchFeedback();
-  }, [fetchFeedback]);
+    getFeedbackInsights().then((res) => { if (res.ok) setInsights(res.data); });
+  }, [feedbackList.length]);
 
-  const handleSaveResponse = async (e) => {
-    e.preventDefault();
-    if (!selectedFeedback) return;
-    setSubmitting(true);
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
 
-    const res = await updateFeedback(selectedFeedback.id, statusInput, responseInput, noteInput);
-    setSubmitting(false);
+  const openFeedback = (f) => {
+    setSelected(f);
+    setResponseText(f.adminResponse || '');
+    setNewStatus(f.status === 'NEW' ? 'REVIEWING' : f.status);
+    setSaveError('');
+  };
 
+  const handleSave = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setSaveError('');
+    const res = await updateFeedback(selected.id, newStatus, responseText.trim() || null, null);
+    setSaving(false);
     if (res.ok) {
-      setSelectedFeedback(null);
-      setResponseInput('');
-      setNoteInput('');
+      setSelected(null);
+      showToast(newStatus === 'RESOLVED' ? 'Feedback resolved' : newStatus === 'CLOSED' ? 'Feedback closed' : 'Feedback updated');
       fetchFeedback();
+    } else {
+      setSaveError(res.error || 'Failed to update feedback.');
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Platform Feedback & Suggestions</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Categorized user feedback, bug reports, feature suggestions, and logistics reviews.</p>
-        </div>
+  const newCount = feedbackList.filter((f) => f.status === 'NEW').length;
 
-        <button
-          onClick={fetchFeedback}
-          className="self-start md:self-auto text-xs px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition font-medium"
-        >
-          ↻ Refresh Feedback
-        </button>
+  const metrics = [
+    { label: 'Total (filtered)', value: feedbackList.length },
+    { label: 'New / unreviewed', value: newCount, context: newCount > 0 ? 'Requires attention' : 'All reviewed' },
+    { label: 'Avg platform rating', value: insights?.averagePlatformRating ? Number(insights.averagePlatformRating).toFixed(1) : '—', context: insights?.ratedFeedbackCount ? `${insights.ratedFeedbackCount} rated submissions` : null },
+    { label: 'Response rate', value: insights?.responseRatePercentage != null ? `${Math.round(insights.responseRatePercentage)}%` : '—', context: insights?.respondedCount ? `${insights.respondedCount} responded` : null },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Feedback</h2>
+        <p className="mt-0.5 text-[13px] text-gray-500">Platform feedback submitted by farmers and buyers to improve Mitti2Market.</p>
       </div>
 
-      {/* Insights Overview Cards */}
-      {insights && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            <span className="text-xs font-semibold text-gray-400 block">Total Submissions</span>
-            <p className="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{insights.totalFeedback || 0}</p>
-            <span className="text-[11px] text-gray-400 mt-1 block">From registered & guests</span>
-          </div>
+      <MetricStrip metrics={metrics} />
 
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            <span className="text-xs font-semibold text-gray-400 block">Avg Platform Rating</span>
-            <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-2xl font-extrabold text-amber-500">{insights.averagePlatformRating || '0.0'}</span>
-              <span className="text-xs text-gray-400">/ 5.0</span>
-            </div>
-            <span className="text-[11px] text-gray-400 mt-1 block">{insights.ratedFeedbackCount || 0} reviews rated</span>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            <span className="text-xs font-semibold text-gray-400 block">Response Rate</span>
-            <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-              {insights.responseRatePercentage || 0}%
-            </p>
-            <span className="text-[11px] text-gray-400 mt-1 block">{insights.respondedCount || 0} responded</span>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-            <span className="text-xs font-semibold text-gray-400 block">Open Pending</span>
-            <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
-              {(insights.statusBreakdown?.NEW || 0) + (insights.statusBreakdown?.REVIEWING || 0)}
-            </p>
-            <span className="text-[11px] text-gray-400 mt-1 block">
-              {insights.statusBreakdown?.NEW || 0} new, {insights.statusBreakdown?.REVIEWING || 0} reviewing
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Bar */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-wrap items-center gap-3">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-          placeholder="Search by keywords or user..."
-          className="text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-white flex-1 min-w-[180px]"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search feedback messages"
+          className={`${inputCls} w-full sm:w-72`}
         />
-
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2 text-gray-900 dark:text-white"
-        >
-          <option value="ALL">All Categories</option>
-          <option value="GENERAL_FEEDBACK">General Feedback</option>
-          <option value="FEATURE_SUGGESTION">Feature Suggestion</option>
-          <option value="BUG_REPORT">Bug Report</option>
-          <option value="EXPERIENCE_FEEDBACK">Experience</option>
-          <option value="MARKETPLACE_FEEDBACK">Marketplace</option>
-          <option value="LOGISTICS_FEEDBACK">Logistics</option>
-          <option value="AI_RECOMMENDATION_FEEDBACK">AI Recommendation</option>
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectCls} aria-label="Filter by category">
+          <option value="ALL">Category: All</option>
+          <option value="GENERAL">General</option>
+          <option value="BUG">Bug</option>
+          <option value="FEATURE_REQUEST">Feature request</option>
+          <option value="MARKETPLACE">Marketplace</option>
+          <option value="DEAL_EXPERIENCE">Deal experience</option>
+          <option value="LOGISTICS">Logistics</option>
+          <option value="AI_PRICE_ADVISOR">AI price advisor</option>
+          <option value="OTHER">Other</option>
         </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2 text-gray-900 dark:text-white"
-        >
-          <option value="ALL">All Statuses</option>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectCls} aria-label="Filter by status">
+          <option value="ALL">Status: All</option>
           <option value="NEW">New</option>
-          <option value="REVIEWING">Reviewing</option>
-          <option value="PLANNED">Planned</option>
+          <option value="REVIEWING">Under review</option>
+          <option value="IN_PROGRESS">In progress</option>
           <option value="RESOLVED">Resolved</option>
           <option value="CLOSED">Closed</option>
         </select>
-
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2 text-gray-900 dark:text-white"
-        >
-          <option value="ALL">All Submitter Roles</option>
-          <option value="FARMER">Farmers</option>
-          <option value="BUSINESS">Buyers / Business</option>
-          <option value="GUEST">Guest / Visitors</option>
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className={selectCls} aria-label="Filter by role">
+          <option value="ALL">Role: All</option>
+          <option value="FARMER">Farmer</option>
+          <option value="BUSINESS">Business</option>
         </select>
       </div>
 
-      {/* Main Content: List + Response Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Feedback List */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Submissions ({feedbackList.length})</h3>
-          </div>
-
+      {error && !loading ? (
+        <div className="bg-white border border-gray-200 rounded-xl"><ErrorState message={error} onRetry={fetchFeedback} /></div>
+      ) : (
+        <Table
+          columns={[
+            { key: 'user', label: 'User' },
+            { key: 'category', label: 'Category' },
+            { key: 'rating', label: 'Rating', width: 90 },
+            { key: 'message', label: 'Feedback' },
+            { key: 'created', label: 'Date', width: 110 },
+            { key: 'status', label: 'Status', width: 140 },
+            { key: 'actions', label: '', align: 'right' },
+          ]}
+        >
           {loading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600 mx-auto"></div>
-            </div>
+            <TableSkeleton rows={8} cols={7} />
           ) : feedbackList.length === 0 ? (
-            <div className="p-8 text-center text-xs text-gray-500">No feedback submissions found matching filters.</div>
+            <tr><td colSpan={7}><EmptyState title="No feedback found" hint="No submissions match the current filters." /></td></tr>
           ) : (
-            <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1">
-              {feedbackList.map((item) => {
-                const isSelected = selectedFeedback?.id === item.id;
-                const roleBadgeColor =
-                  item.userRole === 'FARMER'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    : item.userRole === 'BUSINESS'
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setSelectedFeedback(item);
-                      setStatusInput(item.status || 'RESOLVED');
-                      setResponseInput(item.adminResponse || '');
-                      setNoteInput(item.adminNote || '');
-                    }}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all ${
-                      isSelected
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 shadow-sm'
-                        : 'bg-gray-50 dark:bg-gray-700/40 border-gray-100 dark:border-gray-700 hover:border-emerald-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-[10px] text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded truncate max-w-[140px]">
-                        {item.category}
+            feedbackList.map((f) => {
+              const st = genericStatusInfo(f.status);
+              return (
+                <tr key={f.id} className="hover:bg-gray-50/60 transition-colors">
+                  <Td>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={f.userName} size={30} />
+                      <span>
+                        <span className="block text-[13px] font-medium text-gray-900">{f.userName || '—'}</span>
+                        <span className="block text-xs text-gray-500 capitalize">{(f.userRole || '').toLowerCase()}</span>
                       </span>
-                      <div className="flex items-center gap-1.5">
-                        {item.userRole && (
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${roleBadgeColor}`}>
-                            {item.userRole}
-                          </span>
-                        )}
-                        {item.rating && (
-                          <span className="text-xs font-bold text-amber-500 whitespace-nowrap">
-                            {'★'.repeat(item.rating)}
-                          </span>
-                        )}
-                      </div>
                     </div>
-
-                    <p className="text-xs font-medium text-gray-900 dark:text-white mt-2 line-clamp-2">
-                      {item.message}
-                    </p>
-
-                    <div className="flex items-center justify-between text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-600/50">
-                      <span className="truncate max-w-[120px]">By: {item.userName || 'Anonymous'}</span>
-                      <div className="flex items-center gap-1">
-                        {item.adminResponse && (
-                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1 rounded">
-                            Replied
-                          </span>
-                        )}
-                        <span className="font-bold text-gray-600 dark:text-gray-300">{item.status}</span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                  </Td>
+                  <Td><span className="text-[13px] text-gray-700">{(f.category || '').replace(/_/g, ' ').toLowerCase()}</span></Td>
+                  <Td>
+                    {f.rating ? (
+                      <span className="inline-flex items-center gap-1 text-[13px] tabular-nums">
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" /> {f.rating}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </Td>
+                  <Td><span className="block max-w-[260px] truncate text-[13px] text-gray-600" title={f.message}>{f.message}</span></Td>
+                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{f.createdAt ? new Date(f.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}</span></Td>
+                  <Td><StatusDot tone={st.tone} label={st.label.replace(/_/g, ' ').toLowerCase()} /></Td>
+                  <Td>
+                    <button
+                      onClick={() => openFeedback(f)}
+                      className="px-2.5 py-1.5 text-[12px] font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Review
+                    </button>
+                  </Td>
+                </tr>
+              );
+            })
           )}
-        </div>
+        </Table>
+      )}
 
-        {/* Feedback Response & Management */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-          {!selectedFeedback ? (
-            <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-xs">
-              <span className="text-3xl mb-2">💬</span>
-              <p>Select a feedback submission to read full content and send an admin response.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSaveResponse} className="space-y-6">
-              <div className="pb-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded">
-                    {selectedFeedback.category}
-                  </span>
-                  <h3 className="font-bold text-base text-gray-900 dark:text-white mt-2">
-                    Feedback #{selectedFeedback.id}
-                  </h3>
-                </div>
-                {selectedFeedback.rating && (
-                  <span className="text-sm font-bold text-amber-500">
-                    {'★'.repeat(selectedFeedback.rating)} ({selectedFeedback.rating}/5)
+      {/* Review drawer */}
+      <Drawer
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        title="Feedback review"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setNewStatus('CLOSED')}
+              className="mr-auto px-3 py-1.5 text-[13px] font-medium text-gray-600 hover:text-gray-800"
+            >
+              Mark closed
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-3.5 py-2 text-[13px] font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        }
+      >
+        {selected && (
+          <>
+            <div className="flex items-start gap-3 pb-5 border-b border-gray-100">
+              <Avatar name={selected.userName} size={44} />
+              <div>
+                <p className="text-[15px] font-semibold text-gray-900">{selected.userName || 'Anonymous'}</p>
+                <p className="text-[13px] text-gray-500 capitalize">{(selected.userRole || '').toLowerCase()}</p>
+                {selected.rating && (
+                  <span className="mt-1 inline-flex items-center gap-1 text-[13px]">
+                    <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" /> {selected.rating} / 5
                   </span>
                 )}
               </div>
+            </div>
 
-              {/* User details */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 font-semibold block">Submitter Information</span>
-                  {selectedFeedback.userRole && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      Role: {selectedFeedback.userRole}
-                    </span>
-                  )}
+            <div className="pt-5">
+              <DrawerSection title="Submission">
+                <KV k="Category" v={(selected.category || '').replace(/_/g, ' ').toLowerCase()} />
+                <KV k="Status" v={(selected.status || '').replace(/_/g, ' ').toLowerCase()} />
+                <KV k="Submitted" v={selected.createdAt ? new Date(selected.createdAt).toLocaleString() : '—'} />
+                {selected.relatedDeal && <KV k="Related deal" v={`#${selected.relatedDeal.dealId || selected.relatedDeal}`} />}
+              </DrawerSection>
+
+              <DrawerSection title="Feedback message">
+                <div className="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3">
+                  <p className="text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed">{selected.message}</p>
                 </div>
-                <p className="font-bold text-gray-900 dark:text-white">{selectedFeedback.userName || 'Guest User'}</p>
-                {selectedFeedback.userEmail && <p className="text-gray-500">{selectedFeedback.userEmail}</p>}
-                <p className="text-gray-400 text-[10px]">Submitted: {new Date(selectedFeedback.createdAt).toLocaleString()}</p>
-              </div>
+              </DrawerSection>
 
-              {/* Message */}
-              <div>
-                <h4 className="font-bold text-xs text-gray-900 dark:text-white mb-1">Feedback Message</h4>
-                <p className="text-xs text-gray-800 dark:text-gray-200 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/40 whitespace-pre-wrap">
-                  {selectedFeedback.message}
-                </p>
-              </div>
-
-              {/* Status and Response inputs */}
-              <div className="space-y-4 pt-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Feedback Status
-                  </label>
-                  <select
-                    value={statusInput}
-                    onChange={(e) => setStatusInput(e.target.value)}
-                    className="w-full text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white p-2.5"
-                  >
-                    <option value="NEW">NEW</option>
-                    <option value="REVIEWING">REVIEWING</option>
-                    <option value="PLANNED">PLANNED (Added to roadmap)</option>
-                    <option value="RESOLVED">RESOLVED</option>
-                    <option value="CLOSED">CLOSED</option>
+              <DrawerSection title="Admin response">
+                <textarea
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  rows={4}
+                  placeholder="Write a response visible in the feedback record…"
+                  className="w-full text-[13px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 resize-none"
+                />
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                  <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className={`${selectCls} w-full`}>
+                    <option value="NEW">New</option>
+                    <option value="REVIEWING">Under review</option>
+                    <option value="IN_PROGRESS">In progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
                   </select>
                 </div>
+                {saveError && (
+                  <div className="mt-3 px-3 py-2 rounded-lg bg-red-50 border border-red-100 text-[13px] text-red-700">{saveError}</div>
+                )}
+              </DrawerSection>
+            </div>
+          </>
+        )}
+      </Drawer>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Admin Reply / Response (Sent as in-app notification to registered user)
-                  </label>
-                  <textarea
-                    value={responseInput}
-                    onChange={(e) => setResponseInput(e.target.value)}
-                    placeholder="Write a response to be sent to the user..."
-                    rows={3}
-                    className="w-full text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white p-2.5"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Internal Admin Note (Private to administration team)
-                  </label>
-                  <textarea
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder="Internal team note..."
-                    rows={2}
-                    className="w-full text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white p-2.5"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-md transition disabled:opacity-50"
-                  >
-                    {submitting ? 'Saving...' : 'Save & Send Response'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[80] px-4 py-2.5 bg-gray-900 text-white text-[13px] font-medium rounded-lg shadow-lg">{toast}</div>
+      )}
     </div>
   );
 }

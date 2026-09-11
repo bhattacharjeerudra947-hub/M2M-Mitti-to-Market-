@@ -59,4 +59,18 @@ public class MessageEventService {
         }
         if (userEmitters.isEmpty()) emittersByUser.remove(userId);
     }
+    /** Push a notification event to a user's open tabs for instant alerts / toasts. */
+    public void publishNotification(Long userId, Map<String, Object> payload) {
+        List<SseEmitter> userEmitters = emittersByUser.get(userId);
+        if (userEmitters == null || userEmitters.isEmpty()) return;
+
+        for (SseEmitter emitter : userEmitters) {
+            try {
+                emitter.send(SseEmitter.event().name("notification").data(payload));
+            } catch (IOException | IllegalStateException e) {
+                userEmitters.remove(emitter);
+            }
+        }
+        if (userEmitters.isEmpty()) emittersByUser.remove(userId);
+    }
 }

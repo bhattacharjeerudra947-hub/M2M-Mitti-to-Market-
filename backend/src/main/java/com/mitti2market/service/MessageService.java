@@ -64,6 +64,7 @@ public class MessageService {
         payload.put("conversationId", conversationId);
         payload.put("senderId", senderId);
         payload.put("senderName", sender.getName());
+        payload.put("senderProfilePhotoUrl", sender.getProfilePhotoUrl());
         payload.put("receiverId", receiverId);
         payload.put("content", content);
         payload.put("createdAt", msg.getCreatedAt());
@@ -106,6 +107,7 @@ public class MessageService {
             conv.put("otherUserId", otherUser.getId());
             conv.put("otherUserName", otherUser.getName());
             conv.put("otherUserRole", otherUser.getRole().name());
+            conv.put("otherUserProfilePhotoUrl", otherUser.getProfilePhotoUrl());
             conv.put("lastMessage", lastMsg.getContent());
             conv.put("lastMessageTime", lastMsg.getCreatedAt());
             conv.put("unreadCount", unreadCount);

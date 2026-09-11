@@ -37,6 +37,9 @@ public class ProduceRequest {
 
     private String imageUrl;
 
+    /** Expected harvest or ready date */
+    private java.time.LocalDate readyDate;
+
     /** Client-generated idempotency key for offline-first sync (prevents duplicate listings) */
     private String idempotencyKey;
 }

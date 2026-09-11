@@ -1,9 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle } from 'lucide-react';
+import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle, Sparkles, Handshake } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiGet, apiPut } from '../api';
 
 const NOTIF_ICONS = {
+  NEW_MATCH: { icon: Sparkles, color: 'text-amber-600', bg: 'bg-amber-50' },
+  MATCH_UPDATED: { icon: Sparkles, color: 'text-blue-600', bg: 'bg-blue-50' },
+  BUYER_REQUIREMENT_MATCHED: { icon: Sparkles, color: 'text-amber-600', bg: 'bg-amber-50' },
+  DEAL_STARTED: { icon: Handshake, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  NEW_OFFER: { icon: Handshake, color: 'text-primary-600', bg: 'bg-primary-50' },
+  COUNTER_OFFER: { icon: Handshake, color: 'text-amber-600', bg: 'bg-amber-50' },
+  OFFER_ACCEPTED: { icon: CheckCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   NEW_MESSAGE: { icon: MessageCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
   BUYER_INTEREST: { icon: ShoppingCart, color: 'text-amber-500', bg: 'bg-amber-50' },
   INTEREST_ACCEPTED: { icon: CheckCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
@@ -38,10 +46,22 @@ function timeAgo(dateStr) {
 
 export default function NotificationPanel({ compact = false }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const handleNotificationClick = (n) => {
+    markAsRead(n.id);
+    const isFarmer = user?.role === 'FARMER';
+    if (n.type === 'NEW_MATCH' || n.type === 'MATCH_UPDATED' || n.type === 'BUYER_REQUIREMENT_MATCHED') {
+      navigate('/farmer/matches');
+    } else if (n.type === 'DEAL_STARTED') {
+      navigate(isFarmer ? '/farmer/chat' : '/business/chat');
+    } else if (n.type === 'DEAL_LOCKED') {
+      navigate(isFarmer ? '/farmer/deals' : '/business/deals');
+    }
+  };
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
@@ -129,7 +149,7 @@ export default function NotificationPanel({ compact = false }) {
             return (
               <button
                 key={n.id}
-                onClick={() => markAsRead(n.id)}
+                onClick={() => handleNotificationClick(n)}
                 className={`w-full text-left p-3 hover:bg-mustard-50/50 transition rounded-xl flex gap-3 ${
                   !n.read ? 'bg-mustard-50/30 border border-mustard-100' : ''
                 }`}

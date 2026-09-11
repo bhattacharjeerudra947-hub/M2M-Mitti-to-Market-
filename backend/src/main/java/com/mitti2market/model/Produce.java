@@ -2,6 +2,7 @@ package com.mitti2market.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -63,6 +64,8 @@ public class Produce {
 
     private Double aiSuggestedMaxPrice;
 
+    /** Expected harvest or availability date */
+    private LocalDate readyDate;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
