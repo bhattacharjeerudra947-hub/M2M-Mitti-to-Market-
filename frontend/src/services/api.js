@@ -459,3 +459,17 @@ export async function getMyDocuments() {
 export async function deleteDocument(documentId) {
   return request('DELETE', `/documents/${documentId}`);
 }
+
+/* ───────── Appeals ───────── */
+
+export async function submitAppeal(data) {
+  return request('POST', '/appeals', data);
+}
+
+export async function getMyAppeals() {
+  return request('GET', '/appeals/my');
+}
+
+export async function getAppeal(id) {
+  return request('GET', `/appeals/${id}`);
+}

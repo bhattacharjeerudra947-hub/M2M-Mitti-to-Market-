@@ -76,11 +76,12 @@ export default function BuyerRequirements() {
   const viewMatches = async (reqId) => {
     setLoadingMatches(true);
     setMatches(null);
+    setError('');
     try {
       const data = await apiGet(`/api/requirements/${reqId}/matches`);
-      setMatches({ requirementId: reqId, supply: data || [] });
+      setMatches({ requirementId: reqId, supply: Array.isArray(data) ? data : [] });
     } catch (err) {
-      setError(err.message);
+      setError(`Failed to retrieve matches: ${err.message || 'Server error'}`);
     } finally {
       setLoadingMatches(false);
     }

@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AccessDenied from './AccessDenied';
+import AccountStatusScreen from '../pages/AccountStatusScreen';
 
 /**
  * Protects routes by checking authentication and optional role.
@@ -45,6 +46,13 @@ export default function ProtectedRoute({ children, role, roles }) {
   // Not authenticated and not in guest mode — redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Intercept SUSPENDED, DEACTIVATED, and REJECTED statuses
+  // Render AccountStatusScreen so the user has persistent access to the appeal interface
+  const userStatus = user?.status?.toUpperCase();
+  if (userStatus === 'SUSPENDED' || userStatus === 'DEACTIVATED' || userStatus === 'REJECTED') {
+    return <AccountStatusScreen />;
   }
 
   // Check role if specified (for authenticated users)

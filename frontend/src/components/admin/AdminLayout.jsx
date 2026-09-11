@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, Navigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileCheck, Package, Handshake, Scale,
-  Flag, MessageSquare, ScrollText, Settings, ExternalLink, Bell,
+  Flag, MessageSquare, ScrollText, Settings, ExternalLink, Bell, ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import AccessDenied from '../AccessDenied';
@@ -24,6 +24,7 @@ const SECTIONS = [
   {
     heading: 'Monitoring',
     items: [
+      { label: 'Appeals', path: '/admin/appeals', icon: ShieldAlert },
       { label: 'Reports', path: '/admin/reports', icon: Flag },
       { label: 'Feedback', path: '/admin/feedback', icon: MessageSquare },
       { label: 'Audit Log', path: '/admin/audit-log', icon: ScrollText },
@@ -84,6 +85,7 @@ export default function AdminLayout() {
   const current = ALL_ITEMS.find((n) => location.pathname === n.path || (n.path !== '/admin' && location.pathname.startsWith(n.path)));
 
   const notifications = stats ? [
+    stats.pendingAppeals > 0 && { label: `${stats.pendingAppeals} appeal${stats.pendingAppeals > 1 ? 's' : ''} awaiting review`, to: '/admin/appeals' },
     stats.pendingVerification > 0 && { label: `${stats.pendingVerification} verification request${stats.pendingVerification > 1 ? 's' : ''} awaiting review`, to: '/admin/verifications' },
     stats.openReports > 0 && { label: `${stats.openReports} open report${stats.openReports > 1 ? 's' : ''} to investigate`, to: '/admin/reports' },
     stats.pendingFeedback > 0 && { label: `${stats.pendingFeedback} new feedback submission${stats.pendingFeedback > 1 ? 's' : ''}`, to: '/admin/feedback' },

@@ -45,18 +45,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 var userOpt = userRepository.findById(userId);
                 if (userOpt.isPresent()) {
                     var user = userOpt.get();
+                    if (user.getStatus() == com.mitti2market.model.User.UserStatus.DELETED) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"This account has been permanently deleted.\"}");
+                        return;
+                    }
+
                     if (user.getStatus() == com.mitti2market.model.User.UserStatus.SUSPENDED
                             || user.getStatus() == com.mitti2market.model.User.UserStatus.DEACTIVATED) {
                         String uri = request.getRequestURI();
-                        // Allow /api/auth/me and /api/profile so the client session gets the updated deactivation/suspension details
-                        if (!uri.endsWith("/auth/me") && !uri.endsWith("/profile") && !uri.endsWith("/auth/logout")) {
+                        // Allow /api/auth/me, /api/profile, /api/auth/logout, and /api/appeals so the client session can view status & submit appeals
+                        if (!uri.contains("/auth/me") && !uri.contains("/profile") && !uri.contains("/auth/logout") && !uri.contains("/appeals")) {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setContentType("application/json");
                             String reason = user.getStatusReason() != null && !user.getStatusReason().isBlank()
                                     ? ": " + user.getStatusReason()
                                     : "";
                             String statusLabel = user.getStatus() == com.mitti2market.model.User.UserStatus.DEACTIVATED ? "deactivated" : "suspended";
-                            response.getWriter().write("{\"error\":\"Your account has been " + statusLabel + " by administration" + reason + "\"}");
+                            response.getWriter().write("{\"error\":\"You are currently " + statusLabel + ". You cannot use marketplace features until your account is restored" + reason + "\"}");
                             return;
                         }
                     }

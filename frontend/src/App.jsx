@@ -59,8 +59,10 @@ import AdminFeedback from './pages/admin/AdminFeedback';
 import AdminDeals from './pages/admin/AdminDeals';
 import AdminProduce from './pages/admin/AdminProduce';
 import AdminDisputes from './pages/admin/AdminDisputes';
+import AdminAppeals from './pages/admin/AdminAppeals';
 import AdminAuditLog from './pages/admin/AdminAuditLog';
 import AdminSettings from './pages/admin/AdminSettings';
+import AccountStatusScreen from './pages/AccountStatusScreen';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -243,6 +245,9 @@ export default function App() {
           </Route>
 
 
+          {/* Account Status / Appeal dedicated route */}
+          <Route path="/suspended" element={<AccountStatusScreen />} />
+
           {/* Deal Workspace — shared by farmer & buyer */}
           <Route path="/deal/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
 
@@ -251,6 +256,7 @@ export default function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="verifications" element={<AdminVerifications />} />
+            <Route path="appeals" element={<AdminAppeals />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="feedback" element={<AdminFeedback />} />
             <Route path="deals" element={<AdminDeals />} />

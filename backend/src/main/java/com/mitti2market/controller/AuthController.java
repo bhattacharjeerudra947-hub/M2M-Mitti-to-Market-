@@ -190,22 +190,11 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        if (user.getStatus() == User.UserStatus.SUSPENDED) {
-            String msg = "Your account has been suspended by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
-        }
-
-        if (user.getStatus() == User.UserStatus.DEACTIVATED) {
-            String msg = "Your account has been deactivated by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            } else {
-                msg += ". Please contact support.";
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
+        if (user.getStatus() == User.UserStatus.DELETED) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "This account has been permanently deleted."
+            ));
         }
 
         if (req.getRole() != null && !req.getRole().trim().isEmpty()) {
@@ -314,22 +303,11 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        if (user.getStatus() == User.UserStatus.SUSPENDED) {
-            String msg = "Your account has been suspended by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
-        }
-
-        if (user.getStatus() == User.UserStatus.DEACTIVATED) {
-            String msg = "Your account has been deactivated by administration";
-            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
-                msg += ": " + user.getStatusReason();
-            } else {
-                msg += ". Please contact support.";
-            }
-            return ResponseEntity.status(403).body(Map.of("error", msg));
+        if (user.getStatus() == User.UserStatus.DELETED) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "success", false,
+                    "error", "This account has been permanently deleted."
+            ));
         }
 
         // Enforce role isolation at the backend — the account's role must match the
@@ -433,6 +411,9 @@ public class AuthController {
                 .status(user.getStatus() != null ? user.getStatus().name() : "ACTIVE")
                 .statusReason(user.getStatusReason())
                 .statusUpdatedAt(user.getStatusUpdatedAt())
+                .suspendedAt(user.getSuspendedAt())
+                .deactivatedAt(user.getDeactivatedAt())
+                .deletedAt(user.getDeletedAt())
                 .verifiedAt(user.getVerifiedAt())
                 .verifiedBy(user.getVerifiedBy())
                 .rating(user.getRating())

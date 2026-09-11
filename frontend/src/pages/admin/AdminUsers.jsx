@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Download, SlidersHorizontal, Star } from 'lucide-react';
 import {
   getUsers, getUserDetails, verifyUser, rejectVerification, requestResubmission,
-  suspendUser, unsuspendUser, deactivateUser, restoreUser, getStats,
+  suspendUser, unsuspendUser, deactivateUser, restoreUser, deleteUser, getStats,
 } from '../../services/adminApi';
 import {
   Table, Td, TableSkeleton, EmptyState, ErrorState, MetricStrip, Avatar,
@@ -89,6 +89,7 @@ export default function AdminUsers() {
       UNSUSPEND: () => unsuspendUser(user.id, reason),
       DEACTIVATE: () => deactivateUser(user.id, reason),
       RESTORE: () => restoreUser(user.id, reason),
+      DELETE: () => deleteUser(user.id, reason),
     };
     const res = await calls[action]();
     setSubmitting(false);
@@ -111,6 +112,7 @@ export default function AdminUsers() {
       case 'UNSUSPEND': return `${user.name} reactivated`;
       case 'DEACTIVATE': return `${user.name} deactivated`;
       case 'RESTORE': return `${user.name} restored`;
+      case 'DELETE': return `${user.name} permanently deleted`;
       default: return 'Action completed';
     }
   }
@@ -260,6 +262,7 @@ export default function AdminUsers() {
                           u.status !== 'DEACTIVATED' && { label: 'Deactivate', onClick: () => openDialog('DEACTIVATE', u), destructive: true },
                           u.status === 'DEACTIVATED' && { label: 'Restore', onClick: () => openDialog('RESTORE', u) },
                           u.verificationStatus === 'RE_SUBMISSION_REQUESTED' && { label: 'Request resubmission', onClick: () => openDialog('RESUBMIT', u) },
+                          u.status !== 'DELETED' && { label: 'Delete User', onClick: () => openDialog('DELETE', u), destructive: true },
                         ].filter(Boolean)}
                       />
                     )}
@@ -412,7 +415,7 @@ export default function AdminUsers() {
         title={dialogTitles(dialog.action, dialog.user)}
         body={dialogBodies(dialog.action, dialog.user)}
         confirmLabel={dialogLabels[dialog.action] || 'Confirm'}
-        destructive={['SUSPEND', 'DEACTIVATE', 'REJECT'].includes(dialog.action)}
+        destructive={['SUSPEND', 'DEACTIVATE', 'REJECT', 'DELETE'].includes(dialog.action)}
         requireReason
         reasonPlaceholder={reasonPlaceholders[dialog.action]}
         busy={submitting}
@@ -429,6 +432,7 @@ export default function AdminUsers() {
 const dialogLabels = {
   VERIFY: 'Verify account', REJECT: 'Reject verification', RESUBMIT: 'Request resubmission',
   SUSPEND: 'Suspend account', UNSUSPEND: 'Reinstate account', DEACTIVATE: 'Deactivate account', RESTORE: 'Restore account',
+  DELETE: 'Permanently Delete User',
 };
 
 function dialogTitles(action, user) {
@@ -441,6 +445,7 @@ function dialogTitles(action, user) {
     case 'DEACTIVATE': return 'Deactivate account?';
     case 'UNSUSPEND': return `Reinstate ${user.name}?`;
     case 'RESTORE': return `Restore ${user.name}?`;
+    case 'DELETE': return `Permanently Delete ${user.name}?`;
     default: return 'Confirm action';
   }
 }
@@ -455,6 +460,7 @@ function dialogBodies(action, user) {
     case 'VERIFY': return 'The user will receive a verified badge across the marketplace.';
     case 'UNSUSPEND': return 'The account will regain full marketplace access.';
     case 'RESTORE': return 'The account will be reactivated and can sign in again.';
+    case 'DELETE': return `WARNING: This action is permanent. ${user.name}'s active produce listings and bulk requirements will be cancelled and their account soft-deleted. Historical completed transactions are preserved for audits.`;
     default: return '';
   }
 }
@@ -464,4 +470,5 @@ const reasonPlaceholders = {
   DEACTIVATE: 'e.g. Confirmed serious abuse of platform rules',
   REJECT: 'e.g. Submitted verification information is incomplete',
   RESUBMIT: 'e.g. Document unreadable — please upload a clearer scan',
+  DELETE: 'e.g. Account owner requested deletion or severe platform violation',
 };
