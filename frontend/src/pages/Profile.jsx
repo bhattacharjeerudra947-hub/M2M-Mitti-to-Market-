@@ -3,6 +3,22 @@ import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Star, Shield, Edit3, Save, X, Loader2, AlertCircle, CheckCircle2, ArrowLeft, FileText, Camera, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../services/api';
+
+// Thin wrapper so we can call the new /api/profile/photo endpoint through the
+// existing api module (which auto-attaches the auth token and unwraps the
+// ApiResponse envelope).
+async function updateProfilePhoto(photoUrl) {
+  const res = await fetch(api.API_BASE + '/profile/photo', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(api.getStoredToken() ? { Authorization: `Bearer ${api.getStoredToken()}` } : {}),
+    },
+    body: JSON.stringify({ profilePhotoUrl: photoUrl }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true, data } : { ok: false, error: data.error || data.message || 'Failed to set profile photo' };
+}
 import DocumentUpload from '../components/DocumentUpload';
 
 const STATUS_COLORS = {
@@ -43,6 +59,7 @@ export default function Profile() {
   const [profileData, setProfileData] = useState(null);
   const [form, setForm] = useState({ name: '', phone: '', location: '' });
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+  const [settingPhoto, setSettingPhoto] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [farmerProfile, setFarmerProfile] = useState(null);
   const [businessProfile, setBusinessProfile] = useState(null);
@@ -66,13 +83,19 @@ export default function Profile() {
       setForm({ name: user?.name || '', phone: user?.phone || '', location: user?.location || '' });
     }
 
-    // 2. Load documents
-    const docsResult = await api.getMyDocuments();
-    if (docsResult.ok && docsResult.data?.data) {
-      const docs = docsResult.data.data;
-      setDocuments(docs);
-      const photo = docs.find(d => d.documentType === 'PROFILE_PHOTO' && d.verificationStatus !== 'REJECTED');
-      if (photo?.cloudinaryUrl) setProfilePhotoUrl(photo.cloudinaryUrl);
+      // 2. Prefer user.profilePhotoUrl (set via setProfilePhoto API),
+    //    fall back to PROFILE_PHOTO document if not set on the user record.
+    const photoFromUser = profileData?.profilePhotoUrl;
+    if (photoFromUser) {
+      setProfilePhotoUrl(photoFromUser);
+    } else {
+      const docsResult = await api.getMyDocuments();
+      if (docsResult.ok && docsResult.data?.data) {
+        const docs = docsResult.data.data;
+        setDocuments(docs);
+        const photo = docs.find(d => d.documentType === 'PROFILE_PHOTO' && d.verificationStatus !== 'REJECTED');
+        if (photo?.cloudinaryUrl) setProfilePhotoUrl(photo.cloudinaryUrl);
+      }
     }
 
     // 3. Load role-specific profile
@@ -114,8 +137,35 @@ export default function Profile() {
     setError('');
   };
 
-  const handleDocumentUploaded = () => {
-    loadAll(); // Refresh everything
+  const handleDocumentUploaded = async (doc) => {
+    // Refresh documents list so the new doc appears in the documents tab.
+    const docsResult = await api.getMyDocuments();
+    if (docsResult.ok && docsResult.data?.data) {
+      setDocuments(docsResult.data.data);
+    }
+
+    // If this was a profile photo, also persist it on the User record so
+    // it becomes the authoritative profile picture (used by Sidebar, map,
+    // and everywhere user.profilePhotoUrl is read).
+    if (doc?.documentType === 'PROFILE_PHOTO' && doc?.cloudinaryUrl) {
+      setSettingPhoto(true);
+      try {
+        await api.updateProfilePhoto(doc.cloudinaryUrl);
+        setProfilePhotoUrl(doc.cloudinaryUrl);
+        // Refresh profile data so the user object carries the new photo URL.
+        const profileResult = await api.getProfile();
+        if (profileResult.ok) {
+          const updated = profileResult.data?.user || profileResult.data || user;
+          setProfileData(updated);
+          refreshUser(updated);
+        }
+      } catch {
+        // Non-fatal: the photo is still visible from the documents list;
+        // only the User-level profilePhotoUrl stays stale.
+      } finally {
+        setSettingPhoto(false);
+      }
+    }
   };
 
   if (loading) {

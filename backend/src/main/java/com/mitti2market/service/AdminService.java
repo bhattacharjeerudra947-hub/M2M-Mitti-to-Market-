@@ -99,7 +99,8 @@ public class AdminService {
                         !Boolean.TRUE.equals(u.getVerified()) && u.getVerificationStatus() != VerificationStatus.VERIFIED) return false;
                 if (verification.equalsIgnoreCase("UNVERIFIED") && Boolean.TRUE.equals(u.getVerified())) return false;
                 if (verification.equalsIgnoreCase("PENDING") && u.getVerificationStatus() != VerificationStatus.PENDING) return false;
-                if (verification.equalsIgnoreCase("REJECTED") && u.getVerificationStatus() != VerificationStatus.REJECTED) return false;
+                if ((verification.equalsIgnoreCase("REJECTED") || verification.equalsIgnoreCase("VERIFICATION_LOST") || verification.equalsIgnoreCase("LOST"))
+                        && u.getVerificationStatus() != VerificationStatus.REJECTED) return false;
                 if ((verification.equalsIgnoreCase("RE_SUBMISSION_REQUESTED") || verification.equalsIgnoreCase("RE_UPLOAD_REQUESTED") || verification.equalsIgnoreCase("REUPLOAD"))
                         && u.getVerificationStatus() != VerificationStatus.RE_SUBMISSION_REQUESTED) return false;
             }
@@ -365,6 +366,7 @@ public class AdminService {
         m.put("verificationNotes", user.getVerificationNotes());
         m.put("verifiedAt", user.getVerifiedAt());
         m.put("verifiedBy", user.getVerifiedBy());
+        m.put("profilePhotoUrl", user.getProfilePhotoUrl());
         m.put("createdAt", user.getCreatedAt());
         return m;
     }

@@ -658,8 +658,7 @@ export default function SignUp() {
       <div className="max-w-2xl mx-auto">
         {/* Top Header & Logo */}
         <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="inline-flex items-center"><M2MLogo /></Link>
-          <Link to="/login" className="text-xs font-semibold text-navy-700 hover:underline">
+          <Link to="/" className="inline-flex items-center"><M2MLogo /></Link>            <Link to="/login" className="text-xs font-semibold text-navy-700 hover:underline">
             Already registered? Sign In
           </Link>
         </div>
@@ -675,7 +674,9 @@ export default function SignUp() {
                   onClick={handleBack}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 transition py-1 px-2.5 rounded-lg hover:bg-gray-100"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Back
+                  {formData.step === 1 
+                    ? <><ArrowLeft className="w-4 h-4" /> Back to Account Type</> 
+                    : <><ArrowLeft className="w-4 h-4" /> Back</>}
                 </button>
                 <span className="text-xs font-bold text-mustard-700 bg-mustard-50 px-3 py-1 rounded-full">
                   Step {formData.step} of 4

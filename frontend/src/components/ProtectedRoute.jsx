@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AccessDenied from './AccessDenied';
 
 /**
  * Protects routes by checking authentication and optional role.
@@ -48,12 +49,11 @@ export default function ProtectedRoute({ children, role, roles }) {
 
   // Check role if specified (for authenticated users)
   const userRole = user?.role?.toLowerCase();
-  const fallback = userRole === 'farmer' ? '/farmer' : '/business';
   if (role && userRole !== role.toLowerCase()) {
-    return <Navigate to={fallback} replace />;
+    return <AccessDenied requiredRole={role.toUpperCase()} />;
   }
   if (roles && !roles.map((r) => r.toLowerCase()).includes(userRole)) {
-    return <Navigate to={fallback} replace />;
+    return <AccessDenied requiredRole={roles.map((r) => r.toUpperCase()).join(' or ')} />;
   }
 
   return children;
