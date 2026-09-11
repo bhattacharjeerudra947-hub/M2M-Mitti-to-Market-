@@ -28,7 +28,7 @@ public class SupportingDocument {
 
     /** Document type: PROFILE_PHOTO, IDENTITY_DOC, BUSINESS_REGISTRATION, GST_CERTIFICATE, etc. */
     @Enumerated(EnumType.STRING)
-    @Column(name = "document_type", nullable = false)
+    @Column(name = "document_type", length = 50, nullable = false)
     private DocumentType documentType;
 
     /** Original filename as uploaded by the user */
@@ -57,6 +57,7 @@ public class SupportingDocument {
 
     /** Verification status */
     @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", length = 50, nullable = false)
     @Builder.Default
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
 
@@ -92,8 +93,10 @@ public class SupportingDocument {
         IDENTITY_DOC,
         AADHAAR_CARD,
         FARMER_ID,
+        LAND_DOCUMENT,
         LAND_CULTIVATION_PROOF,
         BUSINESS_REGISTRATION,
+        BUSINESS_LICENSE,
         GST_CERTIFICATE,
         PAN_CARD,
         GOVERNMENT_AUTHORIZATION,
@@ -107,6 +110,7 @@ public class SupportingDocument {
     public enum VerificationStatus {
         PENDING,
         VERIFIED,
+        APPROVED,
         REJECTED,
         RE_UPLOAD_REQUESTED
     }

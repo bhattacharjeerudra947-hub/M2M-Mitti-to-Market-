@@ -60,7 +60,8 @@ public class DocumentController {
         // Parse document type
         SupportingDocument.DocumentType docType;
         try {
-            docType = SupportingDocument.DocumentType.valueOf(documentTypeStr.toUpperCase());
+            String normalized = documentTypeStr.trim().toUpperCase().replace(" ", "_").replace("-", "_");
+            docType = SupportingDocument.DocumentType.valueOf(normalized);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Invalid document type: " + documentTypeStr));
         }
@@ -116,18 +117,23 @@ public class DocumentController {
 
             doc = documents.save(doc);
 
-            // If user was waiting for re-submission, reset to PENDING when re-uploaded
-            if (user.getVerificationStatus() == User.VerificationStatus.RE_SUBMISSION_REQUESTED) {
-                long remainingFlagged = documents.findByUserId(userId).stream()
-                        .filter(d -> d.getVerificationStatus() == SupportingDocument.VerificationStatus.RE_UPLOAD_REQUESTED)
-                        .count();
-                if (remainingFlagged == 0) {
+            // If this is a profile photo, update the User entity directly
+            if (docType == SupportingDocument.DocumentType.PROFILE_PHOTO) {
+                user.setProfilePhotoUrl(uploadResult.get("url"));
+                user.setProfilePhotoPublicId(uploadResult.get("publicId"));
+                users.save(user);
+            } else {
+                // For supporting documents: if previously rejected or re-submission requested, reset user to PENDING
+                if (user.getVerificationStatus() == User.VerificationStatus.REJECTED
+                        || user.getVerificationStatus() == User.VerificationStatus.RE_SUBMISSION_REQUESTED
+                        || user.getVerificationStatus() == User.VerificationStatus.NOT_VERIFIED) {
                     user.setVerificationStatus(User.VerificationStatus.PENDING);
+                    user.setVerificationNotes(null);
                     users.save(user);
                 }
             }
 
-            return ResponseEntity.ok(ApiResponse.ok("Document uploaded successfully", toResponse(doc)));
+            return ResponseEntity.ok(ApiResponse.ok("Document uploaded successfully. Awaiting admin verification.", toResponse(doc)));
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -218,21 +224,52 @@ public class DocumentController {
         return ResponseEntity.ok(ApiResponse.ok("Document deleted", null));
     }
 
+    /**
+     * GET /api/documents/{id}
+     * Get document metadata. Only accessible by the owner or ADMIN.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getDocument(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long id) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        }
+
+        SupportingDocument doc = documents.findById(id).orElse(null);
+        if (doc == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("Document not found"));
+        }
+
+        User caller = users.findById(userId).orElse(null);
+        if (caller == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("User not found"));
+        }
+
+        if (!doc.getUser().getId().equals(userId) && caller.getRole() != User.Role.ADMIN) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied: You cannot view another user's private documents"));
+        }
+
+        return ResponseEntity.ok(ApiResponse.ok(toResponse(doc)));
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Admin Endpoints
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * GET /api/admin/documents/pending
+     * GET /api/documents/admin/pending
      * List all pending documents for admin review.
      */
     @GetMapping("/admin/pending")
     public ResponseEntity<?> getPendingDocuments(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        Long userId = extractUserId(authHeader);
-        if (userId == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        User admin = requireAdmin(authHeader);
+        if (admin == null) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied: Admin privileges required"));
         }
 
         List<SupportingDocument> docs = documents.findByVerificationStatus(
@@ -244,6 +281,7 @@ public class DocumentController {
             resp.put("userId", doc.getUser().getId());
             resp.put("userName", doc.getUser().getName());
             resp.put("userPhone", doc.getUser().getPhone());
+            resp.put("userEmail", doc.getUser().getEmail());
             resp.put("userRole", doc.getUser().getRole().name());
             resp.put("documentType", doc.getDocumentType().name());
             resp.put("originalFilename", doc.getOriginalFilename());
@@ -260,7 +298,7 @@ public class DocumentController {
     }
 
     /**
-     * PUT /api/admin/documents/{id}/verify
+     * PUT /api/documents/admin/{id}/verify
      * Approve a document.
      */
     @PutMapping("/admin/{id}/verify")
@@ -268,9 +306,9 @@ public class DocumentController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable Long id) {
 
-        Long userId = extractUserId(authHeader);
-        if (userId == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        User admin = requireAdmin(authHeader);
+        if (admin == null) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied: Admin privileges required"));
         }
 
         SupportingDocument doc = documents.findById(id).orElse(null);
@@ -279,15 +317,33 @@ public class DocumentController {
         }
 
         doc.setVerificationStatus(SupportingDocument.VerificationStatus.VERIFIED);
-        doc.setReviewedBy(userId);
+        doc.setRejectionReason(null);
+        doc.setReviewedBy(admin.getId());
         doc.setReviewedAt(LocalDateTime.now());
         documents.save(doc);
+
+        // Check if all supporting documents for user are verified
+        User docUser = doc.getUser();
+        List<SupportingDocument> userDocs = documents.findByUserId(docUser.getId());
+        boolean hasPending = userDocs.stream().anyMatch(d ->
+                d.getVerificationStatus() == SupportingDocument.VerificationStatus.PENDING
+                || d.getVerificationStatus() == SupportingDocument.VerificationStatus.RE_UPLOAD_REQUESTED);
+        boolean hasRejected = userDocs.stream().anyMatch(d ->
+                d.getVerificationStatus() == SupportingDocument.VerificationStatus.REJECTED);
+
+        if (!hasPending && !hasRejected) {
+            docUser.setVerified(true);
+            docUser.setVerificationStatus(User.VerificationStatus.VERIFIED);
+            docUser.setVerifiedAt(LocalDateTime.now());
+            docUser.setVerifiedBy(admin.getName() != null ? admin.getName() : "ADMIN");
+            users.save(docUser);
+        }
 
         return ResponseEntity.ok(ApiResponse.ok("Document verified", toResponse(doc)));
     }
 
     /**
-     * PUT /api/admin/documents/{id}/reject
+     * PUT /api/documents/admin/{id}/reject
      * Reject a document with a reason.
      */
     @PutMapping("/admin/{id}/reject")
@@ -296,9 +352,9 @@ public class DocumentController {
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
 
-        Long userId = extractUserId(authHeader);
-        if (userId == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        User admin = requireAdmin(authHeader);
+        if (admin == null) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied: Admin privileges required"));
         }
 
         SupportingDocument doc = documents.findById(id).orElse(null);
@@ -306,12 +362,19 @@ public class DocumentController {
             return ResponseEntity.status(404).body(ApiResponse.error("Document not found"));
         }
 
-        String reason = body.getOrDefault("reason", "No reason provided");
+        String reason = body.getOrDefault("reason", "Verification document does not meet platform requirements.");
         doc.setVerificationStatus(SupportingDocument.VerificationStatus.REJECTED);
         doc.setRejectionReason(reason);
-        doc.setReviewedBy(userId);
+        doc.setReviewedBy(admin.getId());
         doc.setReviewedAt(LocalDateTime.now());
         documents.save(doc);
+
+        // Immediately reflect verification lost on user profile
+        User docUser = doc.getUser();
+        docUser.setVerified(false);
+        docUser.setVerificationStatus(User.VerificationStatus.REJECTED);
+        docUser.setVerificationNotes(doc.getDocumentType().name() + " rejected: " + reason);
+        users.save(docUser);
 
         return ResponseEntity.ok(ApiResponse.ok("Document rejected", toResponse(doc)));
     }
@@ -326,9 +389,9 @@ public class DocumentController {
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
 
-        Long userId = extractUserId(authHeader);
-        if (userId == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        User admin = requireAdmin(authHeader);
+        if (admin == null) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied: Admin privileges required"));
         }
 
         SupportingDocument doc = documents.findById(id).orElse(null);
@@ -339,16 +402,25 @@ public class DocumentController {
         String reason = body.getOrDefault("reason", "Document is unclear or invalid. Please re-upload.");
         doc.setVerificationStatus(SupportingDocument.VerificationStatus.RE_UPLOAD_REQUESTED);
         doc.setRejectionReason(reason);
-        doc.setReviewedBy(userId);
+        doc.setReviewedBy(admin.getId());
         doc.setReviewedAt(LocalDateTime.now());
         documents.save(doc);
 
         User user = doc.getUser();
+        user.setVerified(false);
         user.setVerificationStatus(User.VerificationStatus.RE_SUBMISSION_REQUESTED);
         user.setVerificationNotes(reason);
         users.save(user);
 
         return ResponseEntity.ok(ApiResponse.ok("Re-upload requested for document", toResponse(doc)));
+    }
+
+    private User requireAdmin(String authHeader) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return null;
+        User user = users.findById(userId).orElse(null);
+        if (user == null || user.getRole() != User.Role.ADMIN) return null;
+        return user;
     }
 
     // ═══════════════════════════════════════════════════════════════

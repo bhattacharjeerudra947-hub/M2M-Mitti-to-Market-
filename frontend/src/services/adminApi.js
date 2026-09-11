@@ -53,6 +53,52 @@ export async function requestResubmission(id, reason) {
   return adminRequest('PUT', `/users/${id}/request-resubmission`, { reason });
 }
 
+export async function getPendingDocuments() {
+  const token = getStoredToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const res = await fetch(`${API_BASE}/documents/admin/pending`, { method: 'GET', headers });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, data: data.data !== undefined ? data.data : data };
+    return { ok: false, error: data.message || data.error || 'Request failed' };
+  } catch {
+    return { ok: false, error: 'Backend unavailable' };
+  }
+}
+
+export async function verifyDocument(docId) {
+  const token = getStoredToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const res = await fetch(`${API_BASE}/documents/admin/${docId}/verify`, { method: 'PUT', headers });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, data: data.data !== undefined ? data.data : data };
+    return { ok: false, error: data.message || data.error || 'Request failed' };
+  } catch {
+    return { ok: false, error: 'Backend unavailable' };
+  }
+}
+
+export async function rejectDocument(docId, reason) {
+  const token = getStoredToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const res = await fetch(`${API_BASE}/documents/admin/${docId}/reject`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return { ok: true, data: data.data !== undefined ? data.data : data };
+    return { ok: false, error: data.message || data.error || 'Request failed' };
+  } catch {
+    return { ok: false, error: 'Backend unavailable' };
+  }
+}
+
 export async function requestDocReupload(docId, reason) {
   const token = getStoredToken();
   const headers = { 'Content-Type': 'application/json' };

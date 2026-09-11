@@ -14,14 +14,33 @@ export function AuthProvider({ children }) {
     const storedUser = api.getStoredUserData();
     if (storedUser && api.isLoggedIn()) {
       setUser(storedUser);
+      // Fetch fresh user profile from backend to ensure verificationStatus, profilePhotoUrl, etc. are accurate
+      api.getMe().then((res) => {
+        if (res.ok && res.data) {
+          setUser(res.data);
+          api.setStoredUserData(res.data);
+        }
+      }).catch(() => {});
     }
     setLoading(false);
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const result = await api.login(email, password);
+  const login = useCallback(async (email, password, role) => {
+    // Route to the role-locked backend endpoint. The backend enforces that the
+    // account's role matches the portal used, so passing the role here is not
+    // authorization by itself — it just selects the correct endpoint.
+    let result;
+    if (role === 'admin') {
+      result = await api.loginAdmin(email, password);
+    } else if (role === 'business') {
+      result = await api.loginBusiness(email, password);
+    } else {
+      // role === 'farmer' or unrecognised — use the farmer-locked endpoint
+      result = await api.loginFarmer(email, password);
+    }
     if (result.ok) {
-      setUser(result.data.user);
+      const loggedInUser = result.data?.user || result.data;
+      setUser(loggedInUser);
       // Clear guest mode on real login
       setGuestRole(null);
       // Let the offline sync queue know a session is available
@@ -30,10 +49,17 @@ export function AuthProvider({ children }) {
     return result;
   }, []);
 
-  const register = useCallback(async (name, email, phone, password, role, location) => {
-    const result = await api.register(name, email, phone, password, role, location);
+  const register = useCallback(async (nameOrPayload, email, phone, password, role, location) => {
+    let payload;
+    if (typeof nameOrPayload === 'object' && nameOrPayload !== null) {
+      payload = nameOrPayload;
+    } else {
+      payload = { name: nameOrPayload, email, phone, password, role, location };
+    }
+    const result = await api.register(payload.name, payload.email, payload.phone, payload.password, payload.role, payload.location);
     if (result.ok) {
-      setUser(result.data.user);
+      const registeredUser = result.data?.user || result.data;
+      setUser(registeredUser);
       setGuestRole(null);
       window.dispatchEvent(new Event('m2m:login'));
     }
@@ -46,8 +72,19 @@ export function AuthProvider({ children }) {
     setGuestRole(null);
   }, []);
 
-  const refreshUser = useCallback((userData) => {
-    setUser(userData);
+  const refreshUser = useCallback(async (userData) => {
+    if (userData) {
+      setUser(userData);
+      api.setStoredUserData(userData);
+      return userData;
+    } else {
+      const res = await api.getMe();
+      if (res.ok && res.data) {
+        setUser(res.data);
+        api.setStoredUserData(res.data);
+        return res.data;
+      }
+    }
   }, []);
 
   // Guest mode helpers
