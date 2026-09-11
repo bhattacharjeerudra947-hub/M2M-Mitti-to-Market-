@@ -9,6 +9,7 @@ import com.mitti2market.repository.SupportingDocumentRepository;
 import com.mitti2market.repository.UserRepository;
 import com.mitti2market.service.CloudinaryService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -431,8 +432,15 @@ public class DocumentController {
     // ═══════════════════════════════════════════════════════════════
 
     private Long extractUserId(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
-        return tokens.validateAccessToken(authHeader.substring(7));
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            Long uid = tokens.validateAccessToken(authHeader.substring(7));
+            if (uid != null) return uid;
+        }
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Long uid) {
+            return uid;
+        }
+        return null;
     }
 
     private DocumentResponse toResponse(SupportingDocument doc) {

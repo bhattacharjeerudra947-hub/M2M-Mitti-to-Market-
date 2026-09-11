@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Loader2, MapPin, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, MapPin, CheckCircle, ShieldCheck, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveBusinessProfile, getBusinessProfile } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
+import TermsModal from '../components/TermsModal';
 
 const CROPS = [
   'Rice', 'Wheat', 'Maize', 'Cotton', 'Sugarcane', 'Groundnut', 'Soybean',
@@ -36,6 +37,8 @@ export default function BusinessRegistration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
 
   // Load existing profile
   useEffect(() => {
@@ -440,6 +443,36 @@ export default function BusinessRegistration() {
                 </div>
               )}
             </div>
+
+            {/* Terms & Conditions Agreement */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-navy-800 shrink-0" />
+                  <span className="text-xs font-bold text-gray-900">Business Buyer Terms & Governance</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTermsModalOpen(true)}
+                  className="px-2.5 py-1 bg-white border border-slate-300 text-navy-900 rounded-lg text-xs font-semibold hover:bg-slate-100 transition flex items-center gap-1"
+                >
+                  <FileText className="w-3.5 h-3.5 text-navy-700" /> Read Terms
+                </button>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition">
+                <input
+                  type="checkbox"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 text-navy-900 rounded border-gray-300 focus:ring-mustard-400"
+                />
+                <span className="text-xs text-gray-700 leading-relaxed">
+                  I agree to the <strong className="text-navy-900">Business Buyer Terms & Conditions</strong>, Commercial Procurement Code, Statutory Verification Requirements, and DPDP Privacy Policy.
+                  <span className="text-red-500 font-bold ml-1">*</span>
+                </span>
+              </label>
+            </div>
           </div>
         );
     }
@@ -492,14 +525,22 @@ export default function BusinessRegistration() {
           ) : (
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition flex items-center justify-center gap-2 disabled:opacity-60"
+              disabled={saving || !agreeTerms}
+              className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Complete Registration'}
             </button>
           )}
         </div>
       </div>
+
+      {/* Terms Modal */}
+      <TermsModal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        role="business"
+        onAccept={() => setAgreeTerms(true)}
+      />
     </div>
   );
 }

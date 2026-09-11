@@ -86,7 +86,7 @@ export function AuthProvider({ children }) {
     } else {
       payload = { name: nameOrPayload, email, phone, password, role, location };
     }
-    const result = await api.register(payload.name, payload.email, payload.phone, payload.password, payload.role, payload.location);
+    const result = await api.register(payload);
     if (result.ok) {
       const registeredUser = result.data?.user || result.data;
       setUser(registeredUser);
