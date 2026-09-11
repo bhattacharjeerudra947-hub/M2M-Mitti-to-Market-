@@ -33,8 +33,12 @@ public class Notification {
     /** Reference to related entity */
     private Long referenceId;
 
-    /** Related entity type (PRODUCE, ORDER, INTEREST, MESSAGE) */
+    /** Related entity type (PRODUCE, ORDER, INTEREST, MESSAGE, MATCH, DEAL) */
     private String referenceType;
+
+    /** Extra metadata in JSON format (e.g. matchId, produceId, buyerRequirementId, conversationId, dealId) */
+    @Column(columnDefinition = "TEXT")
+    private String metadata;
 
     @Column(name = "is_read", nullable = false)
     @Builder.Default
@@ -49,10 +53,18 @@ public class Notification {
     }
 
     public enum NotificationType {
+        NEW_MATCH,
+        MATCH_UPDATED,
+        BUYER_REQUIREMENT_MATCHED,
+        NEW_BUYER_INTEREST,
+        DEAL_STARTED,
+        NEW_MESSAGE,
+        NEW_OFFER,
+        COUNTER_OFFER,
+        OFFER_ACCEPTED,
         BUYER_INTEREST,
         INTEREST_ACCEPTED,
         INTEREST_REJECTED,
-        NEW_MESSAGE,
         ORDER_PLACED,
         ORDER_STATUS_CHANGED,
         DEAL_AGREED,

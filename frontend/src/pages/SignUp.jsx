@@ -441,7 +441,7 @@ export default function SignUp() {
   const handleDocumentFileSelect = async (file, docType, slotKey) => {
     if (!file) return;
 
-    if (!isUserAuthenticated) {
+    if (!isAuthenticated && !isLoggedIn()) {
       setGlobalError('Authentication required. Please complete your account registration in Step 2 or sign in before uploading verification documents.');
       return;
     }
@@ -452,8 +452,9 @@ export default function SignUp() {
     const res = await uploadDocument(file, docType);
     setUploadingSlot(null);
 
-    if (res.ok && res.data?.data) {
-      update(slotKey, res.data.data);
+    const docData = res.data?.data || res.data;
+    if (res.ok && docData) {
+      update(slotKey, docData);
     } else {
       setGlobalError(res.error || 'Document upload failed. Ensure file is under 5MB (PDF or JPG/PNG).');
     }

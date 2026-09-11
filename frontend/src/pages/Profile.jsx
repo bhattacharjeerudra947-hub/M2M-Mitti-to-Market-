@@ -75,19 +75,21 @@ export default function Profile() {
     setLoading(true);
 
     // 1. Load user profile
+    let currentProfile = null;
     const result = await api.getProfile();
     if (result.ok) {
       const data = result.data?.user || result.data || user;
+      currentProfile = data;
       setProfileData(data);
       setForm({ name: data?.name || '', phone: data?.phone || '', location: data?.location || '' });
     } else {
+      currentProfile = user;
       setProfileData(user);
       setForm({ name: user?.name || '', phone: user?.phone || '', location: user?.location || '' });
     }
 
-      // 2. Prefer user.profilePhotoUrl (set via setProfilePhoto API),
-    //    fall back to PROFILE_PHOTO document if not set on the user record.
-    const photoFromUser = profileData?.profilePhotoUrl;
+    // 2. Prefer user.profilePhotoUrl (authoritative on user record)
+    const photoFromUser = currentProfile?.profilePhotoUrl || user?.profilePhotoUrl;
     if (photoFromUser) {
       setProfilePhotoUrl(photoFromUser);
     } else {

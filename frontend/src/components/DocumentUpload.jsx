@@ -106,11 +106,12 @@ export default function DocumentUpload({
     setUploading(false);
 
     if (result.ok) {
+      const docData = result.data?.data || result.data;
       setSuccess(true);
-      setUploadedDoc(result.data.data);
+      setUploadedDoc(docData);
       setFile(null);
       setPreview(null);
-      if (onUploadComplete) onUploadComplete(result.data.data);
+      if (onUploadComplete) onUploadComplete(docData);
     } else {
       setError(result.error || 'Upload failed');
     }
@@ -144,6 +145,10 @@ export default function DocumentUpload({
 
     return (
       <div className={`rounded-xl border p-4 ${statusColors[uploadedDoc.verificationStatus] || statusColors.PENDING}`}>
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+          <CheckCircle className="w-4 h-4 text-emerald-600" />
+          <span>{isPhoto ? '✅ Profile photo uploaded successfully.' : '✅ Verification document uploaded successfully.'}</span>
+        </div>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             {/* Show thumbnail for photos */}

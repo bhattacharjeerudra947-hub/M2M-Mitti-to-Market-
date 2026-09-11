@@ -135,7 +135,10 @@ public class DocumentController {
                 users.save(user);
             }
 
-            return ResponseEntity.ok(ApiResponse.ok("Document uploaded successfully. Awaiting admin verification.", toResponse(doc)));
+            String successMessage = docType == SupportingDocument.DocumentType.PROFILE_PHOTO
+                    ? "Profile photo uploaded successfully."
+                    : "Verification document uploaded successfully.";
+            return ResponseEntity.ok(ApiResponse.ok(successMessage, toResponse(doc)));
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
