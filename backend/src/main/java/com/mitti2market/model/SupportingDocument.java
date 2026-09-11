@@ -95,6 +95,7 @@ public class SupportingDocument {
         FARMER_ID,
         LAND_DOCUMENT,
         LAND_CULTIVATION_PROOF,
+        BANK_PASSBOOK,
         BUSINESS_REGISTRATION,
         BUSINESS_LICENSE,
         GST_CERTIFICATE,
