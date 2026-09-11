@@ -45,4 +45,14 @@ public class RatingController {
     public ResponseEntity<?> getDealRatings(@PathVariable Long dealId) {
         return ResponseEntity.ok(ApiResponse.ok(ratingService.getDealRatings(dealId)));
     }
+
+    @GetMapping("/users/{userId}/ratings")
+    public ResponseEntity<?> getUserRatings(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.ok(ratingService.getReviewsForUser(userId)));
+    }
+
+    @GetMapping("/users/{userId}/rating-summary")
+    public ResponseEntity<?> getUserRatingSummary(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.ok(ratingService.getUserRatingSummary(userId)));
+    }
 }

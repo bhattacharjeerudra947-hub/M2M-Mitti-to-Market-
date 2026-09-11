@@ -147,6 +147,16 @@ export default function Sidebar({ role = 'farmer' }) {
             <p className="text-xs text-navy-500 capitalize">
               {isGuestModeActive ? `Exploring as ${role}` : `${role} Account`}
             </p>
+            {user?.status === 'DEACTIVATED' && (
+              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white tracking-wide">
+                ⛔ Deactivated
+              </span>
+            )}
+            {user?.status === 'SUSPENDED' && (
+              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-600 text-white tracking-wide">
+                ⚠️ Suspended
+              </span>
+            )}
           </div>
         </div>
       </div>

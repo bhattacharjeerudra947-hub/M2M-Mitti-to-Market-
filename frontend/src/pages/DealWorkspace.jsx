@@ -87,6 +87,7 @@ export default function DealWorkspace() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [myRatingExists, setMyRatingExists] = useState(false);
+  const [myRating, setMyRating] = useState(null);
 
   const isFarmer = user?.role === 'FARMER';
   const sidebarRole = isFarmer ? 'farmer' : 'business';
@@ -96,7 +97,9 @@ export default function DealWorkspace() {
     if (deal?.status === 'COMPLETED' && dealId) {
       getDealRatings(dealId).then((res) => {
         if (res.ok && Array.isArray(res.data)) {
-          setMyRatingExists(res.data.some((r) => r.raterId === user?.id));
+          const mine = res.data.find((r) => r.reviewerId === user?.id || r.raterId === user?.id || (r.reviewer && r.reviewer.id === user?.id));
+          setMyRatingExists(!!mine);
+          setMyRating(mine || null);
         }
       });
     }
@@ -411,7 +414,7 @@ export default function DealWorkspace() {
                 )}
                 {deal.status === 'COMPLETED' && !myRatingExists && (
                   <button onClick={() => setShowRatingModal(true)}
-                    className="px-4 py-2.5 bg-mustard-50 text-mustard-700 text-sm font-semibold rounded-xl hover:bg-mustard-100 transition inline-flex items-center gap-2">
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl shadow-xs transition inline-flex items-center gap-2">
                     ⭐ Rate Experience
                   </button>
                 )}
@@ -419,6 +422,32 @@ export default function DealWorkspace() {
                   className="px-4 py-2.5 bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-100 transition inline-flex items-center gap-2">
                   🚩 Report
                 </button>
+
+                {deal.status === 'COMPLETED' && myRating && (
+                  <div className="w-full mt-2 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">⭐ You rated this deal:</span>
+                    <span className="font-bold text-amber-500">
+                      {'★'.repeat(myRating.rating || 5)}{'☆'.repeat(Math.max(0, 5 - (myRating.rating || 5)))}
+                      <span className="text-gray-700 ml-1">({myRating.rating}/5)</span>
+                    </span>
+                    {myRating.comment && <span className="italic text-emerald-800">— "{myRating.comment}"</span>}
+                  </div>
+                )}
+
+                {deal.status === 'COMPLETED' && !myRatingExists && (
+                  <div className="w-full mt-2 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-sm">🎉 Deal Completed! Rate your experience</p>
+                      <p className="text-amber-800">Your feedback builds community trust between farmers and businesses.</p>
+                    </div>
+                    <button
+                      onClick={() => setShowRatingModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs shadow-xs transition shrink-0"
+                    >
+                      ⭐ Rate Experience Now
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* ═══ DEAL RATING MODAL ═══ */}

@@ -38,9 +38,13 @@ export default function AdminUsers() {
     setDetailsLoading(false);
   };
 
+  const [actionError, setActionError] = useState('');
+  const [actionFeedback, setActionFeedback] = useState('');
+
   const handleExecuteAction = async () => {
     if (!actionModal.type || !actionModal.userId) return;
     setSubmittingAction(true);
+    setActionError('');
 
     let res;
     if (actionModal.type === 'VERIFY') {
@@ -60,13 +64,33 @@ export default function AdminUsers() {
     }
 
     setSubmittingAction(false);
-    setActionModal({ type: null, userId: null, userName: '' });
-    setActionReason('');
-    fetchUsers();
+
+    if (res && res.ok) {
+      setActionModal({ type: null, userId: null, userName: '' });
+      setActionReason('');
+      setActionError('');
+      setActionFeedback(`User action ${actionModal.type} succeeded.`);
+      setTimeout(() => setActionFeedback(''), 4000);
+      fetchUsers();
+    } else {
+      setActionError(res?.error || 'Action failed. Please try again.');
+    }
   };
 
   return (
     <div className="space-y-6">
+      {actionFeedback && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <span>✓</span>
+            <span>{actionFeedback}</span>
+          </div>
+          <button onClick={() => setActionFeedback('')} className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Title + Filters Bar */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -205,45 +229,53 @@ export default function AdminUsers() {
                           View
                         </button>
 
-                        {!u.verified && (
-                          <button
-                            onClick={() => setActionModal({ type: 'VERIFY', userId: u.id, userName: u.name })}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold"
-                          >
-                            Verify
-                          </button>
-                        )}
-
-                        {u.status === 'ACTIVE' ? (
-                          <button
-                            onClick={() => setActionModal({ type: 'SUSPEND', userId: u.id, userName: u.name })}
-                            className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-semibold"
-                          >
-                            Suspend
-                          </button>
-                        ) : u.status === 'SUSPENDED' ? (
-                          <button
-                            onClick={() => setActionModal({ type: 'UNSUSPEND', userId: u.id, userName: u.name })}
-                            className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-semibold"
-                          >
-                            Unsuspend
-                          </button>
-                        ) : null}
-
-                        {u.status !== 'DEACTIVATED' ? (
-                          <button
-                            onClick={() => setActionModal({ type: 'DEACTIVATE', userId: u.id, userName: u.name })}
-                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-semibold"
-                          >
-                            Deactivate
-                          </button>
+                        {u.role === 'ADMIN' ? (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-100 dark:bg-purple-950 dark:text-purple-300 px-2 py-1 rounded-lg">
+                            Admin
+                          </span>
                         ) : (
-                          <button
-                            onClick={() => setActionModal({ type: 'RESTORE', userId: u.id, userName: u.name })}
-                            className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[11px] font-semibold"
-                          >
-                            Restore
-                          </button>
+                          <>
+                            {!u.verified && (
+                              <button
+                                onClick={() => setActionModal({ type: 'VERIFY', userId: u.id, userName: u.name })}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-semibold"
+                              >
+                                Verify
+                              </button>
+                            )}
+
+                            {u.status === 'ACTIVE' ? (
+                              <button
+                                onClick={() => setActionModal({ type: 'SUSPEND', userId: u.id, userName: u.name })}
+                                className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-semibold"
+                              >
+                                Suspend
+                              </button>
+                            ) : u.status === 'SUSPENDED' ? (
+                              <button
+                                onClick={() => setActionModal({ type: 'UNSUSPEND', userId: u.id, userName: u.name })}
+                                className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-semibold"
+                              >
+                                Unsuspend
+                              </button>
+                            ) : null}
+
+                            {u.status !== 'DEACTIVATED' ? (
+                              <button
+                                onClick={() => setActionModal({ type: 'DEACTIVATE', userId: u.id, userName: u.name })}
+                                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-semibold"
+                              >
+                                Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setActionModal({ type: 'RESTORE', userId: u.id, userName: u.name })}
+                                className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[11px] font-semibold"
+                              >
+                                Restore
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
@@ -364,6 +396,12 @@ export default function AdminUsers() {
             <p className="text-xs text-gray-600 dark:text-gray-300 mb-4">
               Are you sure you want to perform <span className="font-bold">{actionModal.type}</span> on user <span className="font-semibold text-emerald-600">{actionModal.userName}</span>?
             </p>
+
+            {actionError && (
+              <div className="p-3 mb-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs">
+                ✕ {actionError}
+              </div>
+            )}
 
             <div className="space-y-3 mb-6">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">

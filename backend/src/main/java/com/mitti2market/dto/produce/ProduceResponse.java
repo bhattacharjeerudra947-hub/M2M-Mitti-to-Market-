@@ -17,6 +17,10 @@ public class ProduceResponse {
     private Long id;
     private Long farmerId;
     private String farmerName;
+    private String farmerProfilePhotoUrl;
+    private Boolean farmerVerified;
+    private Double farmerRating;
+    private String farmerType;
     private String name;
     private String category;
     private Integer quantity;

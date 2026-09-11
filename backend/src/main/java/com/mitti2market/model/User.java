@@ -161,11 +161,50 @@ public class User {
     }
 
     public enum VerificationStatus {
+        UNVERIFIED,
+        DOCUMENTS_SUBMITTED,
+        UNDER_REVIEW,
+        VERIFIED,
+        REJECTED,
+        RESUBMISSION_REQUIRED,
+        // Compatibility aliases
         NOT_VERIFIED,
         PENDING,
-        VERIFIED,
         APPROVED,
-        REJECTED,
-        RE_SUBMISSION_REQUESTED
+        RE_SUBMISSION_REQUESTED;
+
+        public String toStandardName() {
+            return switch (this) {
+                case NOT_VERIFIED, UNVERIFIED -> "UNVERIFIED";
+                case DOCUMENTS_SUBMITTED -> "DOCUMENTS_SUBMITTED";
+                case PENDING, UNDER_REVIEW -> "UNDER_REVIEW";
+                case APPROVED, VERIFIED -> "VERIFIED";
+                case REJECTED -> "REJECTED";
+                case RE_SUBMISSION_REQUESTED, RESUBMISSION_REQUIRED -> "RESUBMISSION_REQUIRED";
+            };
+        }
+
+        public static String normalize(String val) {
+            if (val == null || val.isBlank()) return "UNVERIFIED";
+            try {
+                return VerificationStatus.valueOf(val.trim().toUpperCase()).toStandardName();
+            } catch (Exception e) {
+                return switch (val.trim().toUpperCase()) {
+                    case "APPROVED", "VERIFIED" -> "VERIFIED";
+                    case "PENDING", "UNDER_REVIEW" -> "UNDER_REVIEW";
+                    case "DOCUMENTS_SUBMITTED" -> "DOCUMENTS_SUBMITTED";
+                    case "REJECTED", "LOST", "VERIFICATION_LOST" -> "REJECTED";
+                    case "RE_SUBMISSION_REQUESTED", "RESUBMISSION_REQUIRED", "REUPLOAD", "RE_UPLOAD_REQUESTED" -> "RESUBMISSION_REQUIRED";
+                    default -> "UNVERIFIED";
+                };
+            }
+        }
+    }
+
+    public String getStandardVerificationStatus() {
+        if (verificationStatus == null) {
+            return Boolean.TRUE.equals(verified) ? "VERIFIED" : "UNVERIFIED";
+        }
+        return verificationStatus.toStandardName();
     }
 }

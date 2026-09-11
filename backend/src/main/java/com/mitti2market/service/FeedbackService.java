@@ -61,6 +61,10 @@ public class FeedbackService {
 
     /** List feedback for Admin with filters */
     public List<Map<String, Object>> getAllFeedback(String category, String status) {
+        return getAllFeedback(category, status, null, null);
+    }
+
+    public List<Map<String, Object>> getAllFeedback(String category, String status, String role, String keyword) {
         List<Feedback> list = feedbackRepository.findAllByOrderByCreatedAtDesc();
 
         return list.stream().filter(f -> {
@@ -70,8 +74,73 @@ public class FeedbackService {
             if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
                 if (!f.getStatus().name().equalsIgnoreCase(status)) return false;
             }
+            if (role != null && !role.isBlank() && !role.equalsIgnoreCase("ALL")) {
+                if (f.getUser() == null || f.getUser().getRole() == null || !f.getUser().getRole().name().equalsIgnoreCase(role)) return false;
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                String k = keyword.toLowerCase().trim();
+                boolean msgMatch = f.getMessage() != null && f.getMessage().toLowerCase().contains(k);
+                boolean userMatch = f.getUser() != null && f.getUser().getName() != null && f.getUser().getName().toLowerCase().contains(k);
+                boolean emailMatch = f.getUser() != null && f.getUser().getEmail() != null && f.getUser().getEmail().toLowerCase().contains(k);
+                boolean respMatch = f.getAdminResponse() != null && f.getAdminResponse().toLowerCase().contains(k);
+                if (!msgMatch && !userMatch && !emailMatch && !respMatch) return false;
+            }
             return true;
         }).map(this::toResponse).toList();
+    }
+
+    /** Real platform feedback metrics and insights for Admin */
+    public Map<String, Object> getFeedbackInsights() {
+        List<Feedback> all = feedbackRepository.findAll();
+        long total = all.size();
+
+        double avgRating = all.stream()
+                .filter(f -> f.getRating() != null && f.getRating() > 0)
+                .mapToInt(Feedback::getRating)
+                .average()
+                .orElse(0.0);
+        avgRating = Math.round(avgRating * 10.0) / 10.0;
+
+        long ratedCount = all.stream().filter(f -> f.getRating() != null && f.getRating() > 0).count();
+
+        Map<String, Long> categoryBreakdown = new LinkedHashMap<>();
+        for (Feedback.FeedbackCategory cat : Feedback.FeedbackCategory.values()) {
+            categoryBreakdown.put(cat.name(), 0L);
+        }
+        all.forEach(f -> {
+            if (f.getCategory() != null) {
+                categoryBreakdown.put(f.getCategory().name(), categoryBreakdown.getOrDefault(f.getCategory().name(), 0L) + 1);
+            }
+        });
+
+        Map<String, Long> statusBreakdown = new LinkedHashMap<>();
+        for (Feedback.FeedbackStatus st : Feedback.FeedbackStatus.values()) {
+            statusBreakdown.put(st.name(), 0L);
+        }
+        all.forEach(f -> {
+            if (f.getStatus() != null) {
+                statusBreakdown.put(f.getStatus().name(), statusBreakdown.getOrDefault(f.getStatus().name(), 0L) + 1);
+            }
+        });
+
+        long respondedCount = all.stream()
+                .filter(f -> (f.getAdminResponse() != null && !f.getAdminResponse().isBlank())
+                        || f.getStatus() == FeedbackStatus.RESOLVED
+                        || f.getStatus() == FeedbackStatus.CLOSED)
+                .count();
+
+        double responseRate = total > 0 ? Math.round(((double) respondedCount / total) * 1000.0) / 10.0 : 0.0;
+
+        Map<String, Object> insights = new LinkedHashMap<>();
+        insights.put("totalFeedback", total);
+        insights.put("averagePlatformRating", avgRating);
+        insights.put("ratedFeedbackCount", ratedCount);
+        insights.put("respondedCount", respondedCount);
+        insights.put("responseRatePercentage", responseRate);
+        insights.put("categoryBreakdown", categoryBreakdown);
+        insights.put("statusBreakdown", statusBreakdown);
+
+        return insights;
     }
 
     /** Get user's own feedback */
@@ -106,8 +175,8 @@ public class FeedbackService {
         auditLogService.log(adminId, "FEEDBACK_RESPONDED", "FEEDBACK", feedbackId, adminNote, "Updated feedback #" + feedbackId);
 
         if (feedback.getUser() != null && adminResponse != null && !adminResponse.isBlank()) {
-            notificationService.createNotification(feedback.getUser().getId(), Notification.NotificationType.SYSTEM_ALERT,
-                    "Feedback Response", "Admin replied to your feedback: " + adminResponse);
+            notificationService.createNotification(feedback.getUser().getId(), Notification.NotificationType.FEEDBACK_RESPONSE,
+                    "Admin Response to Feedback", "Admin replied to your feedback: " + adminResponse, feedback.getId(), "FEEDBACK");
         }
 
         return feedback;
@@ -119,6 +188,7 @@ public class FeedbackService {
         m.put("userId", f.getUser() != null ? f.getUser().getId() : null);
         m.put("userName", f.getUser() != null ? f.getUser().getName() : "Guest User");
         m.put("userEmail", f.getUser() != null ? f.getUser().getEmail() : null);
+        m.put("userRole", f.getUser() != null && f.getUser().getRole() != null ? f.getUser().getRole().name() : "GUEST");
         m.put("category", f.getCategory().name());
         m.put("message", f.getMessage());
         m.put("rating", f.getRating());

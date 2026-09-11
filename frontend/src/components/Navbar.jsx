@@ -53,7 +53,7 @@ export default function Navbar({ dark = false }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-18">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-[34px] h-[34px] object-contain" />
+            <img src="/logo-icon.png" onError={(e) => { e.currentTarget.src = "https://i.postimg.cc/L89VZ3GK/icon.png"; }} alt="Mitti2Market logo" className="w-[34px] h-[34px] object-contain" />
             <span
               className={`hidden sm:block text-sm font-bold tracking-tight notranslate ${dark ? 'text-white' : 'text-navy-900'}`}
               translate="no"

@@ -2,12 +2,19 @@ package com.mitti2market.controller;
 
 import com.mitti2market.config.TokenService;
 import com.mitti2market.dto.ApiResponse;
+import com.mitti2market.model.Deal;
+import com.mitti2market.model.FarmerProfile;
+import com.mitti2market.model.Produce;
 import com.mitti2market.model.SupportingDocument;
 import com.mitti2market.model.User;
 import com.mitti2market.model.User.Role;
+import com.mitti2market.repository.DealRepository;
+import com.mitti2market.repository.FarmerProfileRepository;
+import com.mitti2market.repository.ProduceRepository;
 import com.mitti2market.repository.SupportingDocumentRepository;
 import com.mitti2market.repository.UserRepository;
 import com.mitti2market.service.CloudinaryService;
+import com.mitti2market.service.RatingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,13 +30,23 @@ public class UserController {
     private final TokenService tokens;
     private final CloudinaryService cloudinary;
     private final SupportingDocumentRepository documents;
+    private final FarmerProfileRepository farmerProfiles;
+    private final ProduceRepository produceRepo;
+    private final DealRepository dealRepo;
+    private final RatingService ratingService;
 
     public UserController(UserRepository users, TokenService tokens,
-                          CloudinaryService cloudinary, SupportingDocumentRepository documents) {
+                          CloudinaryService cloudinary, SupportingDocumentRepository documents,
+                          FarmerProfileRepository farmerProfiles, ProduceRepository produceRepo,
+                          DealRepository dealRepo, RatingService ratingService) {
         this.users = users;
         this.tokens = tokens;
         this.cloudinary = cloudinary;
         this.documents = documents;
+        this.farmerProfiles = farmerProfiles;
+        this.produceRepo = produceRepo;
+        this.dealRepo = dealRepo;
+        this.ratingService = ratingService;
     }
 
     @GetMapping("/{id}")
@@ -37,6 +54,64 @@ public class UserController {
         return users.findById(id)
                 .map(user -> ResponseEntity.ok(ApiResponse.ok(toDto(user))))
                 .orElse(ResponseEntity.status(404).body(ApiResponse.error("User not found")));
+    }
+
+    /**
+     * GET /api/users/{id}/public-profile
+     * Public profile view for buyers viewing farmers.
+     * Contains public business details, crop history, active produce, rating summary, and reviews.
+     * NEVER exposes Aadhaar, bank details, exact private GPS coords, or admin notes.
+     */
+    @GetMapping("/{id}/public-profile")
+    public ResponseEntity<?> getFarmerPublicProfile(@PathVariable Long id) {
+        User farmer = users.findById(id).orElse(null);
+        if (farmer == null) {
+            return ResponseEntity.status(404).body(ApiResponse.error("Farmer not found"));
+        }
+
+        FarmerProfile profile = farmerProfiles.findByUserId(id).orElse(null);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", farmer.getId());
+        out.put("name", farmer.getName());
+        out.put("verified", farmer.getVerified() != null && farmer.getVerified());
+        out.put("verificationStatus", farmer.getStandardVerificationStatus());
+        out.put("verifiedAt", farmer.getVerifiedAt());
+        out.put("profilePhotoUrl", farmer.getProfilePhotoUrl());
+        out.put("state", farmer.getState() != null ? farmer.getState() : (profile != null ? profile.getState() : ""));
+        out.put("district", farmer.getDistrict() != null ? farmer.getDistrict() : (profile != null ? profile.getDistrict() : ""));
+        out.put("village", profile != null ? profile.getVillage() : (farmer.getVillage() != null ? farmer.getVillage() : ""));
+        out.put("crops", profile != null ? profile.getCrops() : "");
+        out.put("farmerCategory", profile != null && profile.getFarmerCategory() != null ? profile.getFarmerCategory().name() : (farmer.getFarmerType() != null ? farmer.getFarmerType().name() : ""));
+        out.put("farmingSeason", profile != null && profile.getFarmingSeason() != null ? profile.getFarmingSeason().name() : "");
+        out.put("landAreaAcres", profile != null ? profile.getLandAreaAcres() : null);
+
+        // Active produce listings
+        List<Produce> activeProduceList = produceRepo.findByFarmerIdAndStatusIn(id,
+                List.of(Produce.ProduceStatus.AVAILABLE, Produce.ProduceStatus.PARTIALLY_SOLD));
+        List<Map<String, Object>> produceSummary = activeProduceList.stream().map(p -> {
+            Map<String, Object> pm = new LinkedHashMap<>();
+            pm.put("id", p.getId());
+            pm.put("name", p.getName());
+            pm.put("category", p.getCategory());
+            pm.put("quantity", p.getQuantity());
+            pm.put("unit", p.getUnit());
+            pm.put("pricePerUnit", p.getPricePerUnit());
+            pm.put("imageUrl", p.getImageUrl());
+            pm.put("status", p.getStatus() != null ? p.getStatus().name() : "AVAILABLE");
+            return pm;
+        }).toList();
+        out.put("activeProduce", produceSummary);
+
+        // Completed deals count
+        long completedDealsCount = dealRepo.findByUserIdAndStatus(id, Deal.DealStatus.COMPLETED).size();
+        out.put("completedDealsCount", completedDealsCount);
+
+        // Transaction rating summary & reviews
+        out.put("ratingSummary", ratingService.getUserRatingSummary(id));
+        out.put("reviews", ratingService.getReviewsForUser(id));
+
+        return ResponseEntity.ok(ApiResponse.ok(out));
     }
 
     @GetMapping
@@ -144,6 +219,11 @@ public class UserController {
             String secureUrl = uploadResult.get("url");
             String publicId = uploadResult.get("publicId");
 
+            if (secureUrl != null) {
+                String separator = secureUrl.contains("?") ? "&" : "?";
+                secureUrl = secureUrl + separator + "v=" + System.currentTimeMillis();
+            }
+
             user.setProfilePhotoUrl(secureUrl);
             user.setProfilePhotoPublicId(publicId);
             user = users.save(user);
@@ -193,12 +273,19 @@ public class UserController {
         map.put("name", user.getName() != null ? user.getName() : "");
         map.put("email", user.getEmail() != null ? user.getEmail() : "");
         map.put("phone", user.getPhone() != null ? user.getPhone() : "");
-        map.put("role", user.getRole().name());
+        map.put("role", user.getRole() != null ? user.getRole().name() : "");
         map.put("location", user.getLocation() != null ? user.getLocation() : "");
+        map.put("state", user.getState() != null ? user.getState() : "");
+        map.put("district", user.getDistrict() != null ? user.getDistrict() : "");
         map.put("organizationName", user.getOrganizationName() != null ? user.getOrganizationName() : "");
         map.put("verified", user.getVerified() != null && user.getVerified());
-        map.put("verificationStatus", user.getVerificationStatus() != null ? user.getVerificationStatus().name() : "NOT_VERIFIED");
+        map.put("verificationStatus", user.getStandardVerificationStatus());
         map.put("verificationNotes", user.getVerificationNotes());
+        map.put("status", user.getStatus() != null ? user.getStatus().name() : "ACTIVE");
+        map.put("statusReason", user.getStatusReason());
+        map.put("statusUpdatedAt", user.getStatusUpdatedAt());
+        map.put("verifiedAt", user.getVerifiedAt());
+        map.put("verifiedBy", user.getVerifiedBy());
         map.put("rating", user.getRating() != null ? user.getRating() : 0.0);
         map.put("profilePhotoUrl", user.getProfilePhotoUrl() != null ? user.getProfilePhotoUrl() : "");
         return map;

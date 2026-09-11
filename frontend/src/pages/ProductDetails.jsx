@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCircle, Loader2, Heart, Check } from 'lucide-react';
+import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCircle, Loader2, Heart, Check, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { optimizeImage } from '../utils/image';
 import { apiGet, apiPost } from '../api';
 import ReportModal from '../components/ReportModal';
+import VerificationBadge from '../components/VerificationBadge';
+import FarmerPublicProfileModal from '../components/FarmerPublicProfileModal';
 
 const categoryEmoji = {
   Fruits: '🍎', Vegetables: '🥬', Spices: '🌶️', Grains: '🌾', Dairy: '🥛',
@@ -24,6 +26,7 @@ export default function ProductDetails() {
   const [offerQuantity, setOfferQuantity] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showFarmerProfileModal, setShowFarmerProfileModal] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -140,20 +143,53 @@ export default function ProductDetails() {
               </div>
 
               {/* Farmer Info */}
-              <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-6">
-                <h3 className="text-sm font-semibold text-navy-700 mb-3">Farmer Information</h3>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-navy-100 rounded-full flex items-center justify-center text-lg font-bold text-navy-700">
-                    {(product.farmerName || 'F').charAt(0)}
+              <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-navy-700">Farmer Information</h3>
+                  <VerificationBadge
+                    status={product.farmerVerified ? 'VERIFIED' : 'UNVERIFIED'}
+                    verified={product.farmerVerified}
+                    className="text-[10px] py-0.5 px-2"
+                  />
+                </div>
+                <div className="flex items-center gap-3.5">
+                  <div className="relative shrink-0">
+                    {product.farmerProfilePhotoUrl ? (
+                      <img
+                        src={product.farmerProfilePhotoUrl}
+                        alt={product.farmerName || 'Farmer'}
+                        className="w-13 h-13 rounded-2xl object-cover border border-navy-100 shadow-2xs bg-white"
+                      />
+                    ) : (
+                      <div className="w-13 h-13 bg-navy-100 rounded-2xl flex items-center justify-center text-lg font-bold text-navy-700 shadow-2xs">
+                        {(product.farmerName || 'F').charAt(0)}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold text-navy-900">{product.farmerName || 'Farmer'}</p>
-                      <ShieldCheck className="w-4 h-4 text-primary-500" />
-                    </div>
-                    <p className="text-xs text-gray-500">{product.location || 'India'}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-navy-900 truncate">{product.farmerName || 'Farmer'}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                      <span className="truncate">{product.location || 'India'}</span>
+                    </p>
+                    {product.farmerRating && (
+                      <div className="flex items-center gap-1 text-xs text-amber-500 font-semibold mt-1">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        <span>{product.farmerRating.toFixed(1)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {product.farmerId && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFarmerProfileModal(true)}
+                    className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200 transition text-center"
+                  >
+                    View Farmer Full Profile & Reviews
+                  </button>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -294,6 +330,12 @@ export default function ProductDetails() {
               targetType="PRODUCE"
               targetId={product.id}
               targetName={product.cropName || product.name}
+            />
+
+            <FarmerPublicProfileModal
+              farmerId={product.farmerId}
+              isOpen={showFarmerProfileModal}
+              onClose={() => setShowFarmerProfileModal(false)}
             />
           </div>
         </div>

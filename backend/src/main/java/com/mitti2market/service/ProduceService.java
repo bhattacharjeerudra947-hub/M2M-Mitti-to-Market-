@@ -231,10 +231,20 @@ public class ProduceService {
         int sold = produce.getSoldQuantity() != null ? produce.getSoldQuantity() : 0;
         int available = Math.max(0, produce.getQuantity());
 
+        User farmer = produce.getFarmer();
+        String photoUrl = farmer != null ? farmer.getProfilePhotoUrl() : null;
+        Boolean isVer = farmer != null ? (Boolean.TRUE.equals(farmer.getVerified()) || farmer.getVerificationStatus() == User.VerificationStatus.VERIFIED) : false;
+        Double rating = farmer != null ? farmer.getRating() : 0.0;
+        String farmerType = farmer != null && farmer.getFarmerType() != null ? farmer.getFarmerType().name() : null;
+
         return ProduceResponse.builder()
                 .id(produce.getId())
-                .farmerId(produce.getFarmer().getId())
-                .farmerName(produce.getFarmer().getName())
+                .farmerId(farmer != null ? farmer.getId() : null)
+                .farmerName(farmer != null ? farmer.getName() : null)
+                .farmerProfilePhotoUrl(photoUrl)
+                .farmerVerified(isVer)
+                .farmerRating(rating)
+                .farmerType(farmerType)
                 .name(produce.getName())
                 .category(produce.getCategory())
                 .quantity(produce.getQuantity())

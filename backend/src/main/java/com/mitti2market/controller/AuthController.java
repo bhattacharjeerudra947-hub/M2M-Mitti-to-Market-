@@ -196,7 +196,13 @@ public class AuthController {
         }
 
         if (user.getStatus() == User.UserStatus.DEACTIVATED) {
-            return ResponseEntity.status(403).body(Map.of("error", "Your account has been deactivated. Please contact support."));
+            String msg = "Your account has been deactivated by administration";
+            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
+                msg += ": " + user.getStatusReason();
+            } else {
+                msg += ". Please contact support.";
+            }
+            return ResponseEntity.status(403).body(Map.of("error", msg));
         }
 
         if (req.getRole() != null && !req.getRole().trim().isEmpty()) {
@@ -310,7 +316,13 @@ public class AuthController {
         }
 
         if (user.getStatus() == User.UserStatus.DEACTIVATED) {
-            return ResponseEntity.status(403).body(Map.of("error", "Your account has been deactivated. Please contact support."));
+            String msg = "Your account has been deactivated by administration";
+            if (user.getStatusReason() != null && !user.getStatusReason().isBlank()) {
+                msg += ": " + user.getStatusReason();
+            } else {
+                msg += ". Please contact support.";
+            }
+            return ResponseEntity.status(403).body(Map.of("error", msg));
         }
 
         // Enforce role isolation at the backend — the account's role must match the
@@ -403,13 +415,18 @@ public class AuthController {
                 .name(user.getName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
-                .role(user.getRole().name())
+                .role(user.getRole() != null ? user.getRole().name() : null)
                 .location(user.getLocation())
                 .state(user.getState())
                 .district(user.getDistrict())
                 .verified(user.getVerified())
-                .verificationStatus(user.getVerificationStatus() != null ? user.getVerificationStatus().name() : "NOT_VERIFIED")
+                .verificationStatus(user.getStandardVerificationStatus())
                 .verificationNotes(user.getVerificationNotes())
+                .status(user.getStatus() != null ? user.getStatus().name() : "ACTIVE")
+                .statusReason(user.getStatusReason())
+                .statusUpdatedAt(user.getStatusUpdatedAt())
+                .verifiedAt(user.getVerifiedAt())
+                .verifiedBy(user.getVerifiedBy())
                 .rating(user.getRating())
                 .profilePhotoUrl(user.getProfilePhotoUrl())
                 .build();

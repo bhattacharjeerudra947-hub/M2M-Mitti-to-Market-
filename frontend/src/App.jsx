@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, LanguageRouteSync } from './context/LanguageContext';
 import { FarmerProvider } from './context/FarmerContext';
 
@@ -148,6 +148,41 @@ function FarmerLayout() {
   );
 }
 
+function GlobalAccountStatusBanner() {
+  const { user } = useAuth();
+  if (!user || (user.status !== 'DEACTIVATED' && user.status !== 'SUSPENDED')) return null;
+
+  const isDeactivated = user.status === 'DEACTIVATED';
+  const bgClass = isDeactivated ? 'bg-red-600 border-b border-red-700 text-white' : 'bg-amber-600 border-b border-amber-700 text-white';
+
+  return (
+    <div className={`sticky top-0 z-[999] px-4 py-2.5 shadow-lg flex items-center justify-between gap-3 text-xs ${bgClass}`}>
+      <div className="flex items-center gap-2.5 max-w-6xl mx-auto w-full">
+        <span className="text-base shrink-0">{isDeactivated ? '⛔' : '⚠️'}</span>
+        <div className="flex-1 min-w-0">
+          <span className="font-extrabold uppercase tracking-wider mr-2">
+            {isDeactivated ? 'Account Deactivated' : 'Account Suspended'}:
+          </span>
+          <span className="font-medium">
+            {user.statusReason || 'Administrative action was taken on this account. Marketplace actions are temporarily locked.'}
+          </span>
+          {user.statusUpdatedAt && (
+            <span className="opacity-75 ml-2 text-[11px] hidden md:inline">
+              ({new Date(user.statusUpdatedAt).toLocaleString()})
+            </span>
+          )}
+        </div>
+        <a
+          href="mailto:support@mitti2market.com?subject=Account Appeal"
+          className="shrink-0 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-[11px] font-bold underline transition"
+        >
+          Contact Admin
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     
@@ -157,6 +192,7 @@ export default function App() {
       <LanguageRouteSync />
       <AutoRotateSections />
       <AuthProvider>
+        <GlobalAccountStatusBanner />
         <MessagePopup />
         <RoleChoiceModal />
         <AuthRequiredModal />
