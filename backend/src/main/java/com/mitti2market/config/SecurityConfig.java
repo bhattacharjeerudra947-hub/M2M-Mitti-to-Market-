@@ -77,6 +77,7 @@ public class SecurityConfig {
 
                 // ─── Admin endpoints (require ADMIN role) ───
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/documents/admin/**").hasRole("ADMIN")
 
                 // ─── All other requests require a valid JWT ───
                 .anyRequest().authenticated()

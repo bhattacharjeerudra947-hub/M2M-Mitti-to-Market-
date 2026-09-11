@@ -30,5 +30,7 @@ public class AuthResponse {
         private String state;
         private String district;
         private Double rating;
+        private String profilePhotoUrl;
+        private String verificationNotes;
     }
 }

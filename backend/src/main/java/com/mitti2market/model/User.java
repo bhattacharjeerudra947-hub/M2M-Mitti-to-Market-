@@ -36,8 +36,12 @@ public class User {
     private String phone;
 
     /** Profile photo URL */
-    @Column(name = "profile_photo_url")
+    @Column(name = "profile_photo_url", length = 1024)
     private String profilePhotoUrl;
+
+    /** Cloudinary public ID for profile photo */
+    @Column(name = "profile_photo_public_id")
+    private String profilePhotoPublicId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -87,6 +91,7 @@ public class User {
     private Boolean verified = false;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", length = 50)
     @Builder.Default
     private VerificationStatus verificationStatus = VerificationStatus.NOT_VERIFIED;
 
@@ -159,6 +164,7 @@ public class User {
         NOT_VERIFIED,
         PENDING,
         VERIFIED,
+        APPROVED,
         REJECTED,
         RE_SUBMISSION_REQUESTED
     }

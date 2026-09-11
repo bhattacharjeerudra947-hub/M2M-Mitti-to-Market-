@@ -11,6 +11,9 @@ import ExploreMarketplace from './pages/ExploreMarketplace';
 import Pricing from './pages/Pricing';
 import AboutUs from './pages/AboutUs';
 import Login from './pages/Login';
+import FarmerLogin from './pages/FarmerLogin';
+import BusinessLogin from './pages/BusinessLogin';
+import AdminLogin from './pages/AdminLogin';
 import SignUp from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -162,6 +165,11 @@ export default function App() {
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+
+          {/* Role-locked login portals — each accepts only its own role and guards against URL bypass */}
+          <Route path="/farmer/login" element={<FarmerLogin />} />
+          <Route path="/business/login" element={<BusinessLogin />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
