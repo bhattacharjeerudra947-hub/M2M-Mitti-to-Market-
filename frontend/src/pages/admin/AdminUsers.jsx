@@ -9,6 +9,7 @@ import {
   StatusDot, verificationStatusInfo, accountStatusInfo, ConfirmDialog, Drawer,
   DrawerSection, KV, RowActions, inputCls, selectCls,
 } from '../../components/admin/ui/adminUi';
+import { onNotification } from '../../utils/messageStream';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -40,16 +41,29 @@ export default function AdminUsers() {
     return () => clearTimeout(debounceRef.current);
   }, [searchInput]);
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     const res = await getUsers(roleFilter, verFilter, statusFilter, searchQuery);
     if (res.ok) setUsers(Array.isArray(res.data) ? res.data : []);
-    else setError(res.error || 'Unable to load users');
-    setLoading(false);
+    else if (!silent) setError(res.error || 'Unable to load users');
+    if (!silent) setLoading(false);
   }, [roleFilter, verFilter, statusFilter, searchQuery]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  // Real-time auto sync
+  useEffect(() => {
+    const interval = setInterval(() => fetchUsers(true), 8000);
+    const unsubscribe = onNotification(() => {
+      fetchUsers(true);
+      getStats().then((res) => { if (res.ok) setStats(res.data); });
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
+  }, [fetchUsers]);
 
   useEffect(() => {
     getStats().then((res) => { if (res.ok) setStats(res.data); });

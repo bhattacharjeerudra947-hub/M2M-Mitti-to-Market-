@@ -140,6 +140,12 @@ public class AdminService {
                     if (!userNorm.equalsIgnoreCase("VERIFIED") && !Boolean.TRUE.equals(u.getVerified())) return false;
                 } else if (targetNorm.equalsIgnoreCase("UNVERIFIED")) {
                     if (Boolean.TRUE.equals(u.getVerified()) || !userNorm.equalsIgnoreCase("UNVERIFIED")) return false;
+                } else if (targetNorm.equalsIgnoreCase("UNDER_REVIEW") || targetNorm.equalsIgnoreCase("DOCUMENTS_SUBMITTED") || targetNorm.equalsIgnoreCase("PENDING")) {
+                    if (!userNorm.equalsIgnoreCase("UNDER_REVIEW")
+                            && !userNorm.equalsIgnoreCase("DOCUMENTS_SUBMITTED")
+                            && !userNorm.equalsIgnoreCase("PENDING")) {
+                        return false;
+                    }
                 } else {
                     if (!userNorm.equalsIgnoreCase(targetNorm)) return false;
                 }
@@ -188,21 +194,9 @@ public class AdminService {
     }
 
     public void validateVerificationTransition(VerificationStatus current, VerificationStatus next) {
-        String curr = current != null ? current.toStandardName() : "UNVERIFIED";
-        String target = next != null ? next.toStandardName() : "UNVERIFIED";
-
-        boolean valid = switch (target) {
-            case "UNDER_REVIEW" -> curr.equals("DOCUMENTS_SUBMITTED") || curr.equals("UNVERIFIED");
-            case "VERIFIED" -> curr.equals("UNDER_REVIEW") || curr.equals("DOCUMENTS_SUBMITTED");
-            case "REJECTED" -> curr.equals("UNDER_REVIEW") || curr.equals("DOCUMENTS_SUBMITTED") || curr.equals("VERIFIED");
-            case "RESUBMISSION_REQUIRED" -> curr.equals("UNDER_REVIEW") || curr.equals("DOCUMENTS_SUBMITTED") || curr.equals("REJECTED");
-            case "DOCUMENTS_SUBMITTED" -> curr.equals("RESUBMISSION_REQUIRED") || curr.equals("REJECTED") || curr.equals("UNVERIFIED");
-            case "UNVERIFIED" -> true;
-            default -> false;
-        };
-
-        if (!valid) {
-            throw new BadRequestException("Invalid verification transition from " + curr + " to " + target);
+        // Admin has full authority to verify, reject, or request resubmission for any user state
+        if (next == null) {
+            throw new BadRequestException("Target verification status cannot be null");
         }
     }
 

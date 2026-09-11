@@ -48,12 +48,16 @@ public class AppealService {
                 ? req.getEmail().trim()
                 : user.getEmail();
 
+        String msg = (req.getMessage() != null && !req.getMessage().isBlank())
+                ? req.getMessage().trim()
+                : req.getReason().trim();
+
         Appeal appeal = Appeal.builder()
                 .user(user)
                 .phone(phone)
                 .email(email)
                 .reason(req.getReason().trim())
-                .message(req.getMessage().trim())
+                .message(msg)
                 .documentUrl(req.getDocumentUrl())
                 .status(AppealStatus.PENDING)
                 .build();

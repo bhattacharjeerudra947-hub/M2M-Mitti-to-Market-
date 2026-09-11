@@ -5,9 +5,25 @@ import Footer from '../components/Footer';
 import TransparentPricing from '../components/TransparentPricing';
 import RoleChoiceModal from '../components/RoleChoiceModal';
 import AuthRequiredModal from '../components/AuthRequiredModal';
-import { useSiteStats, formatCompact } from '../utils/siteStats';
+import { useSiteStats, formatCompact, useCountUp } from '../utils/siteStats';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+
+function StatItem({ icon, iconBg, rawValue, label, loading, prefix = '', suffix = '+' }) {
+  const animated = useCountUp(rawValue || 0, 1200);
+  const displayVal = loading ? '…' : `${prefix}${formatCompact(animated)}${suffix}`;
+  return (
+    <div className="flex flex-col items-center text-center p-3 sm:p-4 rounded-2xl bg-white/60 border border-navy-100/50 shadow-xs hover:bg-white transition">
+      <div className={`w-10 h-10 sm:w-11 sm:h-11 ${iconBg} rounded-xl flex items-center justify-center mb-2.5 shadow-xs`}>
+        <span className="text-lg sm:text-xl">{icon}</span>
+      </div>
+      <p className="text-xl sm:text-2xl lg:text-3xl font-display font-black text-navy-900 tracking-tight">
+        {displayVal}
+      </p>
+      <p className="text-[11px] sm:text-xs text-navy-600 mt-1 font-semibold">{label}</p>
+    </div>
+  );
+}
 
 // Content lives in src/data/translations/pages/landing.js — these helpers
 // just pair each translated string with its icon/number for rendering.
@@ -33,11 +49,6 @@ const buildTestimonials = (t) => [
   { name: 'Suresh Patil', role: t('landing.testimonial3Role'), text: t('landing.testimonial3Text'), rating: 5 },
 ];
 
-const statStyle = (loading) => ({
-  opacity: loading ? 0.5 : 1,
-  transition: 'opacity 0.3s ease',
-});
-
 export default function Landing() {
   const { stats, loading } = useSiteStats();
   const { openRoleChoice } = useAuth();
@@ -47,10 +58,38 @@ export default function Landing() {
   const steps = buildSteps(t);
   const testimonials = buildTestimonials(t);
 
-  const stats_ = [
-    { value: stats ? `${formatCompact(stats.farmers)}+` : '…', label: t('landing.statFarmersLabel'), icon: '👨‍🌾', iconBg: 'bg-agri-700' },
-    { value: stats ? `${formatCompact(stats.buyers)}+` : '…', label: t('landing.statBuyersLabel'), icon: '🏪', iconBg: 'bg-earth-500' },
-    { value: stats ? `₹${formatCompact(stats.produceSoldValue)}+` : '…', label: t('landing.statProduceLabel'), icon: '📊', iconBg: 'bg-mustard-400' },
+  const realStats = [
+    {
+      rawValue: stats ? (stats.totalUsers || (stats.farmers + stats.buyers)) : 0,
+      label: 'Total Platform Users',
+      icon: '👥',
+      iconBg: 'bg-navy-800 text-white'
+    },
+    {
+      rawValue: stats ? stats.farmers : 0,
+      label: t('landing.statFarmersLabel') || 'Farmers Onboarded',
+      icon: '👨‍🌾',
+      iconBg: 'bg-agri-700 text-white'
+    },
+    {
+      rawValue: stats ? stats.buyers : 0,
+      label: t('landing.statBuyersLabel') || 'Verified Buyers',
+      icon: '🏪',
+      iconBg: 'bg-earth-500 text-white'
+    },
+    {
+      rawValue: stats ? (stats.activeProduce || 0) : 0,
+      label: 'Active Produce Batches',
+      icon: '🌾',
+      iconBg: 'bg-emerald-600 text-white'
+    },
+    {
+      rawValue: stats ? stats.produceSoldValue : 0,
+      label: t('landing.statProduceLabel') || 'Produce Value Traded',
+      icon: '📊',
+      prefix: '₹',
+      iconBg: 'bg-mustard-400 text-navy-950'
+    },
   ];
 
   return (
@@ -173,16 +212,18 @@ export default function Landing() {
 
       {/* ═══════════════ STATISTICS SECTION ═══════════════ */}
       <section className="relative bg-cream pt-8 pb-12">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-3 gap-4 sm:gap-8">
-            {stats_.map((stat, i) => (
-              <div key={i} className={`flex flex-col items-center text-center ${i < 2 ? 'border-r border-navy-200/30' : ''}`}>
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${stat.iconBg} rounded-full flex items-center justify-center mb-3`}>
-                  <span className="text-lg sm:text-xl">{stat.icon}</span>
-                </div>
-                <p className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-navy-900" style={statStyle(loading)}>{stat.value}</p>
-                <p className="text-xs sm:text-sm text-navy-500 mt-1 font-medium">{stat.label}</p>
-              </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            {realStats.map((stat, i) => (
+              <StatItem
+                key={i}
+                icon={stat.icon}
+                iconBg={stat.iconBg}
+                rawValue={stat.rawValue}
+                label={stat.label}
+                prefix={stat.prefix || ''}
+                loading={loading}
+              />
             ))}
           </div>
         </div>

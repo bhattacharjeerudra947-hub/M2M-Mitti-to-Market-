@@ -5,6 +5,7 @@ import {
   ConfirmDialog, MetricStrip, Avatar, selectCls,
 } from '../../components/admin/ui/adminUi';
 import { CheckCircle, XCircle, Eye, Loader2, ExternalLink } from 'lucide-react';
+import { onNotification } from '../../utils/messageStream';
 
 export default function AdminAppeals() {
   const [appeals, setAppeals] = useState([]);
@@ -19,20 +20,32 @@ export default function AdminAppeals() {
   const [dialogError, setDialogError] = useState('');
   const [toast, setToast] = useState(null);
 
-  const fetchAppeals = useCallback(async () => {
-    setLoading(true);
+  const fetchAppeals = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError('');
     const res = await getAppeals(statusFilter === 'ALL' ? undefined : statusFilter);
     if (res.ok) {
       setAppeals(Array.isArray(res.data) ? res.data : []);
-    } else {
+    } else if (!silent) {
       setError(res.error || 'Unable to load appeals');
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [statusFilter]);
 
   useEffect(() => {
     fetchAppeals();
+  }, [fetchAppeals]);
+
+  // Real-time auto sync
+  useEffect(() => {
+    const interval = setInterval(() => fetchAppeals(true), 6000);
+    const unsubscribe = onNotification(() => {
+      fetchAppeals(true);
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [fetchAppeals]);
 
   const showToast = (msg) => {
@@ -92,11 +105,11 @@ export default function AdminAppeals() {
 
   const appealStatusInfo = (status) => {
     switch (status) {
-      case 'PENDING': return { bg: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500', label: 'Pending' };
-      case 'UNDER_REVIEW': return { bg: 'bg-blue-100 text-blue-800', dot: 'bg-blue-500', label: 'Under Review' };
-      case 'APPROVED': return { bg: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500', label: 'Approved' };
-      case 'REJECTED': return { bg: 'bg-red-100 text-red-800', dot: 'bg-red-500', label: 'Rejected' };
-      default: return { bg: 'bg-gray-100 text-gray-800', dot: 'bg-gray-400', label: status };
+      case 'PENDING': return { tone: 'amber', label: 'Pending' };
+      case 'UNDER_REVIEW': return { tone: 'blue', label: 'Under Review' };
+      case 'APPROVED': return { tone: 'green', label: 'Approved' };
+      case 'REJECTED': return { tone: 'red', label: 'Rejected' };
+      default: return { tone: 'gray', label: status || '—' };
     }
   };
 
@@ -139,17 +152,26 @@ export default function AdminAppeals() {
       ) : appeals.length === 0 ? (
         <EmptyState
           title="No appeals found"
-          description="There are currently no suspension appeals matching your filter."
+          hint="There are currently no suspension appeals matching your filter."
         />
       ) : (
-        <Table headers={['User', 'Role', 'Status', 'Date Submitted', 'Reason / Context', 'Actions']}>
+        <Table
+          columns={[
+            { key: 'user', label: 'User' },
+            { key: 'role', label: 'Role' },
+            { key: 'status', label: 'Status' },
+            { key: 'date', label: 'Date Submitted' },
+            { key: 'reason', label: 'Reason / Context' },
+            { key: 'actions', label: '', align: 'right' },
+          ]}
+        >
           {appeals.map((a) => {
             const sInfo = appealStatusInfo(a.status);
             return (
               <tr key={a.id} className="hover:bg-gray-50/60 transition">
                 <Td>
                   <div className="flex items-center gap-2.5">
-                    <Avatar name={a.userName} size="sm" />
+                    <Avatar name={a.userName} size={36} />
                     <div>
                       <div className="font-medium text-gray-900 text-sm">{a.userName}</div>
                       <div className="text-xs text-gray-500">
@@ -166,10 +188,7 @@ export default function AdminAppeals() {
                 </Td>
 
                 <Td>
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${sInfo.bg}`}>
-                    <StatusDot color={sInfo.dot} />
-                    {sInfo.label}
-                  </span>
+                  <StatusDot tone={sInfo.tone} label={sInfo.label} />
                 </Td>
 
                 <Td>
@@ -187,9 +206,12 @@ export default function AdminAppeals() {
                 <Td>
                   <div className="max-w-xs">
                     <p className="text-xs text-gray-800 line-clamp-2">{a.reason}</p>
-                    {a.attachmentUrl && (
+                    {a.message && (
+                      <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{a.message}</p>
+                    )}
+                    {a.documentUrl && (
                       <a
-                        href={a.attachmentUrl}
+                        href={a.documentUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-1"
@@ -201,7 +223,7 @@ export default function AdminAppeals() {
                 </Td>
 
                 <Td>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-end gap-1.5">
                     {a.status === 'PENDING' && (
                       <button
                         onClick={() => openActionDialog(a, 'REVIEW')}
@@ -238,64 +260,43 @@ export default function AdminAppeals() {
       )}
 
       {/* Confirmation & Review Dialog */}
-      {selectedAppeal && targetAction && (
-        <ConfirmDialog
-          title={
-            targetAction === 'APPROVE'
-              ? `Approve Appeal for ${selectedAppeal.userName}`
-              : targetAction === 'REJECT'
-              ? `Reject Appeal for ${selectedAppeal.userName}`
-              : `Mark Appeal as Under Review`
-          }
-          description={
-            targetAction === 'APPROVE'
-              ? 'Approving will immediately restore the user account to ACTIVE status, allowing them to transact on the platform.'
-              : targetAction === 'REJECT'
-              ? 'Rejecting will uphold the suspension/deactivation.'
-              : 'The appeal status will change to UNDER REVIEW, notifying the user that an administrator is looking into it.'
-          }
-          confirmLabel={
-            targetAction === 'APPROVE'
-              ? 'Approve & Reinstate'
-              : targetAction === 'REJECT'
-              ? 'Reject Appeal'
-              : 'Save & Mark Under Review'
-          }
-          confirmVariant={
-            targetAction === 'APPROVE' ? 'primary' : targetAction === 'REJECT' ? 'danger' : 'secondary'
-          }
-          onConfirm={handleAction}
-          onClose={() => {
-            setSelectedAppeal(null);
-            setTargetAction(null);
-          }}
-          busy={processing}
-          error={dialogError}
-        >
-          <div className="space-y-3 mt-3">
-            <div className="p-3 bg-gray-50 rounded-xl text-xs space-y-1">
-              <div><span className="font-semibold text-gray-700">User's Appeal Statement:</span></div>
-              <p className="text-gray-800">{selectedAppeal.reason}</p>
-              {selectedAppeal.contactPhone && (
-                <p className="text-gray-500">Contact: {selectedAppeal.contactPhone}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Admin Notes / Message to User (Optional)
-              </label>
-              <textarea
-                rows={3}
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Reason or conditions for this decision..."
-                className="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-        </ConfirmDialog>
-      )}
+      <ConfirmDialog
+        open={Boolean(selectedAppeal && targetAction)}
+        title={
+          targetAction === 'APPROVE'
+            ? `Approve Appeal for ${selectedAppeal?.userName || 'User'}`
+            : targetAction === 'REJECT'
+            ? `Reject Appeal for ${selectedAppeal?.userName || 'User'}`
+            : 'Mark Appeal as Under Review'
+        }
+        body={
+          targetAction === 'APPROVE'
+            ? 'Approving will immediately restore the user account to ACTIVE status, allowing them to transact on the platform.'
+            : targetAction === 'REJECT'
+            ? 'Rejecting will uphold the suspension/deactivation.'
+            : 'The appeal status will change to UNDER REVIEW, notifying the user that an administrator is looking into it.'
+        }
+        confirmLabel={
+          targetAction === 'APPROVE'
+            ? 'Approve & Reinstate'
+            : targetAction === 'REJECT'
+            ? 'Reject Appeal'
+            : 'Save & Mark Under Review'
+        }
+        destructive={targetAction === 'REJECT'}
+        requireReason={targetAction === 'REJECT'}
+        reason={adminNotes}
+        onReasonChange={setAdminNotes}
+        reasonPlaceholder="Admin notes / decision reasoning to the user..."
+        busy={processing}
+        error={dialogError}
+        onConfirm={handleAction}
+        onCancel={() => {
+          setSelectedAppeal(null);
+          setTargetAction(null);
+          setAdminNotes('');
+        }}
+      />
     </div>
   );
 }

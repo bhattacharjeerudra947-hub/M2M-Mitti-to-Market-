@@ -27,13 +27,16 @@ public class PublicStatsController {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final DealRepository dealRepository;
+    private final com.mitti2market.repository.ProduceRepository produceRepository;
 
     public PublicStatsController(UserRepository userRepository,
                                  OrderRepository orderRepository,
-                                 DealRepository dealRepository) {
+                                 DealRepository dealRepository,
+                                 com.mitti2market.repository.ProduceRepository produceRepository) {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
         this.dealRepository = dealRepository;
+        this.produceRepository = produceRepository;
     }
 
     @GetMapping
@@ -59,12 +62,20 @@ public class PublicStatsController {
         long completedDeals = dealRepository.findAll().stream()
                 .filter(d -> d.getStatus() == Deal.DealStatus.COMPLETED)
                 .count();
+        long allDeals = dealRepository.count();
+
+        long activeProduce = produceRepository.countByStatusIn(
+                java.util.List.of(com.mitti2market.model.Produce.ProduceStatus.AVAILABLE)
+        );
 
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("farmers", farmers);
         stats.put("buyers", buyers);
+        stats.put("totalUsers", farmers + buyers);
         stats.put("produceSoldValue", Math.round(ordersValue + dealsValue));
-        stats.put("totalDeals", completedDeals);
+        stats.put("totalDeals", allDeals > 0 ? allDeals : completedDeals);
+        stats.put("completedDeals", completedDeals);
+        stats.put("activeProduce", activeProduce);
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 }

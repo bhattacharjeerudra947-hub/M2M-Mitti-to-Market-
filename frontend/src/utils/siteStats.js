@@ -33,6 +33,36 @@ export function useSiteStats() {
 }
 
 /**
+ * Animated counter hook that smoothly counts up to target value.
+ */
+export function useCountUp(target, duration = 1000) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const end = Number(target) || 0;
+    if (end === 0) {
+      setCurrent(0);
+      return;
+    }
+    let startTimestamp = null;
+    let frameId;
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setCurrent(Math.round(ease * end));
+      if (progress < 1) {
+        frameId = requestAnimationFrame(step);
+      }
+    };
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [target, duration]);
+
+  return current;
+}
+
+/**
  * Compact a number for display using Indian abbreviations.
  *   6        → "6"
  *   12875    → "12.9K"

@@ -4,13 +4,23 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { useSiteStats, formatCompact } from '../utils/siteStats';
+import { useSiteStats, formatCompact, useCountUp } from '../utils/siteStats';
 
-const stats = [
-  { emoji: '👨‍🌾', value: '10K+', label: 'Farmers Onboarded' },
-  { emoji: '🏪', value: '2.5K+', label: 'Active Buyers' },
-  { emoji: '📊', value: '₹15Cr+', label: 'Worth of Produce Sold' },
-];
+function AboutStatItem({ emoji, rawValue, label, loading, prefix = '', suffix = '+' }) {
+  const animated = useCountUp(rawValue || 0, 1000);
+  const displayVal = loading ? '…' : `${prefix}${formatCompact(animated)}${suffix}`;
+  return (
+    <div className="flex items-center gap-4 p-4 bg-cream rounded-2xl">
+      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-xl shadow-xs shrink-0">
+        {emoji}
+      </div>
+      <div>
+        <p className="text-2xl font-display font-bold text-navy-900">{displayVal}</p>
+        <p className="text-xs text-navy-500 font-medium">{label}</p>
+      </div>
+    </div>
+  );
+}
 
 const values = [
   { icon: TrendingUp, title: 'Better Prices', desc: 'Farmers earn more by selling directly to verified buyers without middlemen.' },
@@ -39,9 +49,12 @@ export default function AboutUs() {
   const { stats, loading } = useSiteStats();
 
   const liveStats = [
-    { emoji: '👨‍🌾', value: stats ? `${formatCompact(stats.farmers)}+` : '…', label: 'Farmers Onboarded' },
-    { emoji: '🏪', value: stats ? `${formatCompact(stats.buyers)}+` : '…', label: 'Active Buyers' },
-    { emoji: '📊', value: stats ? `₹${formatCompact(stats.produceSoldValue)}+` : '…', label: 'Worth of Produce Sold' },
+    { emoji: '👥', rawValue: stats ? (stats.totalUsers || (stats.farmers + stats.buyers)) : 0, label: 'Platform Users' },
+    { emoji: '👨‍🌾', rawValue: stats ? stats.farmers : 0, label: 'Farmers Onboarded' },
+    { emoji: '🏪', rawValue: stats ? stats.buyers : 0, label: 'Verified Buyers' },
+    { emoji: '🌾', rawValue: stats ? (stats.activeProduce || 0) : 0, label: 'Active Produce Batches' },
+    { emoji: '📊', rawValue: stats ? stats.produceSoldValue : 0, label: 'Worth of Produce Traded', prefix: '₹' },
+    { emoji: '🤝', rawValue: stats ? (stats.completedDeals || stats.totalDeals || 0) : 0, label: 'Deals Completed' },
   ];
 
   return (
@@ -78,17 +91,16 @@ export default function AboutUs() {
             {/* Stats card */}
             <div className="bg-white rounded-3xl p-8 sm:p-10 border border-navy-100/50 shadow-sm">
               <h3 className="text-sm font-bold text-navy-900 mb-6 tracking-wide">The movement so far</h3>
-              <div className="space-y-5">
+              <div className="space-y-3.5">
                 {liveStats.map((stat, i) => (
-                  <div key={i} className="flex items-center gap-4 p-4 bg-cream rounded-2xl" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.3s ease' }}>
-                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm shrink-0">
-                      {stat.emoji}
-                    </div>
-                    <div>
-                      <p className="text-2xl font-display font-bold text-navy-900">{stat.value}</p>
-                      <p className="text-xs text-navy-500 font-medium">{stat.label}</p>
-                    </div>
-                  </div>
+                  <AboutStatItem
+                    key={i}
+                    emoji={stat.emoji}
+                    rawValue={stat.rawValue}
+                    label={stat.label}
+                    prefix={stat.prefix || ''}
+                    loading={loading}
+                  />
                 ))}
               </div>
             </div>

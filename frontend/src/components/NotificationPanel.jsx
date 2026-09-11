@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle, Sparkles, Handshake } from 'lucide-react';
+import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle, Sparkles, Handshake, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiGet, apiPut } from '../api';
@@ -20,10 +20,12 @@ const NOTIF_ICONS = {
   ORDER_STATUS_CHANGED: { icon: Truck, color: 'text-indigo-500', bg: 'bg-indigo-50' },
   DEAL_LOCK_REQUESTED: { icon: Lock, color: 'text-amber-500', bg: 'bg-amber-50' },
   DEAL_LOCKED: { icon: Lock, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  DEAL_COMPLETED: { icon: CheckCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   DEAL_CANCELLED: { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' },
   LOGISTICS_SELECTED: { icon: Truck, color: 'text-blue-500', bg: 'bg-blue-50' },
   LOGISTICS_UPDATE: { icon: Truck, color: 'text-indigo-500', bg: 'bg-indigo-50' },
   DELIVERY_CONFIRMED: { icon: CheckCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  RATING_RECEIVED: { icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' },
 };
 
 function getNotifStyle(type) {
@@ -58,8 +60,10 @@ export default function NotificationPanel({ compact = false }) {
       navigate('/farmer/matches');
     } else if (n.type === 'DEAL_STARTED') {
       navigate(isFarmer ? '/farmer/chat' : '/business/chat');
-    } else if (n.type === 'DEAL_LOCKED') {
+    } else if (n.type === 'DEAL_LOCKED' || n.type === 'DEAL_COMPLETED') {
       navigate(isFarmer ? '/farmer/deals' : '/business/deals');
+    } else if (n.type === 'RATING_RECEIVED') {
+      navigate('/profile');
     }
   };
   const fetchNotifications = useCallback(async () => {
@@ -87,9 +91,8 @@ export default function NotificationPanel({ compact = false }) {
   const markAsRead = useCallback(async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
-    // Mark all as read on backend
     try {
-      await apiPut('/api/notifications/mark-read');
+      await apiPut(`/api/notifications/${id}/read`);
     } catch {}
   }, []);
 
