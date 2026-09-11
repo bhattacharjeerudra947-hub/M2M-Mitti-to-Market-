@@ -530,6 +530,10 @@ public class TwoWayMatchingAndDealTest {
         public List<Produce> findAll(Sort sort) { return findAll(); }
         @Override
         public Page<Produce> findAll(Pageable pageable) { return null; }
+        @Override
+        public long countByStatusIn(List<Produce.ProduceStatus> statuses) {
+            return data.values().stream().filter(p -> statuses.contains(p.getStatus())).count();
+        }
     }
 
     static class InMemoryRequirementRepository implements BuyerRequirementRepository {
@@ -631,5 +635,13 @@ public class TwoWayMatchingAndDealTest {
         public List<BuyerRequirement> findAll(Sort sort) { return findAll(); }
         @Override
         public Page<BuyerRequirement> findAll(Pageable pageable) { return null; }
+        @Override
+        public long countByStatusIn(List<BuyerRequirement.RequirementStatus> statuses) {
+            return data.values().stream().filter(r -> statuses.contains(r.getStatus())).count();
+        }
+        @Override
+        public List<BuyerRequirement> findByCropIgnoreCaseAndStatus(String crop, BuyerRequirement.RequirementStatus status) {
+            return data.values().stream().filter(r -> r.getCrop().equalsIgnoreCase(crop) && r.getStatus() == status).toList();
+        }
     }
 }
