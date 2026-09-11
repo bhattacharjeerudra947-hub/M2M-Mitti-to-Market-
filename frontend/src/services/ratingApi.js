@@ -28,3 +28,11 @@ export async function submitDealRating(dealId, rating, comment) {
 export async function getDealRatings(dealId) {
   return request('GET', `/deals/${dealId}/ratings`);
 }
+
+export async function getUserRatingSummary(userId) {
+  return request('GET', `/deals/users/${userId}/rating-summary`);
+}
+
+export async function getUserRatings(userId) {
+  return request('GET', `/deals/users/${userId}/ratings`);
+}

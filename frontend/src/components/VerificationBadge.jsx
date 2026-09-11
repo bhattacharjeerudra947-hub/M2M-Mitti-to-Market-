@@ -1,76 +1,68 @@
-import React from 'react';
-import { CheckCircle2, Clock, AlertTriangle, HelpCircle } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, XCircle, Shield } from 'lucide-react';
 
-/**
- * Standardized Verification Badge across Mitti2Market
- * Displays one of the 4 official states:
- * 1. ○ Unverified
- * 2. ⏳ Verification Pending
- * 3. ✓ Verified
- * 4. ⚠ Verification Lost
- */
-export default function VerificationBadge({ status, verified, notes, className = '', showNotes = false }) {
-  // Normalize status
-  let normStatus = (status || '').toUpperCase();
-  if (!normStatus) {
-    normStatus = verified ? 'VERIFIED' : 'NOT_VERIFIED';
-  }
-
-  if (normStatus === 'APPROVED') normStatus = 'VERIFIED';
-  if (normStatus === 'VERIFICATION_LOST') normStatus = 'REJECTED';
-
-  let config = {
-    label: 'Unverified',
-    symbol: '○',
-    icon: HelpCircle,
-    bgColor: 'bg-gray-100 dark:bg-gray-800',
-    textColor: 'text-gray-700 dark:text-gray-300',
-    borderColor: 'border-gray-200 dark:border-gray-700',
+export default function VerificationBadge({ status, verified, verifiedAt, className = '', showDate = false }) {
+  const normalize = (s) => {
+    if (!s) return verified ? 'VERIFIED' : 'UNVERIFIED';
+    const upper = s.toUpperCase();
+    if (upper === 'APPROVED') return 'VERIFIED';
+    if (upper === 'PENDING') return 'UNDER_REVIEW';
+    if (upper === 'NOT_VERIFIED') return 'UNVERIFIED';
+    if (upper === 'RE_SUBMISSION_REQUESTED') return 'RESUBMISSION_REQUIRED';
+    return upper;
   };
 
-  if (normStatus === 'VERIFIED') {
-    config = {
-      label: 'Verified',
-      symbol: '✓',
-      icon: CheckCircle2,
-      bgColor: 'bg-emerald-50 dark:bg-emerald-950/40',
-      textColor: 'text-emerald-700 dark:text-emerald-300',
-      borderColor: 'border-emerald-200 dark:border-emerald-800',
-    };
-  } else if (normStatus === 'PENDING' || normStatus === 'RE_SUBMISSION_REQUESTED') {
-    config = {
-      label: 'Verification Pending',
-      symbol: '⏳',
-      icon: Clock,
-      bgColor: 'bg-amber-50 dark:bg-amber-950/40',
-      textColor: 'text-amber-700 dark:text-amber-300',
-      borderColor: 'border-amber-200 dark:border-amber-800',
-    };
-  } else if (normStatus === 'REJECTED') {
-    config = {
-      label: 'Verification Lost',
-      symbol: '⚠',
-      icon: AlertTriangle,
-      bgColor: 'bg-red-50 dark:bg-red-950/40',
-      textColor: 'text-red-700 dark:text-red-300',
-      borderColor: 'border-red-200 dark:border-red-800',
-    };
+  const st = normalize(status);
+
+  if (st === 'VERIFIED') {
+    const formattedDate = verifiedAt ? new Date(verifiedAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : null;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 ${className}`}>
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Verified {showDate && formattedDate ? `· ${formattedDate}` : ''}</span>
+      </span>
+    );
+  }
+
+  if (st === 'DOCUMENTS_SUBMITTED') {
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-300 ${className}`}>
+        <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+        <span>Docs Submitted</span>
+      </span>
+    );
+  }
+
+  if (st === 'UNDER_REVIEW') {
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 ${className}`}>
+        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+        <span>Under Review</span>
+      </span>
+    );
+  }
+
+  if (st === 'RESUBMISSION_REQUIRED') {
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-300 ${className}`}>
+        <AlertCircle className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+        <span>Action Required</span>
+      </span>
+    );
+  }
+
+  if (st === 'REJECTED') {
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300 ${className}`}>
+        <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+        <span>Rejected</span>
+      </span>
+    );
   }
 
   return (
-    <div className={`inline-flex flex-col ${className}`}>
-      <span
-        title={notes || config.label}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border shadow-xs ${config.bgColor} ${config.textColor} ${config.borderColor}`}
-      >
-        <span className="text-[13px] leading-none">{config.symbol}</span>
-        <span>{config.label}</span>
-      </span>
-      {showNotes && notes && normStatus === 'REJECTED' && (
-        <span className="text-[11px] text-red-600 dark:text-red-400 mt-1 italic">
-          Reason: {notes}
-        </span>
-      )}
-    </div>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300 ${className}`}>
+      <Shield className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+      <span>Unverified</span>
+    </span>
   );
 }

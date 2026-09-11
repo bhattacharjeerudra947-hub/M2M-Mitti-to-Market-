@@ -47,10 +47,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     var user = userOpt.get();
                     if (user.getStatus() == com.mitti2market.model.User.UserStatus.SUSPENDED
                             || user.getStatus() == com.mitti2market.model.User.UserStatus.DEACTIVATED) {
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.setContentType("application/json");
-                        response.getWriter().write("{\"error\":\"Account is suspended or deactivated\"}");
-                        return;
+                        String uri = request.getRequestURI();
+                        // Allow /api/auth/me and /api/profile so the client session gets the updated deactivation/suspension details
+                        if (!uri.endsWith("/auth/me") && !uri.endsWith("/profile") && !uri.endsWith("/auth/logout")) {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            String reason = user.getStatusReason() != null && !user.getStatusReason().isBlank()
+                                    ? ": " + user.getStatusReason()
+                                    : "";
+                            String statusLabel = user.getStatus() == com.mitti2market.model.User.UserStatus.DEACTIVATED ? "deactivated" : "suspended";
+                            response.getWriter().write("{\"error\":\"Your account has been " + statusLabel + " by administration" + reason + "\"}");
+                            return;
+                        }
                     }
 
                     String role = user.getRole() != null ? user.getRole().name() : jwtUtil.extractRole(token);

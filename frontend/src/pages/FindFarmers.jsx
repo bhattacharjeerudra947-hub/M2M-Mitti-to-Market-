@@ -12,16 +12,15 @@ export default function FindFarmers() {
   useEffect(() => {
     apiGet('/api/users/farmers')
       .then((data) => {
-        // Adapt backend user data to FarmerCard expected format
         const adapted = (data || []).map((u) => ({
           id: u.id,
           name: u.name,
-          location: u.location || 'India',
-          distance: Math.floor(Math.random() * 200) + 5,
-          rating: (u.rating || 4.5).toFixed(1),
+          location: [u.district, u.state].filter(Boolean).join(', ') || u.location || 'India',
+          rating: u.rating ? Number(u.rating).toFixed(1) : '4.5',
           produce: u.organizationName || 'Farmer',
-          experience: 'Verified',
-          verified: u.verified !== false,
+          profilePhotoUrl: u.profilePhotoUrl,
+          verified: u.verified === true,
+          verificationStatus: u.verificationStatus || (u.verified ? 'VERIFIED' : 'UNVERIFIED'),
         }));
         setFarmers(adapted);
       })

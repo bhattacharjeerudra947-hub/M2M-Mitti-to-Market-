@@ -19,7 +19,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="flex flex-col items-center md:items-start gap-3 text-center md:text-left">
             <div className="flex items-center gap-2">
-              <img src="https://i.postimg.cc/L89VZ3GK/icon.png" alt="Mitti2Market logo" className="w-8 h-8 object-contain" />
+              <img src="/logo-icon.png" onError={(e) => { e.currentTarget.src = "https://i.postimg.cc/L89VZ3GK/icon.png"; }} alt="Mitti2Market logo" className="w-8 h-8 object-contain" />
               <span className="text-white font-bold text-sm notranslate" translate="no">Mitti2Market</span>
             </div>
             <p className="text-xs text-navy-500 max-w-[240px] leading-relaxed">
