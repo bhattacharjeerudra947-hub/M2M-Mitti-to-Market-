@@ -139,6 +139,41 @@ export default function ProductDetails() {
                       <p className="text-sm font-semibold text-gray-900">{product.createdAt ? new Date(product.createdAt).toLocaleDateString() : 'Recently'}</p>
                     </div>
                   </div>
+
+                  {product.harvestDate && (
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <span className="text-lg">🌱</span>
+                      <div>
+                        <p className="text-xs text-gray-500">Harvest Date</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {new Date(product.harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {product.expiryDate && (
+                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+                      product.isExpired || (new Date(product.expiryDate) < new Date().setHours(0,0,0,0))
+                        ? 'bg-rose-50 border-rose-200 text-rose-800'
+                        : product.isExpiringSoon
+                        ? 'bg-amber-50 border-amber-200 text-amber-800'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    }`}>
+                      <span className="text-lg">⏳</span>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium">Shelf Life / Expiry</p>
+                        <p className="text-sm font-bold">
+                          Valid until {new Date(product.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {product.daysUntilExpiry != null && (
+                            <span className="ml-1.5 text-xs font-normal">
+                              ({product.daysUntilExpiry < 0 ? 'Expired' : product.daysUntilExpiry === 0 ? 'Expires today' : `${product.daysUntilExpiry} days left`})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -193,40 +228,67 @@ export default function ProductDetails() {
               </div>
 
               {/* Action Buttons */}
-              {isGuestModeActive ? (
-                <div className="space-y-3">
-                  <button
-                    onClick={openAuthRequired}
-                    className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
-                  >
-                    <ShoppingBag className="w-5 h-5" />
-                    Buy Now
-                  </button>
-                  <button
-                    onClick={openAuthRequired}
-                    className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    Message Farmer
-                  </button>
-                </div>
-              ) : user && product.farmerId && product.farmerId !== user.id ? (
-                <>
-                  {!showInterestForm && !interestSent ? (
-                    <button
-                      onClick={() => setShowInterestForm(true)}
-                      className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
-                    >
-                      <Heart className="w-5 h-5" />
-                      Show Interest / Contact Farmer
-                    </button>
-                  ) : interestSent ? (
-                    <div className="w-full py-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold rounded-xl flex items-center justify-center gap-2">
-                      <Check className="w-5 h-5" /> Interest Sent! Farmer will respond soon.
+              {(() => {
+                const isExpired = product.isExpired || product.status === 'EXPIRED' || (product.expiryDate && new Date(product.expiryDate) < new Date().setHours(0,0,0,0));
+                const isSoldOut = product.status === 'SOLD_OUT' || (product.quantity != null && product.quantity <= 0);
+
+                if (isSoldOut) {
+                  return (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-2xl text-center space-y-1">
+                      <p className="font-bold text-sm text-purple-900">📦 Listing Completely Sold Out</p>
+                      <p className="text-xs text-purple-700">This produce batch has been fully purchased through completed transactions.</p>
                     </div>
-                  ) : (
-                    <div className="bg-white rounded-2xl border border-navy-100 p-4 space-y-3">
-                      <h3 className="text-sm font-bold text-navy-900">Make an Offer</h3>
+                  );
+                }
+
+                if (isExpired) {
+                  return (
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-center space-y-1">
+                      <p className="font-bold text-sm text-rose-900">⚠️ Shelf Life Expired</p>
+                      <p className="text-xs text-rose-700">This listing has reached its maximum freshness date and cannot accept new orders.</p>
+                    </div>
+                  );
+                }
+
+                if (isGuestModeActive) {
+                  return (
+                    <div className="space-y-3">
+                      <button
+                        onClick={openAuthRequired}
+                        className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
+                      >
+                        <ShoppingBag className="w-5 h-5" />
+                        Buy Now
+                      </button>
+                      <button
+                        onClick={openAuthRequired}
+                        className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                        Message Farmer
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (user && product.farmerId && product.farmerId !== user.id) {
+                  return (
+                    <>
+                      {!showInterestForm && !interestSent ? (
+                        <button
+                          onClick={() => setShowInterestForm(true)}
+                          className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
+                        >
+                          <Heart className="w-5 h-5" />
+                          Show Interest / Contact Farmer
+                        </button>
+                      ) : interestSent ? (
+                        <div className="w-full py-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold rounded-xl flex items-center justify-center gap-2">
+                          <Check className="w-5 h-5" /> Interest Sent! Farmer will respond soon.
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-2xl border border-navy-100 p-4 space-y-3">
+                          <h3 className="text-sm font-bold text-navy-900">Make an Offer</h3>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs text-gray-500">Your Price (₹/{product.unit})</label>
@@ -248,70 +310,63 @@ export default function ProductDetails() {
                           rows={2}
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm mt-1 resize-none" />
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setShowInterestForm(false)}
-                          className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition">
-                          Cancel
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setInterestLoading(true);
-                            try {
-                              await apiPost('/api/interests', {
-                                produceId: product.id,
-                                offeredPrice: offerPrice ? Number(offerPrice) : null,
-                                offeredQuantity: offerQuantity ? Number(offerQuantity) : null,
-                                message: offerMessage || null,
-                              });
-                              setInterestSent(true);
-                              setShowInterestForm(false);
-                            } catch (err) {
-                              setError(err.message);
-                            } finally {
-                              setInterestLoading(false);
-                            }
-                          }}
-                          disabled={interestLoading}
-                          className="flex-1 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
-                          {interestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
-                          Send Interest
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  <Link
-                    to={`/business/chat/new/${product.farmerId}?produceId=${product.id}`}
-                    className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    Message Farmer
-                  </Link>
-                </>
-              ) : (
-                <div className="flex gap-3">
-                  <button onClick={openAuthRequired} className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2">
-                    <ShoppingBag className="w-5 h-5" />
-                    Buy Now
-                  </button>
-                  <Link
-                    to="/business/bulk-order"
-                    className="flex-1 py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
-                  >
-                    Request Bulk Order
-                  </Link>
-                </div>
-              )}
+                          <div className="flex gap-2">
+                            <button onClick={() => setShowInterestForm(false)}
+                              className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition">
+                              Cancel
+                            </button>
+                            <button
+                              onClick={async () => {
+                                setInterestLoading(true);
+                                try {
+                                  await apiPost('/api/interests', {
+                                    produceId: product.id,
+                                    offeredPrice: offerPrice ? Number(offerPrice) : null,
+                                    offeredQuantity: offerQuantity ? Number(offerQuantity) : null,
+                                    message: offerMessage || null,
+                                  });
+                                  setInterestSent(true);
+                                  setShowInterestForm(false);
+                                } catch (err) {
+                                  setError(err.message);
+                                } finally {
+                                  setInterestLoading(false);
+                                }
+                              }}
+                              disabled={interestLoading}
+                              className="flex-1 py-2.5 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
+                              {interestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
+                              Send Interest
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <Link
+                        to={`/business/chat/new/${product.farmerId}?produceId=${product.id}`}
+                        className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                        Message Farmer
+                      </Link>
+                    </>
+                  );
+                }
 
-              {/* Message Farmer */}
-              {user && product.farmerId && product.farmerId !== user.id && (
-                <Link
-                  to={`/business/chat/new/${product.farmerId}?produceId=${product.id}`}
-                  className="w-full py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Message Farmer
-                </Link>
-              )}
+                return (
+                  <div className="flex gap-3">
+                    <button onClick={openAuthRequired} className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2">
+                      <ShoppingBag className="w-5 h-5" />
+                      Buy Now
+                    </button>
+                    <Link
+                      to="/business/bulk-order"
+                      className="flex-1 py-3.5 bg-white border-2 border-navy-200 text-navy-700 font-semibold rounded-xl hover:bg-mustard-50 transition flex items-center justify-center gap-2"
+                    >
+                      Request Bulk Order
+                    </Link>
+                  </div>
+                );
+              })()}
 
               {/* Report listing — available to any signed-in viewer (not the owner) */}
               {user && product.farmerId !== user.id && (

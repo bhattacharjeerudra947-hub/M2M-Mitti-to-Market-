@@ -505,6 +505,7 @@ export default function Chat() {
             otherUserId={otherUserId}
             produceId={conversations.find(c => c.conversationId === conversationId)?.produceId}
             produceName={conversations.find(c => c.conversationId === conversationId)?.produceName}
+            latestMessageTimestamp={messages.length > 0 ? (messages[messages.length - 1].createdAt || messages[messages.length - 1].id) : null}
           />
 
           {/* Make Offer button */}

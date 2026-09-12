@@ -248,10 +248,10 @@ export default function DealWorkspace() {
                 </div>
               )}
 
-              <div className="grid md:grid-cols-2 gap-5">
-                {/* ═══ PARTIES + AGREEMENT ═══ */}
-                <div className="space-y-5">
-                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
+              {/* ═══ PARTIES & AGREEMENT ═══ */}
+              <div className="grid md:grid-cols-2 gap-5 mb-5">
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 space-y-4">
+                  <div>
                     <p className="text-xs text-gray-400 uppercase font-medium tracking-wide mb-3">Parties</p>
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
@@ -277,75 +277,77 @@ export default function DealWorkspace() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
-                    <p className="text-xs text-gray-400 uppercase font-medium tracking-wide mb-3">Final Agreement</p>
-                    <div className="space-y-2.5 text-sm">
-                      <div className="flex justify-between"><span className="text-gray-500">Product</span><span className="font-semibold text-navy-900">{deal.cropName}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">Quantity</span><span className="font-semibold text-navy-900">{deal.quantity} {deal.unit}</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">Price</span><span className="font-semibold text-navy-900">{formatINR(deal.agreedPrice)}/{deal.unit}</span></div>
-                      <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">Total value</span><span className="font-bold text-emerald-700">{formatINR(deal.totalAmount)}</span></div>
-                      <div className="flex justify-between items-start gap-2"><span className="text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Pickup</span><span className="font-semibold text-navy-900 text-right">{deal.pickupLocation || '—'}</span></div>
-                      <div className="flex justify-between items-start gap-2"><span className="text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Delivery</span><span className="font-semibold text-navy-900 text-right">{deal.deliveryLocation || '—'}</span></div>
-                      {deal.conditions && <div className="flex justify-between items-start gap-2"><span className="text-gray-500">Conditions</span><span className="font-semibold text-navy-900 text-right">{deal.conditions}</span></div>}
-                      {deal.amendmentCount > 0 && (
-                        <div className="flex justify-between"><span className="text-gray-500">Amendments</span><span className="font-semibold text-amber-600">✏️ {deal.amendmentCount}× ({formatDate(deal.amendedAt)})</span></div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ═══ CONFIRMATIONS ═══ */}
-                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
-                    <p className="text-xs text-gray-400 uppercase font-medium tracking-wide mb-3">Confirmations</p>
-                    <div className="space-y-2">
-                      <div className={`flex items-center gap-2 text-sm ${deal.farmerConfirmed ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {deal.farmerConfirmed ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                        <span className="font-semibold">Farmer</span>
-                        <span className="ml-auto text-xs">{deal.farmerConfirmed ? '✓ Confirmed' : 'Waiting'}</span>
+                  <div className="border-t border-navy-50 pt-3">
+                    <p className="text-xs text-gray-400 uppercase font-medium tracking-wide mb-2">Confirmations</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs font-semibold ${
+                        deal.farmerConfirmed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+                      }`}>
+                        {deal.farmerConfirmed ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Clock className="w-4 h-4 text-amber-600" />}
+                        <span>Farmer {deal.farmerConfirmed ? 'Confirmed' : 'Waiting'}</span>
                       </div>
-                      <div className={`flex items-center gap-2 text-sm ${deal.buyerConfirmed ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {deal.buyerConfirmed ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                        <span className="font-semibold">Buyer</span>
-                        <span className="ml-auto text-xs">{deal.buyerConfirmed ? '✓ Confirmed' : 'Waiting'}</span>
+                      <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs font-semibold ${
+                        deal.buyerConfirmed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+                      }`}>
+                        {deal.buyerConfirmed ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Clock className="w-4 h-4 text-amber-600" />}
+                        <span>Buyer {deal.buyerConfirmed ? 'Confirmed' : 'Waiting'}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-5">
-                  {/* ═══ LOGISTICS & DYNAMIC ROUTE OPTIMIZATION ═══ */}
-                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 space-y-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-gray-400 uppercase font-medium tracking-wide">Logistics & Route</p>
-                      {logistics?.type && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
-                          {logistics.type === 'OWN' ? '🚗 Own Logistics' : '🚚 Mitti2Market Logistics'}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Interactive Route Optimizer with Dual Location Selectors */}
-                    {['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED'].includes(deal.status) && (
-                      <RouteOptimizerPanel
-                        dealId={dealId}
-                        deal={deal}
-                        onConfirmed={load}
-                        readOnly={deal.status !== 'LOCKED' && deal.status !== 'LOGISTICS_PENDING'}
-                      />
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
+                  <p className="text-xs text-gray-400 uppercase font-medium tracking-wide mb-3">Final Agreement Details</p>
+                  <div className="space-y-2.5 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Product</span><span className="font-semibold text-navy-900">{deal.cropName}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Quantity</span><span className="font-semibold text-navy-900">{deal.quantity} {deal.unit}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Price</span><span className="font-semibold text-navy-900">{formatINR(deal.agreedPrice)}/{deal.unit}</span></div>
+                    <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">Total value</span><span className="font-bold text-emerald-700">{formatINR(deal.totalAmount)}</span></div>
+                    <div className="flex justify-between items-start gap-2"><span className="text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-emerald-600" />Pickup</span><span className="font-semibold text-navy-900 text-right">{deal.pickupLocation || '—'}</span></div>
+                    <div className="flex justify-between items-start gap-2"><span className="text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-red-600" />Delivery</span><span className="font-semibold text-navy-900 text-right">{deal.deliveryLocation || '—'}</span></div>
+                    {deal.conditions && <div className="flex justify-between items-start gap-2"><span className="text-gray-500">Conditions</span><span className="font-semibold text-navy-900 text-right">{deal.conditions}</span></div>}
+                    {deal.amendmentCount > 0 && (
+                      <div className="flex justify-between"><span className="text-gray-500">Amendments</span><span className="font-semibold text-amber-600">✏️ {deal.amendmentCount}× ({formatDate(deal.amendedAt)})</span></div>
                     )}
+                  </div>
+                </div>
+              </div>
 
-                    {/* Shared Google Map Display for deal with route data */}
-                    {routeInfo && routeInfo.distanceKm && !['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED'].includes(deal.status) && (
-                      <DealRouteMap
-                        origin={{
-                          latitude: routeInfo.pickupLatitude,
-                          longitude: routeInfo.pickupLongitude,
-                          label: 'Pickup',
-                        }}
-                        destination={{
-                          latitude: routeInfo.deliveryLatitude,
-                          longitude: routeInfo.deliveryLongitude,
-                          label: 'Destination',
-                        }}
+              {/* ═══ FULL-WIDTH LOGISTICS & ROUTE OPTIMIZATION ═══ */}
+              <div className="w-full space-y-5">
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 sm:p-6 space-y-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-gray-400 uppercase font-medium tracking-wide">Logistics & Route</p>
+                    {logistics?.type && (
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                        {logistics.type === 'OWN' ? '🚗 Own Logistics' : '🚚 Mitti2Market Logistics'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Interactive Route Optimizer with Dual Location Selectors */}
+                  {['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED'].includes(deal.status) && (
+                    <RouteOptimizerPanel
+                      dealId={dealId}
+                      deal={deal}
+                      onConfirmed={load}
+                      readOnly={deal.status !== 'LOCKED' && deal.status !== 'LOGISTICS_PENDING'}
+                    />
+                  )}
+
+                  {/* Shared Google Map Display for deal with route data */}
+                  {routeInfo && routeInfo.distanceKm && !['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED'].includes(deal.status) && (
+                    <DealRouteMap
+                      origin={{
+                        latitude: routeInfo.pickupLatitude,
+                        longitude: routeInfo.pickupLongitude,
+                        label: 'Pickup',
+                      }}
+                      destination={{
+                        latitude: routeInfo.deliveryLatitude,
+                        longitude: routeInfo.deliveryLongitude,
+                        label: 'Destination',
+                      }}
                         optimalRoute={routeInfo}
                         alternatives={routeInfo.alternativeRoutes || []}
                         selectionReason={routeInfo.selectionReason}
@@ -432,7 +434,6 @@ export default function DealWorkspace() {
                     )}
                   </div>
                 </div>
-              </div>
 
               {/* ═══ ACTIONS ═══ */}
               <div className="mt-6 bg-white rounded-2xl border border-navy-100 shadow-sm p-5 flex flex-wrap gap-3">

@@ -43,6 +43,8 @@ public class ProduceService {
             }
         }
 
+        java.time.LocalDate expDate = calculateExpiryDate(request.getHarvestDate(), request.getShelfLife(), request.getExpiryDate());
+
         Produce produce = Produce.builder()
                 .farmer(farmer)
                 .name(request.getName())
@@ -55,7 +57,12 @@ public class ProduceService {
                 .pricePerUnit(request.getPricePerUnit())
                 .description(request.getDescription())
                 .location(request.getLocation())
+                .imageUrl(request.getImageUrl())
                 .readyDate(request.getReadyDate())
+                .harvestDate(request.getHarvestDate())
+                .shelfLife(request.getShelfLife())
+                .expiryDate(expDate)
+                .expiryWarningSent(false)
                 .idempotencyKey(key)
                 .status(ProduceStatus.AVAILABLE)
                 .build();
@@ -95,15 +102,18 @@ public class ProduceService {
             produceList = produceRepository.findAll();
         }
 
-        // By default or when availableOnly is true, filter out SOLD_OUT, REMOVED, ADMIN_REMOVED, INACTIVE, EXPIRED
+        // By default or when availableOnly is true, filter out SOLD_OUT, REMOVED, ADMIN_REMOVED, INACTIVE, EXPIRED, and past expiryDate
         List<ProduceStatus> activeStatuses = List.of(
                 ProduceStatus.AVAILABLE,
                 ProduceStatus.LOW_STOCK,
                 ProduceStatus.PARTIALLY_SOLD
         );
 
+        java.time.LocalDate today = java.time.LocalDate.now();
         produceList = produceList.stream()
-                .filter(p -> activeStatuses.contains(p.getStatus()) && (p.getQuantity() == null || p.getQuantity() > 0))
+                .filter(p -> activeStatuses.contains(p.getStatus())
+                        && (p.getQuantity() == null || p.getQuantity() > 0)
+                        && (p.getExpiryDate() == null || !p.getExpiryDate().isBefore(today)))
                 .toList();
 
         return produceList.stream().map(this::toResponse).toList();
@@ -156,7 +166,11 @@ public class ProduceService {
                 ProduceStatus.LOW_STOCK,
                 ProduceStatus.PARTIALLY_SOLD
         );
-        return produceRepository.findByFarmerIdAndStatusIn(farmerId, activeStatuses).stream()
+        java.time.LocalDate today = java.time.LocalDate.now();
+        return produceRepository.findByFarmerId(farmerId).stream()
+                .filter(p -> activeStatuses.contains(p.getStatus())
+                        && p.getQuantity() != null && p.getQuantity() > 0
+                        && (p.getExpiryDate() == null || !p.getExpiryDate().isBefore(today)))
                 .map(this::toResponse).toList();
     }
 
@@ -166,7 +180,11 @@ public class ProduceService {
                 ProduceStatus.LOW_STOCK,
                 ProduceStatus.PARTIALLY_SOLD
         );
-        return produceRepository.findByFarmerIdAndStatusNotIn(farmerId, activeStatuses).stream()
+        java.time.LocalDate today = java.time.LocalDate.now();
+        return produceRepository.findByFarmerId(farmerId).stream()
+                .filter(p -> !activeStatuses.contains(p.getStatus())
+                        || p.getQuantity() == null || p.getQuantity() <= 0
+                        || (p.getExpiryDate() != null && p.getExpiryDate().isBefore(today)))
                 .map(this::toResponse).toList();
     }
 
@@ -184,6 +202,11 @@ public class ProduceService {
         produce.setLocation(request.getLocation());
         produce.setImageUrl(request.getImageUrl());
         produce.setReadyDate(request.getReadyDate());
+        produce.setHarvestDate(request.getHarvestDate());
+        produce.setShelfLife(request.getShelfLife());
+
+        java.time.LocalDate expDate = calculateExpiryDate(request.getHarvestDate(), request.getShelfLife(), request.getExpiryDate());
+        produce.setExpiryDate(expDate);
 
         // Recompute AI price band on update
         computeAiPriceBand(produce);
@@ -211,6 +234,37 @@ public class ProduceService {
         produce.setStatus(ProduceStatus.REMOVED);
         produceRepository.save(produce);
         matchingService.handleProduceStatusChange(produce);
+    }
+
+    /**
+     * Compute expiry date based on harvest date and shelf life string.
+     */
+    public static java.time.LocalDate calculateExpiryDate(java.time.LocalDate harvestDate, String shelfLife, java.time.LocalDate explicitExpiry) {
+        if (explicitExpiry != null) return explicitExpiry;
+        java.time.LocalDate base = harvestDate != null ? harvestDate : java.time.LocalDate.now();
+        if (shelfLife == null || shelfLife.isBlank()) return base.plusDays(15);
+
+        String normalized = shelfLife.trim().toUpperCase();
+        return switch (normalized) {
+            case "3_DAYS" -> base.plusDays(3);
+            case "5_DAYS" -> base.plusDays(5);
+            case "7_DAYS" -> base.plusDays(7);
+            case "10_DAYS" -> base.plusDays(10);
+            case "15_DAYS" -> base.plusDays(15);
+            case "1_MONTH" -> base.plusMonths(1);
+            case "2_MONTHS" -> base.plusMonths(2);
+            case "3_MONTHS" -> base.plusMonths(3);
+            case "6_MONTHS" -> base.plusMonths(6);
+            case "1_YEAR" -> base.plusYears(1);
+            default -> {
+                try {
+                    String digits = shelfLife.replaceAll("[^0-9]", "");
+                    yield digits.isEmpty() ? base.plusDays(15) : base.plusDays(Long.parseLong(digits));
+                } catch (Exception e) {
+                    yield base.plusDays(15);
+                }
+            }
+        };
     }
 
     /**
@@ -254,6 +308,20 @@ public class ProduceService {
                 .location(farmer.getLocation())
                 .build() : null;
 
+        java.time.LocalDate today = java.time.LocalDate.now();
+        Long daysUntilExpiry = null;
+        Boolean isExpiringSoon = false;
+        Boolean isExpired = produce.getStatus() == ProduceStatus.EXPIRED;
+
+        if (produce.getExpiryDate() != null) {
+            daysUntilExpiry = java.time.temporal.ChronoUnit.DAYS.between(today, produce.getExpiryDate());
+            if (daysUntilExpiry < 0) {
+                isExpired = true;
+            } else if (daysUntilExpiry <= 3) {
+                isExpiringSoon = true;
+            }
+        }
+
         return ProduceResponse.builder()
                 .id(produce.getId())
                 .farmerId(farmer != null ? farmer.getId() : null)
@@ -276,6 +344,12 @@ public class ProduceService {
                 .location(produce.getLocation())
                 .imageUrl(produce.getImageUrl())
                 .readyDate(produce.getReadyDate())
+                .harvestDate(produce.getHarvestDate())
+                .shelfLife(produce.getShelfLife())
+                .expiryDate(produce.getExpiryDate())
+                .daysUntilExpiry(daysUntilExpiry)
+                .isExpiringSoon(isExpiringSoon)
+                .isExpired(isExpired)
                 .aiSuggestedMinPrice(produce.getAiSuggestedMinPrice())
                 .aiSuggestedMaxPrice(produce.getAiSuggestedMaxPrice())
                 .status(produce.getStatus())

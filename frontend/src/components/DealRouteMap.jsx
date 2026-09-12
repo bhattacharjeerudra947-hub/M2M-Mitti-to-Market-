@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useGoogleMaps } from '../utils/googleMapsLoader';
 import {
   Navigation, CheckCircle2, Clock, Route as RouteIcon,
   ShieldCheck, AlertTriangle, ExternalLink, Sparkles,
@@ -40,9 +41,21 @@ function decodePolyline(encoded) {
   return poly;
 }
 
+function reverseGeocode(lat, lng, callback) {
+  if (!window.google?.maps?.Geocoder) return;
+  const geocoder = new window.google.maps.Geocoder();
+  geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+    if (status === 'OK' && results?.[0]) {
+      callback(results[0].formatted_address);
+    } else {
+      callback(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+    }
+  });
+}
+
 export default function DealRouteMap({
-  origin = null,          // { latitude, longitude, label }
-  destination = null,     // { latitude, longitude, label }
+  origin = null,          // { latitude, longitude, label, address }
+  destination = null,     // { latitude, longitude, label, address }
   optimalRoute = null,    // RouteCandidate or OptimalRouteResult
   alternatives = [],      // List<RouteCandidate>
   selectionReason = '',
@@ -50,11 +63,25 @@ export default function DealRouteMap({
   distanceKm = null,
   durationMinutes = null,
   estimatedCost = null,
+  canEditOrigin = false,
+  canEditDestination = false,
+  onOriginChange = () => {},
+  onDestinationChange = () => {},
+  onRouteCalculated = () => {},
 }) {
   const mapRef = useRef(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [scriptError, setScriptError] = useState(false);
+  const mapInstanceRef = useRef(null);
+  const originMarkerRef = useRef(null);
+  const destMarkerRef = useRef(null);
+  const polylinesRef = useRef([]);
+  const trafficLayerRef = useRef(null);
+
+  const { isLoaded: mapLoaded, loadError: scriptError } = useGoogleMaps();
   const [selectedRouteIdx, setSelectedRouteIdx] = useState(0);
+
+  // Map Controls: 'roadmap' | 'hybrid', traffic on/off
+  const [mapTypeId, setMapTypeId] = useState('roadmap');
+  const [isTrafficOn, setIsTrafficOn] = useState(false);
 
   // Preference mode: 'RECOMMENDED' | 'SHORTEST' | 'FASTEST'
   const [optimizationMode, setOptimizationMode] = useState('RECOMMENDED');
@@ -65,32 +92,6 @@ export default function DealRouteMap({
   const animFrameRef = useRef(null);
   const truckMarkerRef = useRef(null);
   const decodedPathRef = useRef([]);
-
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-
-  // Load Google Maps JavaScript API
-  useEffect(() => {
-    if (!apiKey) {
-      setScriptError(true);
-      return;
-    }
-    if (window.google && window.google.maps) {
-      setMapLoaded(true);
-      return;
-    }
-
-    const scriptId = 'google-maps-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => setMapLoaded(true);
-      script.onerror = () => setScriptError(true);
-      document.head.appendChild(script);
-    }
-  }, [apiKey]);
 
   const allRoutes = alternatives && alternatives.length > 0 ? alternatives : (optimalRoute ? [optimalRoute] : []);
 
@@ -143,110 +144,208 @@ export default function DealRouteMap({
   const isCurrentShortest = selectedRouteIdx === shortestRouteIdx;
   const isCurrentFastest = selectedRouteIdx === fastestRouteIdx;
 
-  // Google Map Setup & Drawing
+  // Google Map Setup & Drawing — Always keeps the map live and interactive
   useEffect(() => {
     if (!mapLoaded || !window.google || !window.google.maps || !mapRef.current) return;
-    if (!origin?.latitude || !destination?.latitude) return;
 
-    const from = { lat: Number(origin.latitude), lng: Number(origin.longitude) };
-    const to = { lat: Number(destination.latitude), lng: Number(destination.longitude) };
+    const hasOrigin = Boolean(origin?.latitude && origin?.longitude);
+    const hasDest = Boolean(destination?.latitude && destination?.longitude);
 
-    const map = new window.google.maps.Map(mapRef.current, {
-      center: from,
-      zoom: 10,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-      styles: [
-        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', stylers: [{ visibility: 'simplified' }] }
-      ]
-    });
+    const from = hasOrigin ? { lat: Number(origin.latitude), lng: Number(origin.longitude) } : null;
+    const to = hasDest ? { lat: Number(destination.latitude), lng: Number(destination.longitude) } : null;
+
+    let center = { lat: 20.5937, lng: 78.9629 }; // India center
+    let zoom = 5;
+    if (from && to) {
+      center = from;
+      zoom = 10;
+    } else if (from) {
+      center = from;
+      zoom = 12;
+    } else if (to) {
+      center = to;
+      zoom = 12;
+    }
+
+    let map = mapInstanceRef.current;
+    if (!map) {
+      map = new window.google.maps.Map(mapRef.current, {
+        center,
+        zoom,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        styles: [
+          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+          { featureType: 'transit', stylers: [{ visibility: 'simplified' }] }
+        ]
+      });
+      mapInstanceRef.current = map;
+
+      // Click to pin on map
+      map.addListener('click', (e) => {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+        if (canEditOrigin && !canEditDestination) {
+          reverseGeocode(lat, lng, (addr) => onOriginChange({ latitude: lat, longitude: lng, address: addr }));
+        } else if (canEditDestination && !canEditOrigin) {
+          reverseGeocode(lat, lng, (addr) => onDestinationChange({ latitude: lat, longitude: lng, address: addr }));
+        }
+      });
+    }
+
+    // Traffic Layer
+    if (!trafficLayerRef.current) {
+      trafficLayerRef.current = new window.google.maps.TrafficLayer();
+    }
+    trafficLayerRef.current.setMap(isTrafficOn ? map : null);
+
+    // Map Type
+    map.setMapTypeId(mapTypeId);
+
+    // Clean up previous markers & polylines
+    if (originMarkerRef.current) originMarkerRef.current.setMap(null);
+    if (destMarkerRef.current) destMarkerRef.current.setMap(null);
+    polylinesRef.current.forEach(p => p.setMap(null));
+    polylinesRef.current = [];
 
     const bounds = new window.google.maps.LatLngBounds();
-    bounds.extend(from);
-    bounds.extend(to);
 
-    // Origin Pin
-    new window.google.maps.Marker({
-      position: from,
-      map,
-      title: origin.label || 'Pickup / Farmer',
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        scale: 8,
-        fillColor: '#0f9d58',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2.5,
-      },
-      label: { text: 'A', color: '#ffffff', fontSize: '11px', fontWeight: 'bold' },
-    });
-
-    // Destination Pin
-    new window.google.maps.Marker({
-      position: to,
-      map,
-      title: destination.label || 'Delivery / Buyer',
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        scale: 9,
-        fillColor: '#ea4335',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2.5,
-      },
-      label: { text: 'B', color: '#ffffff', fontSize: '11px', fontWeight: 'bold' },
-    });
-
-    // Animated Delivery Vehicle Marker
-    truckMarkerRef.current = new window.google.maps.Marker({
-      position: from,
-      map,
-      title: 'Logistics Transport in Transit',
-      zIndex: 999,
-      icon: {
-        path: 'M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z',
-        scale: 1.2,
-        fillColor: '#2563eb',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 1.5,
-        anchor: new window.google.maps.Point(12, 12),
-      },
-    });
-
-    // Draw Google Maps Polylines
-    allRoutes.forEach((route, idx) => {
-      if (!route.polylineEncoded) return;
-      const path = decodePolyline(route.polylineEncoded);
-      path.forEach((pt) => bounds.extend(pt));
-
-      const isSelected = idx === selectedRouteIdx;
-      if (isSelected) {
-        decodedPathRef.current = path;
-      }
-
-      // Animated dashes or steady polyline
-      const polyline = new window.google.maps.Polyline({
-        path,
+    // Origin Pin (Green Circle A)
+    if (from) {
+      bounds.extend(from);
+      originMarkerRef.current = new window.google.maps.Marker({
+        position: from,
         map,
-        strokeColor: isSelected ? '#1a73e8' : '#80868b',
-        strokeOpacity: isSelected ? 0.95 : 0.55,
-        strokeWeight: isSelected ? 6 : 4,
-        zIndex: isSelected ? 20 : 5,
-        clickable: true,
+        draggable: canEditOrigin,
+        title: origin.label || origin.address || 'Pickup Point (Farmer)',
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 9,
+          fillColor: '#0f9d58',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2.5,
+        },
+        label: { text: 'A', color: '#ffffff', fontSize: '11px', fontWeight: 'bold' },
       });
 
-      polyline.addListener('click', () => {
-        setSelectedRouteIdx(idx);
-        setIsSimulating(false);
-        setSimProgress(0);
-      });
-    });
+      if (canEditOrigin) {
+        originMarkerRef.current.addListener('dragend', (e) => {
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
+          reverseGeocode(lat, lng, (addr) => onOriginChange({ latitude: lat, longitude: lng, address: addr }));
+        });
+      }
+    }
 
-    map.fitBounds(bounds, { top: 50, bottom: 50, left: 50, right: 50 });
-  }, [mapLoaded, origin, destination, allRoutes, selectedRouteIdx]);
+    // Destination Pin (Red Circle B)
+    if (to) {
+      bounds.extend(to);
+      destMarkerRef.current = new window.google.maps.Marker({
+        position: to,
+        map,
+        draggable: canEditDestination,
+        title: destination.label || destination.address || 'Delivery Point (Buyer)',
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 9,
+          fillColor: '#ea4335',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2.5,
+        },
+        label: { text: 'B', color: '#ffffff', fontSize: '11px', fontWeight: 'bold' },
+      });
+
+      if (canEditDestination) {
+        destMarkerRef.current.addListener('dragend', (e) => {
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
+          reverseGeocode(lat, lng, (addr) => onDestinationChange({ latitude: lat, longitude: lng, address: addr }));
+        });
+      }
+    }
+
+    // Draw Polylines if both endpoints exist
+    if (from && to) {
+      if (allRoutes.length > 0) {
+        allRoutes.forEach((route, idx) => {
+          if (!route.polylineEncoded) return;
+          const path = decodePolyline(route.polylineEncoded);
+          path.forEach((pt) => bounds.extend(pt));
+
+          const isSelected = idx === selectedRouteIdx;
+          if (isSelected) {
+            decodedPathRef.current = path;
+          }
+
+          const polyline = new window.google.maps.Polyline({
+            path,
+            map,
+            strokeColor: isSelected ? '#1a73e8' : '#80868b',
+            strokeOpacity: isSelected ? 0.95 : 0.55,
+            strokeWeight: isSelected ? 6 : 4,
+            zIndex: isSelected ? 20 : 5,
+            clickable: true,
+          });
+
+          polyline.addListener('click', () => {
+            setSelectedRouteIdx(idx);
+            setIsSimulating(false);
+            setSimProgress(0);
+          });
+          polylinesRef.current.push(polyline);
+        });
+
+        map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+      } else {
+        // Direct Client-Side DirectionsService calculation for immediate zero-lag display
+        const ds = new window.google.maps.DirectionsService();
+        ds.route({
+          origin: from,
+          destination: to,
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          provideRouteAlternatives: true,
+        }, (result, status) => {
+          if (status === 'OK' && result?.routes?.[0]) {
+            const primary = result.routes[0];
+            const leg = primary.legs[0];
+            const path = primary.overview_path.map(p => ({ lat: p.lat(), lng: p.lng() }));
+            decodedPathRef.current = path;
+
+            path.forEach(pt => bounds.extend(pt));
+
+            const polyline = new window.google.maps.Polyline({
+              path,
+              map,
+              strokeColor: '#1a73e8',
+              strokeOpacity: 0.95,
+              strokeWeight: 6,
+              zIndex: 20,
+            });
+            polylinesRef.current.push(polyline);
+
+            map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
+
+            if (onRouteCalculated) {
+              onRouteCalculated({
+                distanceKm: Math.round((leg.distance?.value || 0) / 100) / 10,
+                durationMinutes: Math.round((leg.duration?.value || 0) / 60),
+                summary: primary.summary || 'Google Maps Fastest Route',
+              });
+            }
+          }
+        });
+      }
+    } else if (from) {
+      map.setCenter(from);
+      map.setZoom(12);
+    } else if (to) {
+      map.setCenter(to);
+      map.setZoom(12);
+    }
+  }, [mapLoaded, origin?.latitude, origin?.longitude, destination?.latitude, destination?.longitude, allRoutes, selectedRouteIdx, isTrafficOn, mapTypeId, canEditOrigin, canEditDestination]);
 
   // Handle Route Transit Animation
   useEffect(() => {
@@ -316,6 +415,44 @@ export default function DealRouteMap({
     const m = Math.round(mins % 60);
     return h > 0 ? `${h}h ${m}m` : `${m} min`;
   };
+
+  /**
+   * Calculates realistic agri-logistics delivery transit time in days & hours
+   * (accounting for commercial truck speed limit, mandatory driver breaks & loading)
+   */
+  const formatDeliveryEstimate = (km, mins) => {
+    if (!km && !mins) return { text: '—', days: 0, etaDate: '—' };
+    const distance = km || (mins ? (mins / 60) * 45 : 0);
+    
+    // Commercial freight truck average: ~350 - 400 km/day (including loading/unloading)
+    let days = Math.ceil(distance / 350);
+    if (distance <= 100) {
+      days = 0.5; // Same day / within 12 hours
+    } else if (distance <= 350) {
+      days = 1; // 1 day (Next day delivery)
+    }
+
+    const eta = new Date();
+    eta.setDate(eta.getDate() + Math.ceil(days));
+    const dateStr = eta.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    let text = '';
+    if (days === 0.5) {
+      text = 'Same Day Delivery (~8–12 hrs)';
+    } else if (days === 1) {
+      text = '1 Day (Next Day Delivery)';
+    } else {
+      text = `${days} Days Estimated`;
+    }
+
+    return { text, days, etaDate: dateStr };
+  };
+
+  const deliveryEstimate = formatDeliveryEstimate(activeDistance, activeDuration);
 
   const googleMapsUrl = origin?.latitude && destination?.latitude
     ? `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&travelmode=driving`
@@ -396,13 +533,13 @@ export default function DealRouteMap({
       </div>
 
       {/* Map Display Canvas */}
-      <div className="relative w-full h-80 sm:h-96 bg-gray-100 flex items-center justify-center overflow-hidden">
-        {scriptError || !apiKey ? (
+      <div className="relative w-full h-96 sm:h-[420px] bg-gray-100 flex items-center justify-center overflow-hidden">
+        {scriptError ? (
           <div className="p-6 text-center max-w-md">
             <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
             <p className="text-sm font-bold text-navy-900">Google Maps Live Route Calculation</p>
             <p className="text-xs text-navy-600 mt-1">
-              Shortest distance and road transit duration are calculated. Add your <code>VITE_GOOGLE_MAPS_API_KEY</code> to enable vector map rendering and live highway animation.
+              Could not load Google Maps. Please verify your internet connection or Google Maps Platform API key.
             </p>
             {origin?.latitude && destination?.latitude && (
               <div className="mt-3 p-3 bg-white rounded-xl border border-navy-100 text-xs text-left space-y-1 font-mono">
@@ -415,24 +552,65 @@ export default function DealRouteMap({
           <div ref={mapRef} className="w-full h-full" />
         )}
 
-        {/* Floating Route Info HUD */}
-        <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm border border-navy-100 shadow-md rounded-xl p-2.5 text-xs pointer-events-none flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-            <span className="font-bold text-navy-900">{activeDistance} km</span>
-          </div>
-          <span className="text-gray-300">|</span>
-          <div className="flex items-center gap-1 text-navy-700 font-medium">
-            <Clock className="w-3.5 h-3.5 text-blue-600" />
-            <span>{formatTime(activeDuration)}</span>
-          </div>
-          {activeRoute?.summary && (
-            <>
-              <span className="text-gray-300">|</span>
-              <span className="text-blue-700 font-bold">{activeRoute.summary}</span>
-            </>
-          )}
+        {/* Floating Google Map Style & Layer Toolbar (Top Right) */}
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm border border-navy-200/80 shadow-md rounded-xl p-1">
+          <button
+            type="button"
+            onClick={() => setMapTypeId(mapTypeId === 'roadmap' ? 'hybrid' : 'roadmap')}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+              mapTypeId === 'hybrid'
+                ? 'bg-navy-900 text-white shadow-xs'
+                : 'text-navy-700 hover:bg-gray-100'
+            }`}
+            title="Toggle Satellite / Hybrid view"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            {mapTypeId === 'hybrid' ? 'Satellite' : 'Default'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsTrafficOn(!isTrafficOn)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+              isTrafficOn
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-navy-700 hover:bg-gray-100'
+            }`}
+            title="Toggle Live Traffic overlay"
+          >
+            <Gauge className="w-3.5 h-3.5" />
+            Traffic {isTrafficOn ? 'ON' : 'OFF'}
+          </button>
         </div>
+
+        {/* Floating Route Info HUD (Top Left) */}
+        {activeDistance != null && (
+          <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm border border-navy-100 shadow-md rounded-xl p-2.5 text-xs pointer-events-none flex items-center gap-3 z-10">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+              <span className="font-bold text-navy-900">{activeDistance} km</span>
+            </div>
+            <span className="text-gray-300">|</span>
+            <div className="flex items-center gap-1 text-navy-700 font-medium">
+              <Clock className="w-3.5 h-3.5 text-blue-600" />
+              <span>{formatTime(activeDuration)}</span>
+            </div>
+            {deliveryEstimate.text !== '—' && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 font-bold border border-blue-200 text-[10px]">
+                  📦 {deliveryEstimate.text}
+                </span>
+              </>
+            )}
+            {activeRoute?.summary && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-blue-700 font-bold max-w-[150px] truncate">{activeRoute.summary}</span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Animation Floating Control Bar */}
         <div className="absolute bottom-3 left-3 right-3 sm:left-auto sm:right-3 bg-white/95 backdrop-blur-sm border border-navy-100 shadow-lg rounded-2xl p-2.5 flex items-center gap-3 z-10">
@@ -583,8 +761,8 @@ export default function DealRouteMap({
           </div>
         </div>
 
-        {/* Selected Route Summary Banner */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+        {/* Selected Route Summary Banner with Estimated Delivery Days */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
           <div className="p-3 bg-navy-50 rounded-xl">
             <p className="text-[10px] text-navy-400 font-bold uppercase tracking-wider">Road Distance</p>
             <p className="text-base font-bold text-navy-900 mt-0.5">{activeDistance} km</p>
@@ -592,6 +770,14 @@ export default function DealRouteMap({
           <div className="p-3 bg-navy-50 rounded-xl">
             <p className="text-[10px] text-navy-400 font-bold uppercase tracking-wider">Highway Transit</p>
             <p className="text-base font-bold text-navy-900 mt-0.5">{formatTime(activeDuration)}</p>
+          </div>
+          <div className="p-3 bg-blue-50/80 border border-blue-200/60 rounded-xl">
+            <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider flex items-center gap-1">
+              <Clock className="w-3 h-3 text-blue-600" />
+              Delivery Time
+            </p>
+            <p className="text-sm font-bold text-blue-900 mt-0.5">{deliveryEstimate.text}</p>
+            <p className="text-[10px] text-blue-600 font-medium">Est. by {deliveryEstimate.etaDate}</p>
           </div>
           <div className="p-3 bg-navy-50 rounded-xl">
             <p className="text-[10px] text-navy-400 font-bold uppercase tracking-wider">Estimated Transport Cost</p>

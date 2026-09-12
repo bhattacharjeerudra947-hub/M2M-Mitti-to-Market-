@@ -36,6 +36,12 @@ public class ProduceResponse {
     private Double aiSuggestedMinPrice;
     private Double aiSuggestedMaxPrice;
     private java.time.LocalDate readyDate;
+    private java.time.LocalDate harvestDate;
+    private String shelfLife;
+    private java.time.LocalDate expiryDate;
+    private Long daysUntilExpiry;
+    private Boolean isExpiringSoon;
+    private Boolean isExpired;
     private ProduceStatus status;
     private String adminRemovalReason;
     private FarmerDto farmer;

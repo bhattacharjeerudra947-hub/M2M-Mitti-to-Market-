@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Calculator, Check, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { Truck, Calculator, Check, AlertTriangle, Loader2, ArrowRight, Info, MapPin } from 'lucide-react';
 import LocationPicker from './LocationPicker';
 import DealRouteMap from './DealRouteMap';
 import VehicleCard from './VehicleCard';
@@ -108,6 +108,16 @@ export default function RouteOptimizerPanel({
       loadVehicles();
     }
   }, [dealId]);
+
+  // Auto-calculate shortest distance & optimal route automatically whenever locations are fetched or updated
+  useEffect(() => {
+    if (pickupLocation?.latitude && deliveryLocation?.latitude) {
+      const timer = setTimeout(() => {
+        handleCalculate();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [pickupLocation?.latitude, pickupLocation?.longitude, deliveryLocation?.latitude, deliveryLocation?.longitude]);
 
   const handleAssignVehicle = async () => {
     if (!dealId || !selectedVehicle) return;
@@ -333,166 +343,266 @@ export default function RouteOptimizerPanel({
         </div>
       )}
 
-      {/* Interactive Google Map & Metrics */}
-      {routeInfo && (
-        <div className="pt-2">
-          <DealRouteMap
-            origin={{
-              latitude: pickupLocation.latitude,
-              longitude: pickupLocation.longitude,
-              label: 'Pickup',
-            }}
-            destination={{
-              latitude: deliveryLocation.latitude,
-              longitude: deliveryLocation.longitude,
-              label: 'Destination',
-            }}
-            optimalRoute={routeInfo}
-            alternatives={routeInfo.alternativeRoutes || []}
-            selectionReason={routeInfo.selectionReason}
-            selectionType={routeInfo.selectionType}
-            distanceKm={routeInfo.distanceKm}
-            durationMinutes={routeInfo.durationMinutes}
-            estimatedCost={routeInfo.estimatedCost}
-          />
+      {/* Interactive Google Map & Metrics — Always rendered for full Google Maps experience */}
+      <div className="pt-2">
+        <DealRouteMap
+          origin={{
+            latitude: pickupLocation.latitude,
+            longitude: pickupLocation.longitude,
+            label: 'Farmer Pickup Point',
+            address: pickupLocation.address,
+          }}
+          destination={{
+            latitude: deliveryLocation.latitude,
+            longitude: deliveryLocation.longitude,
+            label: 'Business Delivery Point',
+            address: deliveryLocation.address,
+          }}
+          optimalRoute={routeInfo}
+          alternatives={routeInfo?.alternativeRoutes || []}
+          selectionReason={routeInfo?.selectionReason}
+          selectionType={routeInfo?.selectionType}
+          distanceKm={routeInfo?.distanceKm}
+          durationMinutes={routeInfo?.durationMinutes}
+          estimatedCost={routeInfo?.estimatedCost}
+          canEditOrigin={canEditPickup}
+          canEditDestination={canEditDelivery}
+          onOriginChange={(newOrigin) => {
+            setPickupLocation(prev => ({
+              ...prev,
+              source: 'PINNED',
+              latitude: newOrigin.latitude,
+              longitude: newOrigin.longitude,
+              address: newOrigin.address || prev.address,
+            }));
+            setDirty(true);
+          }}
+          onDestinationChange={(newDest) => {
+            setDeliveryLocation(prev => ({
+              ...prev,
+              source: 'PINNED',
+              latitude: newDest.latitude,
+              longitude: newDest.longitude,
+              address: newDest.address || prev.address,
+            }));
+            setDirty(true);
+          }}
+          onRouteCalculated={(calcResult) => {
+            if (!routeInfo && calcResult) {
+              setRouteInfo({
+                distanceKm: calcResult.distanceKm,
+                durationMinutes: calcResult.durationMinutes,
+                summary: calcResult.summary,
+              });
+            }
+          }}
+        />
+      </div>
+
+      {/* ═══ LOCATION CONFIRMATION STATUS ═══ */}
+      <div className="border-t border-navy-100 pt-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-navy-900 text-sm flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            Location Confirmation Status
+          </h4>
         </div>
-      )}
 
-      {/* ═══ TWO LOGISTICS OPTIONS ═══ */}
-      {!readOnly && (
-        <div className="border-t border-navy-100 pt-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-navy-900 text-sm flex items-center gap-2">
-              <Truck className="w-4 h-4 text-emerald-600" />
-              Choose Transport Arrangement
-            </h4>
-          </div>
-
-          {/* Option Mode Toggle */}
-          <div className="grid grid-cols-2 gap-2 bg-navy-50/70 p-1.5 rounded-xl text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setLogisticsMode('MITTI2MARKET')}
-              className={`py-2 px-3 rounded-lg transition text-center flex items-center justify-center gap-1.5 ${
-                logisticsMode === 'MITTI2MARKET'
-                  ? 'bg-white text-navy-900 shadow-xs border border-navy-200'
-                  : 'text-navy-600 hover:text-navy-900'
-              }`}
-            >
-              <span>🚚</span> Mitti2Market Logistics (Assisted)
-            </button>
-            <button
-              type="button"
-              onClick={() => setLogisticsMode('OWN')}
-              className={`py-2 px-3 rounded-lg transition text-center flex items-center justify-center gap-1.5 ${
-                logisticsMode === 'OWN'
-                  ? 'bg-white text-navy-900 shadow-xs border border-navy-200'
-                  : 'text-navy-600 hover:text-navy-900'
-              }`}
-            >
-              <span>🚗</span> Self-Arranged Logistics
-            </button>
-          </div>
-
-          {assignmentSuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span>{assignmentSuccess}</span>
+        <div className="grid sm:grid-cols-2 gap-3 text-xs">
+          <div className={`p-3.5 rounded-xl border ${
+            pickupLocation?.latitude
+              ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+              : 'bg-amber-50/70 border-amber-200 text-amber-900'
+          }`}>
+            <div className="flex items-center justify-between font-bold">
+              <span>🌾 Farmer Pickup Point</span>
+              <span>{pickupLocation?.latitude ? '✓ Set' : '⏳ Awaiting Farmer'}</span>
             </div>
-          )}
+            <p className="mt-1 text-[11px] truncate">
+              {pickupLocation?.address || 'Pickup location not specified yet'}
+            </p>
+            {pickupLocation?.latitude && (
+              <p className="mt-0.5 text-[10px] font-mono opacity-75">
+                Coords: [{pickupLocation.latitude.toFixed(4)}, {pickupLocation.longitude.toFixed(4)}]
+              </p>
+            )}
+          </div>
 
-          {/* Option 2: Mitti2Market Platform Vehicles */}
-          {logisticsMode === 'MITTI2MARKET' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-navy-600">
-                <span className="font-semibold text-navy-800">
-                  Available Platform Vehicles for {deal?.quantity || 0} kg cargo:
+          <div className={`p-3.5 rounded-xl border ${
+            deliveryLocation?.latitude
+              ? 'bg-blue-50/70 border-blue-200 text-blue-900'
+              : 'bg-amber-50/70 border-amber-200 text-amber-900'
+          }`}>
+            <div className="flex items-center justify-between font-bold">
+              <span>🏢 Business Delivery Point</span>
+              <span>{deliveryLocation?.latitude ? '✓ Set' : '⏳ Awaiting Business'}</span>
+            </div>
+            <p className="mt-1 text-[11px] truncate">
+              {deliveryLocation?.address || 'Delivery destination not specified yet'}
+            </p>
+            {deliveryLocation?.latitude && (
+              <p className="mt-0.5 text-[10px] font-mono opacity-75">
+                Coords: [{deliveryLocation.latitude.toFixed(4)}, {deliveryLocation.longitude.toFixed(4)}]
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ TRANSPORT & VEHICLE SELECTION ═══ */}
+      <div className="border-t border-navy-100 pt-5 space-y-4">
+        <div>
+          <h4 className="font-bold text-navy-900 text-sm flex items-center gap-2">
+            <Truck className="w-4 h-4 text-emerald-600" />
+            Transport & Delivery Options
+          </h4>
+          <p className="text-xs text-navy-500 mt-0.5">
+            Choose whether to use Mitti2Market's verified logistics network or self-arrange transport.
+          </p>
+        </div>
+
+        {/* Transport Option Tabs */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setLogisticsMode('MITTI2MARKET')}
+            className={`p-3.5 rounded-xl border text-left transition ${
+              logisticsMode === 'MITTI2MARKET'
+                ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                : 'border-navy-100 bg-white hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-navy-900 flex items-center gap-1.5">
+                🚚 Mitti2Market Fleet
+              </span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                Recommended
+              </span>
+            </div>
+            <p className="text-[11px] text-navy-500 mt-1">
+              Automated vehicle matching based on weight ({deal?.quantity || 0} kg) with verified drivers.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setLogisticsMode('OWN')}
+            className={`p-3.5 rounded-xl border text-left transition ${
+              logisticsMode === 'OWN'
+                ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                : 'border-navy-100 bg-white hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-navy-900 flex items-center gap-1.5">
+                🚛 Self-Arranged Transport
+              </span>
+            </div>
+            <p className="text-[11px] text-navy-500 mt-1">
+              Arrange your own transport. Platform provides optimal route guidance and distance calculation only.
+            </p>
+          </button>
+        </div>
+
+        {/* Platform Vehicles List when Mitti2Market is selected */}
+        {logisticsMode === 'MITTI2MARKET' && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-navy-700">
+                Matched Transport Vehicles (Weight: {deal?.quantity || 0} kg)
+              </span>
+              {loadingVehicles && (
+                <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Fetching available fleet...
                 </span>
-                <span className="text-[11px] text-navy-400">
-                  {vehiclesData?.eligible?.length || 0} eligible
-                </span>
+              )}
+            </div>
+
+            {assignmentSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{assignmentSuccess}</span>
               </div>
+            )}
 
-              {loadingVehicles ? (
-                <div className="p-8 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-navy-900" />
-                  <span>Loading platform vehicles...</span>
+            {vehiclesData?.eligible && vehiclesData.eligible.length > 0 ? (
+              <div className="grid md:grid-cols-2 gap-3">
+                {vehiclesData.eligible.map((v) => (
+                  <VehicleCard
+                    key={v.id}
+                    vehicle={v}
+                    isSelected={selectedVehicle?.id === v.id}
+                    onSelect={(veh) => setSelectedVehicle(veh)}
+                    disabled={readOnly}
+                  />
+                ))}
+              </div>
+            ) : (
+              !loadingVehicles && (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs text-navy-500 text-center">
+                  No dedicated vehicles currently available in this immediate region. You may select Self-Arranged Transport or contact support.
                 </div>
-              ) : vehiclesData?.eligible?.length > 0 ? (
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {vehiclesData.eligible.map((v) => (
+              )
+            )}
+
+            {/* Ineligible Vehicles (Too small for cargo) */}
+            {vehiclesData?.ineligible && vehiclesData.ineligible.length > 0 && (
+              <details className="text-xs text-gray-500 pt-1">
+                <summary className="cursor-pointer font-medium hover:text-navy-700">
+                  View {vehiclesData.ineligible.length} other vehicles (insufficient capacity)
+                </summary>
+                <div className="grid md:grid-cols-2 gap-3 mt-2">
+                  {vehiclesData.ineligible.map((v) => (
                     <VehicleCard
                       key={v.id}
                       vehicle={v}
-                      isSelected={selectedVehicle?.id === v.id}
-                      onSelect={setSelectedVehicle}
+                      isSelected={false}
+                      disabled={true}
                     />
                   ))}
                 </div>
-              ) : (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1">
-                  <p className="font-bold">No single available vehicle has sufficient capacity.</p>
-                  <p className="text-[11px]">
-                    You can arrange your own transport using the "Self-Arranged Logistics" tab above.
-                  </p>
-                </div>
-              )}
+              </details>
+            )}
 
-              {/* Ineligible Vehicles (Capacity Insufficient) */}
-              {vehiclesData?.ineligible?.length > 0 && (
-                <div className="pt-2">
-                  <p className="text-[11px] font-semibold text-navy-400 uppercase tracking-wide mb-2">
-                    Vehicles with Insufficient Capacity:
-                  </p>
-                  <div className="grid sm:grid-cols-2 gap-2 opacity-75">
-                    {vehiclesData.ineligible.map((v) => (
-                      <VehicleCard
-                        key={v.id}
-                        vehicle={v}
-                        disabled={true}
-                      />
-                    ))}
-                  </div>
+            {/* Vehicle Assignment Action */}
+            {!readOnly && selectedVehicle && (
+              <div className="flex items-center justify-between pt-2">
+                <div className="text-xs text-navy-600">
+                  Selected: <strong className="text-navy-900">{selectedVehicle.vehicleLabel || selectedVehicle.vehicleNumber}</strong> ({selectedVehicle.vehicleTypeLabel || selectedVehicle.vehicleType})
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={handleAssignVehicle}
+                  disabled={assigningVehicle}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shadow-xs"
+                >
+                  {assigningVehicle ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      Confirm & Assign Vehicle
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* Assign Button */}
-              {selectedVehicle && (
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAssignVehicle}
-                    disabled={assigningVehicle}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition flex items-center gap-2 shadow-xs"
-                  >
-                    {assigningVehicle ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Assigning Vehicle...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        Assign {selectedVehicle.vehicleLabel || selectedVehicle.vehicleNumber}
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Option 1: Self-Arranged Form Info */}
-          {logisticsMode === 'OWN' && (
-            <div className="p-4 bg-navy-50/50 border border-navy-100 rounded-2xl text-xs space-y-2 text-navy-700">
-              <p className="font-bold text-navy-900">Self-Arranged Logistics Selected</p>
-              <p className="text-[11px] text-navy-600 leading-relaxed">
-                You or your buyer are arranging your own vehicle. You can use the route distance and estimated travel time above to coordinate pickup, expected delivery date, and driver contact details.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+        {logisticsMode === 'OWN' && (
+          <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-2">
+            <p className="font-semibold">Self-Arranged Transport Selected</p>
+            <p className="text-[11px] text-blue-700">
+              The buyer or farmer will manage their own transit vehicle. Mitti2Market will provide accurate route navigation, calculated distance ({routeInfo?.distanceKm ? `${routeInfo.distanceKm} km` : 'pending'}), and delivery confirmation tracking once the shipment arrives.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
