@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import Sidebar from '../../components/Sidebar';
 import { getAdminLogistics, getAdminLogisticsStats } from '../../api/dealApi';
 import {
-  Truck, Package, Search, Filter, RefreshCw, Loader2,
-  AlertTriangle, CheckCircle, Clock, MapPin, IndianRupee, ExternalLink
+  Truck, Search, RefreshCw, Loader2,
+  AlertTriangle, ExternalLink
 } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -18,10 +17,6 @@ const STATUS_COLORS = {
 };
 
 const fmtINR = (n) => (n != null ? '₹' + Number(n).toLocaleString('en-IN') : '—');
-const fmtDate = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return '—'; }
-};
 
 export default function AdminLogistics() {
   const [logistics, setLogistics] = useState([]);
@@ -67,10 +62,24 @@ export default function AdminLogistics() {
   });
 
   return (
-    <div className="flex min-h-screen bg-mustard-50/30">
-      <Sidebar role="admin" />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
-        <div className="max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
+      {/* Module Navigation Tabs */}
+      <div className="flex border-b border-gray-200">
+        <Link
+          to="/admin/vehicles"
+          className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 border-b-2 border-transparent transition-colors flex items-center gap-2"
+        >
+          <Truck className="w-4 h-4 text-gray-400" />
+          Fleet Inventory
+        </Link>
+        <Link
+          to="/admin/logistics"
+          className="px-4 py-2.5 text-sm font-semibold text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50/40 rounded-t-lg flex items-center gap-2"
+        >
+          <Truck className="w-4 h-4 text-emerald-600" />
+          Logistics & Shipments Monitor
+        </Link>
+      </div>
           {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -253,8 +262,6 @@ export default function AdminLogistics() {
               </div>
             )}
           </div>
-        </div>
-      </main>
     </div>
   );
 }
