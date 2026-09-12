@@ -425,19 +425,22 @@ public class LogisticsService {
         Logistics.LocationSource destSrc = "LIVE".equalsIgnoreCase(req.getDestinationSource())
                 ? Logistics.LocationSource.LIVE : Logistics.LocationSource.REGISTERED;
 
-        // Update deal location coordinates & addresses
-        if (req.getOrigin() != null) {
+        boolean isFarmer = deal.getFarmer().getId().equals(userId);
+        boolean isBuyer = deal.getBuyer().getId().equals(userId);
+
+        // Update deal location coordinates & addresses safely based on role
+        if ((isFarmer || !isBuyer) && req.getOrigin() != null) {
             deal.setPickupLatitude(req.getOrigin().getLatitude());
             deal.setPickupLongitude(req.getOrigin().getLongitude());
         }
-        if (req.getOriginAddress() != null && !req.getOriginAddress().isBlank()) {
+        if ((isFarmer || !isBuyer) && req.getOriginAddress() != null && !req.getOriginAddress().isBlank()) {
             deal.setPickupLocation(req.getOriginAddress());
         }
-        if (req.getDestination() != null) {
+        if ((isBuyer || !isFarmer) && req.getDestination() != null) {
             deal.setDeliveryLatitude(req.getDestination().getLatitude());
             deal.setDeliveryLongitude(req.getDestination().getLongitude());
         }
-        if (req.getDestinationAddress() != null && !req.getDestinationAddress().isBlank()) {
+        if ((isBuyer || !isFarmer) && req.getDestinationAddress() != null && !req.getDestinationAddress().isBlank()) {
             deal.setDeliveryLocation(req.getDestinationAddress());
         }
         dealRepo.save(deal);
@@ -459,22 +462,22 @@ public class LogisticsService {
                     .build();
         }
 
-        if (req.getOrigin() != null) {
+        if ((isFarmer || !isBuyer) && req.getOrigin() != null) {
             logistics.setPickupLatitude(req.getOrigin().getLatitude());
             logistics.setPickupLongitude(req.getOrigin().getLongitude());
+            logistics.setPickupLocationSource(origSrc);
         }
-        if (req.getOriginAddress() != null && !req.getOriginAddress().isBlank()) {
+        if ((isFarmer || !isBuyer) && req.getOriginAddress() != null && !req.getOriginAddress().isBlank()) {
             logistics.setPickupLocation(req.getOriginAddress());
         }
-        if (req.getDestination() != null) {
+        if ((isBuyer || !isFarmer) && req.getDestination() != null) {
             logistics.setDeliveryLatitude(req.getDestination().getLatitude());
             logistics.setDeliveryLongitude(req.getDestination().getLongitude());
+            logistics.setDeliveryLocationSource(destSrc);
         }
-        if (req.getDestinationAddress() != null && !req.getDestinationAddress().isBlank()) {
+        if ((isBuyer || !isFarmer) && req.getDestinationAddress() != null && !req.getDestinationAddress().isBlank()) {
             logistics.setDeliveryLocation(req.getDestinationAddress());
         }
-        logistics.setPickupLocationSource(origSrc);
-        logistics.setDeliveryLocationSource(destSrc);
 
         computeAndStoreRoute(logistics);
         logistics = logisticsRepo.save(logistics);
