@@ -30,9 +30,12 @@ public class AdminController {
     private final AuditLogService auditLogService;
     private final DealRepository dealRepository;
     private final DisputeRepository disputeRepository;
+    private final DisputeService disputeService;
     private final ProduceService produceService;
     private final AppealService appealService;
     private final LogisticsService logisticsService;
+    private final WarehouseHubService warehouseHubService;
+    private final ReverseLogisticsService reverseLogisticsService;
     private final TokenService tokens;
 
     private Long extractAdminId(String authHeader) {
@@ -287,26 +290,15 @@ public class AdminController {
      */
     @GetMapping("/disputes")
     public ResponseEntity<?> getDisputes(@RequestParam(required = false) String status) {
-        List<Dispute> disputes = disputeRepository.findAllByOrderByCreatedAtDesc();
-        if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
-            disputes = disputes.stream()
-                    .filter(d -> d.getStatus() != null && d.getStatus().name().equalsIgnoreCase(status))
-                    .toList();
-        }
-        List<Map<String, Object>> out = disputes.stream().map(d -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", d.getId());
-            m.put("dealId", d.getDealId());
-            m.put("reason", d.getReason());
-            m.put("description", d.getDescription());
-            m.put("status", d.getStatus());
-            m.put("createdAt", d.getCreatedAt());
-            m.put("resolvedAt", d.getResolvedAt());
-            m.put("raisedByName", d.getRaisedBy() != null ? d.getRaisedBy().getName() : null);
-            m.put("raisedByEmail", d.getRaisedBy() != null ? d.getRaisedBy().getEmail() : null);
-            return m;
-        }).toList();
-        return ResponseEntity.ok(ApiResponse.ok(out));
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.getAllDisputesForAdmin(status)));
+    }
+
+    /**
+     * GET /api/admin/observers — active authorized observers for assignment
+     */
+    @GetMapping("/observers")
+    public ResponseEntity<?> getAvailableObservers() {
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.getAvailableObservers()));
     }
 
     @GetMapping("/audit-log")
@@ -343,5 +335,17 @@ public class AdminController {
         stats.put("inTransit", inTransit);
         stats.put("delivered", delivered);
         return ResponseEntity.ok(ApiResponse.ok(stats));
+    }
+
+    /** GET /api/admin/hubs — all partner warehouses and hubs */
+    @GetMapping("/hubs")
+    public ResponseEntity<?> getAllHubs() {
+        return ResponseEntity.ok(ApiResponse.ok(warehouseHubService.getAllHubs()));
+    }
+
+    /** GET /api/admin/reverse-logistics — all reverse shipments */
+    @GetMapping("/reverse-logistics")
+    public ResponseEntity<?> getAllReverseLogistics() {
+        return ResponseEntity.ok(ApiResponse.ok(reverseLogisticsService.getAllForAdmin()));
     }
 }

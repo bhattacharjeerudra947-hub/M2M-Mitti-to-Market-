@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getAllVehicles, createVehicle, updateVehicle } from '../../api/dealApi';
 import {
   Truck, Plus, RefreshCw, Loader2, AlertTriangle, Check,
-  X, Search
+  X, Search, Warehouse, RotateCcw
 } from 'lucide-react';
 
 const TYPE_LABELS = {
@@ -137,6 +137,20 @@ export default function AdminVehicles() {
         >
           <Truck className="w-4 h-4 text-gray-400" />
           Logistics & Shipments Monitor
+        </Link>
+        <Link
+          to="/admin/hubs"
+          className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 border-b-2 border-transparent transition-colors flex items-center gap-2"
+        >
+          <Warehouse className="w-4 h-4 text-gray-400" />
+          Partner Warehouse & Hub Network
+        </Link>
+        <Link
+          to="/admin/reverse-logistics"
+          className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 border-b-2 border-transparent transition-colors flex items-center gap-2"
+        >
+          <RotateCcw className="w-4 h-4 text-gray-400" />
+          Reverse Logistics Monitor
         </Link>
       </div>
 

@@ -60,9 +60,13 @@ import AdminDeals from './pages/admin/AdminDeals';
 import AdminProduce from './pages/admin/AdminProduce';
 import AdminLogistics from './pages/admin/AdminLogistics';
 import AdminVehicles from './pages/admin/AdminVehicles';
+import AdminHubs from './pages/admin/AdminHubs';
+import AdminReverseLogistics from './pages/admin/AdminReverseLogistics';
+import HubOperatorPortal from './pages/HubOperatorPortal';
 import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminAppeals from './pages/admin/AdminAppeals';
 import AdminAuditLog from './pages/admin/AdminAuditLog';
+import ObserverPortal from './pages/ObserverPortal';
 import AdminSettings from './pages/admin/AdminSettings';
 import AccountStatusScreen from './pages/AccountStatusScreen';
 
@@ -217,6 +221,8 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/marketplace" element={<ExploreMarketplace />} />
+          <Route path="/marketplace/:id" element={<ProductDetails />} />
+          <Route path="/produce/:id" element={<ProductDetails />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about-us" element={<AboutUs />} />
@@ -232,6 +238,7 @@ export default function App() {
           <Route path="/farmer" element={<FarmerLayout />}>
             <Route index element={<FarmerDashboard />} />
             <Route path="produce" element={<FarmerProducts />} />
+            <Route path="produce/:id" element={<ProductDetails />} />
             <Route path="add-produce" element={<AddProduce />} />
             <Route path="matches" element={<FarmerMatches />} />
             <Route path="price-advisor" element={<PriceAdvisorPage />} />
@@ -250,8 +257,17 @@ export default function App() {
           {/* Account Status / Appeal dedicated route */}
           <Route path="/suspended" element={<AccountStatusScreen />} />
 
-          {/* Deal Workspace — shared by farmer & buyer */}
+          {/* Deal Workspace — shared by farmer & buyer & observer */}
           <Route path="/deal/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
+          <Route path="/deals/:dealId" element={<ProtectedRoute><DealWorkspace /></ProtectedRoute>} />
+
+          {/* Observer Inspection Portal */}
+          <Route path="/observer" element={<ProtectedRoute><ObserverPortal /></ProtectedRoute>} />
+          <Route path="/observer/cases" element={<ProtectedRoute><ObserverPortal /></ProtectedRoute>} />
+
+          {/* Hub Operator Portal */}
+          <Route path="/hub-operator" element={<ProtectedRoute><HubOperatorPortal /></ProtectedRoute>} />
+          <Route path="/hub-operator/portal" element={<ProtectedRoute><HubOperatorPortal /></ProtectedRoute>} />
 
           {/* Admin Routes — protected by ADMIN role (frontend guard + Spring Security hasRole('ADMIN')) */}
           <Route path="/admin" element={<AdminLayout />}>
@@ -265,6 +281,8 @@ export default function App() {
             <Route path="produce" element={<AdminProduce />} />
             <Route path="logistics" element={<AdminLogistics />} />
             <Route path="vehicles" element={<AdminVehicles />} />
+            <Route path="hubs" element={<AdminHubs />} />
+            <Route path="reverse-logistics" element={<AdminReverseLogistics />} />
             <Route path="disputes" element={<AdminDisputes />} />
             <Route path="audit-log" element={<AdminAuditLog />} />
             <Route path="settings" element={<AdminSettings />} />

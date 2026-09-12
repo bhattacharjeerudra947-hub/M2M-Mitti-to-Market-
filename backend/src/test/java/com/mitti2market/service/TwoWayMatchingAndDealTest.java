@@ -496,6 +496,12 @@ public class TwoWayMatchingAndDealTest {
         @Override
         public Optional<Produce> findByIdempotencyKey(String idempotencyKey) { return Optional.empty(); }
         @Override
+        public Optional<Produce> findByIdWithLock(Long id) { return Optional.ofNullable(data.get(id)); }
+        @Override
+        public List<Produce> findByStatusInAndExpiryDateBefore(List<Produce.ProduceStatus> statuses, java.time.LocalDate date) { return Collections.emptyList(); }
+        @Override
+        public List<Produce> findByStatusInAndExpiryDateBetweenAndExpiryWarningSentFalse(List<Produce.ProduceStatus> statuses, java.time.LocalDate fromDate, java.time.LocalDate toDate) { return Collections.emptyList(); }
+        @Override
         public void flush() {}
         @Override
         public <S extends Produce> S saveAndFlush(S entity) { return save(entity); }

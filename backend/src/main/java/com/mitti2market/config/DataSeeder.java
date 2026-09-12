@@ -25,6 +25,7 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final ProduceRepository produceRepository;
     private final BuyerInterestRepository interestRepository;
+    private final com.mitti2market.repository.WarehouseHubRepository warehouseHubRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -67,6 +68,42 @@ public class DataSeeder implements CommandLineRunner {
                         .role(Role.ADMIN)
                         .location("HQ - New Delhi")
                         .organizationName("Mitti2Market Admin Operations")
+                        .verified(true)
+                        .verificationStatus(User.VerificationStatus.VERIFIED)
+                        .build()
+        );
+
+        // ============================================================
+        // 1B. AUTHORIZED FIELD OBSERVER
+        // ============================================================
+        User observer1 = getOrCreateUser(
+                "observer@mitti2market.com",
+                () -> User.builder()
+                        .name("Rajesh Sharma (Field Observer)")
+                        .email("observer@mitti2market.com")
+                        .passwordHash(hashedPassword)
+                        .phone("9876543299")
+                        .role(Role.OBSERVER)
+                        .location("Nashik Quality Hub, Maharashtra")
+                        .organizationName("Mitti2Market Inspection Bureau")
+                        .verified(true)
+                        .verificationStatus(User.VerificationStatus.VERIFIED)
+                        .build()
+        );
+
+        // ============================================================
+        // 1C. AUTHORIZED HUB OPERATOR
+        // ============================================================
+        User hubOp = getOrCreateUser(
+                "huboperator@mitti2market.com",
+                () -> User.builder()
+                        .name("Vikram Patil (Hub Operator)")
+                        .email("huboperator@mitti2market.com")
+                        .passwordHash(hashedPassword)
+                        .phone("9876543298")
+                        .role(Role.HUB_OPERATOR)
+                        .location("Pune Agro Hub, Maharashtra")
+                        .organizationName("Sahyadri Agro-Logistics Partner")
                         .verified(true)
                         .verificationStatus(User.VerificationStatus.VERIFIED)
                         .build()
@@ -433,11 +470,18 @@ public class DataSeeder implements CommandLineRunner {
                 "ITC Choupal direct procurement at ₹28.5/kg for 1200 kg."
         );
 
+        // ============================================================
+        // 7. PARTNER WAREHOUSE & COLLECTION HUBS
+        // ============================================================
+        seedWarehouseHubs();
+
         log.info("==============================================");
         log.info("Mitti2Market development data seeding complete");
-        log.info("Admin     : admin@mitti2market.com");
-        log.info("Farmers   : Ramesh Kumar, Sunita Devi, Balwinder Singh, Anusuiya Patel");
-        log.info("Businesses: FreshMart, Reliance Fresh, BigBasket, ITC e-Choupal");
+        log.info("Admin        : admin@mitti2market.com");
+        log.info("Observer     : observer@mitti2market.com");
+        log.info("Hub Operator : huboperator@mitti2market.com");
+        log.info("Farmers      : Ramesh Kumar, Sunita Devi, Balwinder Singh, Anusuiya Patel");
+        log.info("Businesses   : FreshMart, Reliance Fresh, BigBasket, ITC e-Choupal");
         log.info("All passwords: password123");
         log.info("==============================================");
     }
@@ -587,6 +631,60 @@ public class DataSeeder implements CommandLineRunner {
                     produce.getName(),
                     offeredPrice
             );
+        }
+    }
+
+    private void seedWarehouseHubs() {
+        createHubIfMissing("M2M-HUB-PUN-01", "Sahyadri FPO Aggregation & Cold Hub", "Sahyadri Farmers Producer Co.",
+                "Pune, Maharashtra", "Gat No. 42, Hadapsar Agro Terminal, Pune", "Pune", "Maharashtra", "411028",
+                18.5089, 73.9259, 25000.0, com.mitti2market.model.WarehouseHub.StorageType.COLD_STORAGE,
+                "Potato, Tomato, Onion, Grapes, Pomegranate, Mango, Capsicum", 0.60, 0.12);
+
+        createHubIfMissing("M2M-HUB-NSK-02", "Nashik Agro-Logistics Partner Center", "Mahindra Agri Logistics Partner",
+                "Nashik, Maharashtra", "Pimpalgaon Baswant APMC Staging Yard, Nashik", "Nashik", "Maharashtra", "422209",
+                20.1744, 73.9856, 40000.0, com.mitti2market.model.WarehouseHub.StorageType.CONTROLLED_ATMOSPHERE,
+                "Onion, Tomato, Grapes, Pomegranate, Pepper, Green Chilli", 0.50, 0.10);
+
+        createHubIfMissing("M2M-HUB-KHA-03", "Khanna Grain Terminal & Silos", "Punjab State Warehousing Partner",
+                "Ludhiana, Punjab", "GT Road Agro Logistics Complex, Khanna", "Ludhiana", "Punjab", "141401",
+                30.7073, 76.2166, 80000.0, com.mitti2market.model.WarehouseHub.StorageType.VENTILATED_GRAIN_SILO,
+                "Wheat, Rice, Barley, Maize, Mustard, Basmati", 0.40, 0.08);
+
+        createHubIfMissing("M2M-HUB-IND-04", "Malwa Consolidation Warehouse", "Central Warehousing Corp Partner",
+                "Indore, Madhya Pradesh", "Sanwer Road Industrial Area Sector E, Indore", "Indore", "Madhya Pradesh", "452015",
+                22.7533, 75.8937, 35000.0, com.mitti2market.model.WarehouseHub.StorageType.DRY_STORAGE,
+                "Soybean, Wheat, Chickpea, Garlic, Onion, Potato", 0.45, 0.09);
+    }
+
+    private void createHubIfMissing(String hubCode, String name, String partner, String loc, String addr,
+                                   String dist, String state, String pin, double lat, double lng,
+                                   double cap, com.mitti2market.model.WarehouseHub.StorageType type, String crops, double fee, double rate) {
+        if (warehouseHubRepository.findByHubCode(hubCode).isEmpty()) {
+            warehouseHubRepository.save(com.mitti2market.model.WarehouseHub.builder()
+                    .hubCode(hubCode)
+                    .name(name)
+                    .partnerName(partner)
+                    .location(loc)
+                    .address(addr)
+                    .district(dist)
+                    .state(state)
+                    .pincode(pin)
+                    .latitude(lat)
+                    .longitude(lng)
+                    .totalCapacityKg(cap)
+                    .occupiedCapacityKg(0.0)
+                    .reservedCapacityKg(0.0)
+                    .availableCapacityKg(cap)
+                    .storageType(type)
+                    .supportedCrops(crops)
+                    .operatingStatus(com.mitti2market.model.WarehouseHub.HubStatus.ACTIVE)
+                    .handlingFeePerKg(fee)
+                    .storageRatePerDayPerKg(rate)
+                    .contactPerson("Facility Manager")
+                    .contactPhone("9876543200")
+                    .contactEmail("hub." + hubCode.toLowerCase() + "@mitti2market.com")
+                    .build());
+            log.info("Created partner warehouse hub: {} ({})", name, hubCode);
         }
     }
 }

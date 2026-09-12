@@ -27,10 +27,11 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProduceRepository produceRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public OrderResponse placeOrder(OrderRequest request) {
-        Produce produce = produceRepository.findById(request.getProduceId())
+        Produce produce = produceRepository.findByIdWithLock(request.getProduceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Produce", "id", request.getProduceId()));
 
         User buyer = userRepository.findById(request.getBuyerId())
@@ -40,7 +41,18 @@ public class OrderService {
             throw new BadRequestException("User is not a business buyer");
         }
 
-        // Validate stock
+        // Validate expiry
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (produce.getStatus() == ProduceStatus.EXPIRED ||
+                (produce.getExpiryDate() != null && produce.getExpiryDate().isBefore(today))) {
+            throw new BadRequestException("This produce has expired and is no longer available for orders");
+        }
+
+        // Validate active status and stock
+        if (produce.getStatus() == ProduceStatus.SOLD_OUT || produce.getQuantity() == null || produce.getQuantity() <= 0) {
+            throw new BadRequestException("This produce is completely sold out");
+        }
+
         if (request.getQuantity() > produce.getQuantity()) {
             throw new InsufficientStockException(produce.getName(), request.getQuantity(), produce.getQuantity());
         }
@@ -62,13 +74,27 @@ public class OrderService {
 
         // Deduct quantity from produce listing
         int remaining = produce.getQuantity() - request.getQuantity();
+        int sold = (produce.getSoldQuantity() != null ? produce.getSoldQuantity() : 0) + request.getQuantity();
         produce.setQuantity(remaining);
+        produce.setSoldQuantity(sold);
 
         // Flip status based on remaining stock
         if (remaining <= 0) {
             produce.setStatus(ProduceStatus.SOLD_OUT);
-        } else if (remaining < 10) {
+            if (produce.getFarmer() != null) {
+                notificationService.createNotification(
+                        produce.getFarmer().getId(),
+                        com.mitti2market.model.Notification.NotificationType.DEAL_COMPLETED,
+                        "Produce Completely Sold Out",
+                        "Your listing \"" + produce.getName() + "\" has been completely sold out and moved to history.",
+                        produce.getId(),
+                        "PRODUCE"
+                );
+            }
+        } else if (remaining < 50) {
             produce.setStatus(ProduceStatus.LOW_STOCK);
+        } else {
+            produce.setStatus(ProduceStatus.PARTIALLY_SOLD);
         }
 
         produceRepository.save(produce);

@@ -340,10 +340,15 @@ public class AuthController {
     }
 
     private String roleLabel(User.Role role) {
+        if (role == null) return "User";
         return switch (role) {
             case FARMER -> "Farmer";
+            case BUYER -> "Buyer";
             case BUSINESS -> "Business/Buyer";
             case ADMIN -> "Admin";
+            case OBSERVER -> "Observer";
+            case HUB_OPERATOR -> "Hub Operator";
+            case TRANSPORTER -> "Transporter";
         };
     }
 

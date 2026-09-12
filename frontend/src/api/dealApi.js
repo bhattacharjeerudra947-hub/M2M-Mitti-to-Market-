@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '../api';
+import { apiGet, apiPost, apiPut, apiUpload } from '../api';
 
 // ──────── Structured Negotiation Offers ────────
 
@@ -132,11 +132,41 @@ export async function getAdminLogisticsStats() {
   return apiGet('/api/admin/logistics/stats');
 }
 
-// ──────── Deal Timeline + Disputes ────────
+// ──────── Deal Timeline ────────
 
 export async function getDealTimeline(dealId) {
   return apiGet(`/api/deals/${dealId}/timeline`);
 }
+
+// ──────── Evidence & Verification ────────
+
+export async function uploadEvidenceFile(dealId, file, fields = {}) {
+  return apiUpload(`/api/deals/${dealId}/evidence/upload`, file, fields);
+}
+
+export async function recordEvidenceJson(dealId, body) {
+  return apiPost(`/api/deals/${dealId}/evidence`, body);
+}
+
+export async function getDealEvidence(dealId) {
+  return apiGet(`/api/deals/${dealId}/evidence`);
+}
+
+export async function verifyEvidence(evidenceId, body) {
+  return apiPut(`/api/evidence/${evidenceId}/verify`, body);
+}
+
+// ──────── Delivery Acceptance ────────
+
+export async function acceptDelivery(dealId) {
+  return apiPost(`/api/deals/${dealId}/accept-delivery`);
+}
+
+export async function confirmDelivery(dealId, details) {
+  return apiPost(`/api/deals/${dealId}/confirm-delivery`, details);
+}
+
+// ──────── Disputes & Resolution ────────
 
 export async function openDispute(dealId, details) {
   return apiPost(`/api/deals/${dealId}/disputes`, details);
@@ -146,8 +176,30 @@ export async function getDisputes(dealId) {
   return apiGet(`/api/deals/${dealId}/disputes`);
 }
 
-// ──────── Delivery ────────
+export async function getDisputeDetails(disputeId) {
+  return apiGet(`/api/disputes/${disputeId}`);
+}
 
-export async function confirmDelivery(dealId, details) {
-  return apiPost(`/api/deals/${dealId}/confirm-delivery`, details);
+export async function respondToDispute(disputeId, body) {
+  return apiPost(`/api/disputes/${disputeId}/respond`, body);
+}
+
+export async function assignObserver(disputeId, body) {
+  return apiPost(`/api/disputes/${disputeId}/assign-observer`, body);
+}
+
+export async function requestDisputeEvidence(disputeId, body) {
+  return apiPost(`/api/disputes/${disputeId}/request-evidence`, body);
+}
+
+export async function resolveDispute(disputeId, body) {
+  return apiPost(`/api/disputes/${disputeId}/resolve`, body);
+}
+
+export async function getObserverCases() {
+  return apiGet('/api/observer/cases');
+}
+
+export async function getAvailableObservers() {
+  return apiGet('/api/admin/observers');
 }

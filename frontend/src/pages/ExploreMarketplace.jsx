@@ -83,16 +83,7 @@ export default function ExploreMarketplace() {
   });
 
   const handleCardAction = (product) => {
-    const role = user?.role?.toLowerCase();
-    if (!user) {
-      // Send guests to sign in; they'll return to this page after login
-      navigate('/login', { state: { from: { pathname: '/marketplace' } } });
-    } else if (role === 'business') {
-      navigate(`/business/product/${product.id}`);
-    } else {
-      // Farmers sell on the marketplace — send them to list their own produce
-      navigate('/farmer/add-produce');
-    }
+    navigate(`/marketplace/${product.id}`);
   };
 
   return (
@@ -196,18 +187,16 @@ export default function ExploreMarketplace() {
                       className="bg-white rounded-2xl border border-navy-100 shadow-sm hover:shadow-md transition overflow-hidden group flex flex-col"
                     >
                       {/* Image / visual */}
-                      <div className="relative h-40 bg-gradient-to-br from-mustard-50 via-white to-agri-50 shrink-0">
-                        {product.imageUrl ? (
+                      <div className="relative h-40 bg-gradient-to-br from-mustard-50 via-white to-agri-50 shrink-0 flex items-center justify-center overflow-hidden">
+                        <span className="text-6xl drop-shadow-sm select-none">{categoryEmoji[product.category] || '📦'}</span>
+                        {product.imageUrl && (
                           <img
                             src={product.imageUrl}
                             alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                             loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                           />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-6xl drop-shadow-sm">{categoryEmoji[product.category] || '📦'}</span>
-                          </div>
                         )}
                         <div className="absolute top-2.5 right-2.5">
                           <StatusBadge status={product.status} />
@@ -231,9 +220,18 @@ export default function ExploreMarketplace() {
                           <span className="text-2xl font-bold text-navy-900">₹{product.pricePerUnit}</span>
                           <span className="text-sm text-gray-500">/ {product.unit}</span>
                         </div>
-                        <p className="text-sm text-gray-500 mb-4">
-                          <span className="font-medium text-gray-700">{product.quantity?.toLocaleString?.() ?? product.quantity}</span> {product.unit} available
-                        </p>
+                        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                          <span>
+                            <span className="font-medium text-gray-700">{product.quantity?.toLocaleString?.() ?? product.quantity}</span> {product.unit} available
+                          </span>
+                          {product.expiryDate && (
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                              product.isExpiringSoon ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              ⏳ {product.daysUntilExpiry != null ? (product.daysUntilExpiry === 0 ? 'Today' : `${product.daysUntilExpiry}d`) : 'Fresh'}
+                            </span>
+                          )}
+                        </div>
 
                         {/* Seller / location / listed */}
                         <div className="mt-auto pt-3 border-t border-gray-100 space-y-1.5 text-xs text-gray-500">
@@ -268,9 +266,7 @@ export default function ExploreMarketplace() {
                         >
                           {!user
                             ? 'Sign in to View Details'
-                            : user.role?.toLowerCase() === 'business'
-                              ? 'View Details'
-                              : 'List Your Produce'}
+                            : 'View Details'}
                         </button>
                       </div>
                     </div>

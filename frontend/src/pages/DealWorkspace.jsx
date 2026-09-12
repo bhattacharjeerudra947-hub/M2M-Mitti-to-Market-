@@ -15,6 +15,7 @@ import DealRatingModal from '../components/DealRatingModal';
 import ReportModal from '../components/ReportModal';
 import { getDealRatings } from '../services/ratingApi';
 import { getDealRouteInfo } from '../api/locationApi';
+import DealEvidenceDisputeSection from '../components/DealEvidenceDisputeSection';
 
 const STATUS_LABELS = {
   NEGOTIATING: '💬 Bargaining', LOCK_PENDING: '⏳ Confirming', LOCKED: '🔒 Deal Locked',
@@ -509,50 +510,13 @@ export default function DealWorkspace() {
                 targetName={`Deal #${dealId}`}
               />
 
-              {/* ═══ DISPUTE FORM ═══ */}
-              {showDisputeForm && (
-                <div className="mt-4 bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
-                  <p className="text-sm font-bold text-navy-900 mb-3">Open a Dispute</p>
-                  <div className="space-y-3">
-                    <select value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-navy-100 rounded-xl text-sm">
-                      {['QUALITY_ISSUE', 'QUANTITY_ISSUE', 'LATE_DELIVERY', 'DAMAGED_GOODS', 'MISSING_GOODS', 'PAYMENT_ISSUE', 'OTHER'].map(r => (
-                        <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
-                      ))}
-                    </select>
-                    <textarea value={disputeDesc} onChange={(e) => setDisputeDesc(e.target.value)} rows="3"
-                      placeholder="Describe the issue..."
-                      className="w-full px-4 py-3 bg-gray-50 border border-navy-100 rounded-xl text-sm resize-none" />
-                    <div className="flex gap-2">
-                      <button onClick={handleOpenDispute} disabled={busy}
-                        className="px-4 py-2.5 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition disabled:opacity-50">
-                        {busy ? 'Opening...' : 'Submit Dispute'}
-                      </button>
-                      <button onClick={() => setShowDisputeForm(false)}
-                        className="px-4 py-2.5 text-sm text-gray-500 font-semibold rounded-xl hover:bg-gray-50 transition">Cancel</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ═══ DISPUTES LIST ═══ */}
-              {disputes.length > 0 && (
-                <div className="mt-5 bg-white rounded-2xl border border-red-100 shadow-sm p-5">
-                  <p className="text-xs text-gray-400 uppercase font-medium tracking-wide mb-3">Disputes</p>
-                  <div className="space-y-2">
-                    {disputes.map((d) => (
-                      <div key={d.id} className="p-3 bg-red-50/50 rounded-xl text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-red-700">{d.reason.replace(/_/g, ' ')}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-red-600 border border-red-200">{d.status}</span>
-                        </div>
-                        {d.description && <p className="text-xs text-gray-600 mt-1">{d.description}</p>}
-                        <p className="text-[10px] text-gray-400 mt-1">By {d.raisedByName} · {formatDateTime(d.createdAt)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* ═══ EVIDENCE & DISPUTE AUDIT CHAIN ═══ */}
+              <DealEvidenceDisputeSection
+                deal={deal}
+                user={user}
+                onDealUpdated={load}
+                onOpenRating={() => setShowRatingModal(true)}
+              />
             </>
           ) : null}
         </div>

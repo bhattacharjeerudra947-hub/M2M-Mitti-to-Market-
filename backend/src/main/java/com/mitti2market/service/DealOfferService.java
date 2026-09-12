@@ -47,6 +47,22 @@ public class DealOfferService {
 
         Long produceId = body.get("produceId") != null ? Long.valueOf(body.get("produceId").toString()) : null;
         Produce produce = produceId != null ? produceRepo.findById(produceId).orElse(null) : null;
+
+        if (produce != null) {
+            java.time.LocalDate today = java.time.LocalDate.now();
+            if (produce.getStatus() == Produce.ProduceStatus.EXPIRED ||
+                    (produce.getExpiryDate() != null && produce.getExpiryDate().isBefore(today))) {
+                throw new BadRequestException("This produce listing has expired and cannot receive offers");
+            }
+            if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || produce.getQuantity() <= 0) {
+                throw new BadRequestException("This produce listing is completely sold out");
+            }
+            if (quantity > produce.getQuantity()) {
+                throw new BadRequestException("Only " + produce.getQuantity() + " " + produce.getUnit() +
+                        " remains available. Offer quantity cannot exceed available stock.");
+            }
+        }
+
         String cropName = (String) body.getOrDefault("cropName",
                 produce != null ? produce.getName() : "Produce");
         String unit = (String) body.getOrDefault("unit", produce != null ? produce.getUnit() : "kg");

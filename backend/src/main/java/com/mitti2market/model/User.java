@@ -135,8 +135,12 @@ public class User {
 
     public enum Role {
         FARMER,
+        BUYER,
         BUSINESS,
-        ADMIN
+        ADMIN,
+        OBSERVER,
+        HUB_OPERATOR,
+        TRANSPORTER
     }
 
     public enum UserStatus {

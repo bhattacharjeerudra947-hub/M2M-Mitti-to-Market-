@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getAdminLogistics, getAdminLogisticsStats } from '../../api/dealApi';
 import {
   Truck, Search, RefreshCw, Loader2,
-  AlertTriangle, ExternalLink
+  AlertTriangle, ExternalLink, Warehouse, RotateCcw
 } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -78,6 +78,20 @@ export default function AdminLogistics() {
         >
           <Truck className="w-4 h-4 text-emerald-600" />
           Logistics & Shipments Monitor
+        </Link>
+        <Link
+          to="/admin/hubs"
+          className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 border-b-2 border-transparent transition-colors flex items-center gap-2"
+        >
+          <Warehouse className="w-4 h-4 text-gray-400" />
+          Partner Warehouse & Hub Network
+        </Link>
+        <Link
+          to="/admin/reverse-logistics"
+          className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-50 border-b-2 border-transparent transition-colors flex items-center gap-2"
+        >
+          <RotateCcw className="w-4 h-4 text-gray-400" />
+          Reverse Logistics Monitor
         </Link>
       </div>
           {/* Header */}

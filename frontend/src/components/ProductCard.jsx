@@ -5,7 +5,18 @@ export default function ProductCard({ product, onAction, actionLabel = 'View Det
     <div className="bg-white rounded-2xl border border-navy-100 shadow-sm hover:shadow-md transition overflow-hidden group">
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <span className="text-4xl">{product.emoji}</span>
+          <div className="w-12 h-12 rounded-xl overflow-hidden bg-navy-50 flex items-center justify-center shrink-0">
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            ) : null}
+            <span className="text-3xl">{product.emoji || '📦'}</span>
+          </div>
           <div className="flex items-center gap-1.5">
             {product.verified && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-50 text-primary-700 text-xs font-medium rounded-full border border-primary-200">
