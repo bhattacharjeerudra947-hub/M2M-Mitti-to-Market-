@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { getMyLogistics, updateLogisticsStatus } from '../api/dealApi';
 import {
   Truck, MapPin, Package, IndianRupee, Loader2, RefreshCw,
-  AlertTriangle, Inbox, ChevronDown, ExternalLink, Route as RouteIcon
+  AlertTriangle, Inbox, ChevronDown, ExternalLink, Route as RouteIcon,
+  Camera, Clock, CheckCircle2
 } from 'lucide-react';
 
 const STATUS_FLOW = ['REQUESTED', 'ASSIGNED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
@@ -175,26 +176,77 @@ export default function FarmerLogistics() {
                           {s.transporterName && <span>Transporter: {s.transporterName}</span>}
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-navy-50">
-                          <Link
-                            to={`/deals/${s.dealId}`}
-                            className="px-3 py-1.5 bg-navy-50 hover:bg-navy-100 text-navy-800 text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5"
-                          >
-                            <RouteIcon className="w-3.5 h-3.5 text-emerald-600" />
-                            View Interactive Route & Map
-                            <ExternalLink className="w-3 h-3 text-navy-400" />
-                          </Link>
-
-                          {next && (
-                            <button
-                              onClick={() => advance(s)}
-                              disabled={busy === s.id}
-                              className="px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-xl hover:bg-navy-800 disabled:opacity-50 transition inline-flex items-center gap-2"
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-navy-50">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              to={`/deals/${s.dealId}`}
+                              className="px-3 py-1.5 bg-navy-50 hover:bg-navy-100 text-navy-800 text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5"
                             >
-                              {busy === s.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                              Mark as {STATUS_LABELS[next]}
-                            </button>
-                          )}
+                              <RouteIcon className="w-3.5 h-3.5 text-emerald-600" />
+                              View Interactive Route & Map
+                              <ExternalLink className="w-3 h-3 text-navy-400" />
+                            </Link>
+
+                            {/* Farmer initial photo prompt at the beginning of logistics */}
+                            {isFarmer && ['REQUESTED', 'ASSIGNED', 'PICKUP_SCHEDULED', 'PICKED_UP'].includes(s.status) && (
+                              <Link
+                                to={`/deals/${s.dealId}#origin-verification`}
+                                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs"
+                              >
+                                <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                                Post Origin Photo
+                              </Link>
+                            )}
+
+                            {!isFarmer && ['REQUESTED', 'ASSIGNED', 'PICKUP_SCHEDULED'].includes(s.status) && (
+                              <span className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1">
+                                🌾 Farmer origin photo at pickup
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Role-based status advancement */}
+                          <div className="flex items-center gap-2">
+                            {next && (
+                              next === 'DELIVERED' ? (
+                                isFarmer ? (
+                                  <span className="px-3.5 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl inline-flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                    Awaiting Business Delivery Acceptance
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => advance(s)}
+                                    disabled={busy === s.id}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl disabled:opacity-50 transition inline-flex items-center gap-2 shadow-xs"
+                                  >
+                                    {busy === s.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Confirm Delivery & Inspect Goods
+                                  </button>
+                                )
+                              ) : (
+                                <button
+                                  onClick={() => advance(s)}
+                                  disabled={busy === s.id}
+                                  className="px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-xl hover:bg-navy-800 disabled:opacity-50 transition inline-flex items-center gap-2"
+                                >
+                                  {busy === s.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                  Mark as {STATUS_LABELS[next]}
+                                </button>
+                              )
+                            )}
+
+                            {s.status === 'DELIVERED' && !isFarmer && (
+                              <Link
+                                to={`/deals/${s.dealId}#delivery-verification`}
+                                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5 shadow-xs"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Accept Delivery / Review
+                              </Link>
+                            )}
+                          </div>
                         </div>
                         {s.status === 'DELIVERED' && (
                           <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 inline-flex items-center gap-1.5">

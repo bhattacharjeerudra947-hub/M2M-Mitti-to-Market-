@@ -27,6 +27,7 @@ export default function ProductDetails() {
   const [offerMessage, setOfferMessage] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
   const [showFarmerProfileModal, setShowFarmerProfileModal] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -36,10 +37,14 @@ export default function ProductDetails() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const userRole = user?.role?.toLowerCase() === 'farmer' ? 'farmer' : 'business';
+  const backLink = userRole === 'farmer' ? '/farmer/produce' : '/business/browse';
+  const backLabel = userRole === 'farmer' ? 'Back to My Produce' : 'Back to Marketplace';
+
   if (loading) {
     return (
       <div className="flex min-h-screen bg-mustard-50/30">
-        <Sidebar role="business" />
+        <Sidebar role={userRole} />
         <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-navy-900 mx-auto mb-4" />
@@ -53,11 +58,11 @@ export default function ProductDetails() {
   if (error || !product) {
     return (
       <div className="flex min-h-screen bg-mustard-50/30">
-        <Sidebar role="business" />
+        <Sidebar role={userRole} />
         <main className="flex-1 p-8 lg:pl-0 flex items-center justify-center">
           <div className="text-center">
             <p className="text-lg text-gray-500 mb-4">{error || 'Product not found'}</p>
-            <Link to="/business/browse" className="text-navy-700 font-semibold hover:underline">← Back to Marketplace</Link>
+            <Link to={backLink} className="text-navy-700 font-semibold hover:underline">← {backLabel}</Link>
           </div>
         </main>
       </div>
@@ -66,20 +71,26 @@ export default function ProductDetails() {
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
-      <Sidebar role="business" />
+      <Sidebar role={userRole} />
       <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
         <div className="max-w-4xl mx-auto">
-          <Link to="/business/browse" className="inline-flex items-center gap-2 text-sm text-navy-500 hover:text-navy-700 mb-6 transition">
+          <Link to={backLink} className="inline-flex items-center gap-2 text-sm text-navy-500 hover:text-navy-700 mb-6 transition">
             <ArrowLeft className="w-4 h-4" />
-            Back to Marketplace
+            {backLabel}
           </Link>
 
           <div className="grid md:grid-cols-2 gap-8">
             {/* Left: Product Image / Visual */}
             <div className="bg-white rounded-3xl border border-navy-100 shadow-sm overflow-hidden">
               <div className="h-72 bg-gradient-to-br from-mustard-50 to-white flex items-center justify-center">
-                {product.imageUrl ? (
-                  <img src={optimizeImage(product.imageUrl, { width: 600 })} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+                {product.imageUrl && !imageError ? (
+                  <img
+                    src={optimizeImage(product.imageUrl, { width: 600 })}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   <span className="text-9xl">{categoryEmoji[product.category] || '📦'}</span>
                 )}
@@ -349,6 +360,24 @@ export default function ProductDetails() {
                         Message Farmer
                       </Link>
                     </>
+                  );
+                }
+
+                if (user && product.farmerId && Number(product.farmerId) === Number(user.id)) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-1">
+                        <p className="font-bold text-sm text-emerald-900">🌾 Your Listed Produce</p>
+                        <p className="text-xs text-emerald-700">This is your listing on the Mitti2Market platform.</p>
+                      </div>
+                      <Link
+                        to="/farmer/produce"
+                        className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
+                      >
+                        <Package className="w-5 h-5" />
+                        Manage in My Produce
+                      </Link>
+                    </div>
                   );
                 }
 

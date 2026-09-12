@@ -321,7 +321,7 @@ export default function FarmerProducts() {
                         <span className="truncate">{item.location || 'Location not set'}</span>
                       </div>
                       <Link
-                        to={`/marketplace/${item.id}`}
+                        to={`/farmer/produce/${item.id}`}
                         className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 ml-2 shrink-0"
                       >
                         View Details →

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin, Sparkles, Warehouse } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';
@@ -21,7 +21,6 @@ const farmerLinks = [
   { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/farmer/deals', icon: Package, label: 'My Deals' },
   { to: '/farmer/offline-drafts', icon: Save, label: 'Offline Drafts' },
-  { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
 // Links that require authentication in guest mode (farmer)
@@ -32,7 +31,6 @@ const farmerGuestRestricted = new Set([
   '/farmer/chat',
   '/farmer/deals',
   '/farmer/offline-drafts',
-  '/locations',
 ]);
 
 const businessLinks = [
@@ -48,7 +46,6 @@ const businessLinks = [
   { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/business/deals', icon: Package, label: 'My Purchases' },
-  { to: '/locations', icon: MapPin, label: 'Live Locations' },
 ];
 
 // Links that require authentication in guest mode (business/user)
@@ -60,7 +57,6 @@ const businessGuestRestricted = new Set([
   '/business/insights',
   '/business/chat',
   '/business/deals',
-  '/locations',
 ]);
 
 export default function Sidebar({ role = 'farmer' }) {
@@ -181,6 +177,11 @@ export default function Sidebar({ role = 'farmer' }) {
       <div className="border-t border-navy-100 p-3 space-y-2">
         {!isGuestModeActive && <SyncStatusBar role={role} />}
         <div className="space-y-0.5">
+        {(user?.role === 'HUB_OPERATOR' || user?.role === 'ADMIN') && (
+          <Link to="/hub-operator" onClick={() => setMobileOpen(false)}>
+            <NavLink to="/hub-operator" icon={Warehouse} label="Hub Operator Station" />
+          </Link>
+        )}
         {isGuestModeActive ? (
           <button onClick={openAuthRequired} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all">
             <User className="w-5 h-5 text-navy-400" />

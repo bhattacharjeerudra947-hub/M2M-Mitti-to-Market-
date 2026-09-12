@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, Navigate, Outlet } from 'react-router-d
 import {
   LayoutDashboard, Users, FileCheck, Package, Handshake, Scale,
   Flag, MessageSquare, ScrollText, Settings, ExternalLink, Bell, ShieldAlert,
-  CheckCheck, CheckCircle2, Inbox, Truck,
+  CheckCheck, CheckCircle2, Inbox, Truck, Warehouse, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import AccessDenied from '../AccessDenied';
@@ -23,6 +23,8 @@ const SECTIONS = [
       { label: 'Deals', path: '/admin/deals', icon: Handshake },
       { label: 'Logistics', path: '/admin/logistics', icon: Truck },
       { label: 'Fleet (Vehicles)', path: '/admin/vehicles', icon: Truck },
+      { label: 'Warehouse Hubs', path: '/admin/hubs', icon: Warehouse },
+      { label: 'Reverse Logistics', path: '/admin/reverse-logistics', icon: RotateCcw },
       { label: 'Disputes', path: '/admin/disputes', icon: Scale },
     ],
   },

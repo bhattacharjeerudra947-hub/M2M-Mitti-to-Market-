@@ -159,9 +159,18 @@ public class LogisticsService {
         LogisticsStatus currentStatus = logistics.getStatus();
         validateStatusTransition(currentStatus, newStatus);
 
-        logistics.setStatus(newStatus);
-
         Deal deal = logistics.getDeal();
+        boolean isFarmer = deal.getFarmer() != null && deal.getFarmer().getId().equals(userId);
+        boolean isBuyer = deal.getBuyer() != null && deal.getBuyer().getId().equals(userId);
+        User actingUser = users.findById(userId).orElse(null);
+        boolean isAdmin = actingUser != null && actingUser.getRole() == User.Role.ADMIN;
+
+        // Role-based rule: Only the business recipient (buyer) or Admin can mark shipment as DELIVERED
+        if (newStatus == LogisticsStatus.DELIVERED && !isBuyer && !isAdmin) {
+            throw new BadRequestException("Only the business recipient (buyer) can confirm and mark the shipment as Delivered.");
+        }
+
+        logistics.setStatus(newStatus);
         DealStatus dealTarget = switch (newStatus) {
             case ASSIGNED -> DealStatus.LOGISTICS_ASSIGNED;
             case PICKUP_SCHEDULED -> DealStatus.PICKUP_SCHEDULED;

@@ -134,11 +134,20 @@ export default function Marketplace() {
                   >
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-3">
-                        {product.imageUrl ? (
-                          <img src={optimizeImage(product.imageUrl)} alt={product.name} className="w-14 h-14 rounded-xl object-cover" loading="lazy" />
-                        ) : (
-                          <span className="text-4xl">{categoryEmoji[product.category] || '📦'}</span>
-                        )}
+                        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-navy-50 flex items-center justify-center shrink-0">
+                          {product.imageUrl ? (
+                            <img
+                              src={optimizeImage(product.imageUrl)}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : null}
+                          <span className="text-3xl">{categoryEmoji[product.category] || '📦'}</span>
+                        </div>
                         {product.status && (
                           <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${
                             product.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700' :
@@ -158,8 +167,15 @@ export default function Marketplace() {
                         <span className="text-sm text-gray-500">/ {product.unit}</span>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                      <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                         <span className="font-medium text-gray-700">{product.quantity.toLocaleString()} {product.unit} available</span>
+                        {product.expiryDate && (
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                            product.isExpiringSoon ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            ⏳ {product.daysUntilExpiry != null ? (product.daysUntilExpiry === 0 ? 'Today' : `${product.daysUntilExpiry}d left`) : 'Fresh'}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -174,6 +190,7 @@ export default function Marketplace() {
                                 src={product.farmerProfilePhotoUrl || product.farmer?.profilePhotoUrl}
                                 alt={product.farmerName}
                                 className="w-4 h-4 rounded-full object-cover border border-gray-200"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
                               />
                             )}
                             by {product.farmerName}

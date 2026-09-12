@@ -81,6 +81,14 @@ public class DealStateMachineService {
     }
 
     /**
+     * Convenience transition overload.
+     */
+    @Transactional
+    public Deal transitionTo(Long dealId, DealStatus target) {
+        return transition(dealId, target, null, "SYSTEM", "Transitioned to " + target, null);
+    }
+
+    /**
      * Record an audit event on a deal (used by all lifecycle services).
      */
     @Transactional

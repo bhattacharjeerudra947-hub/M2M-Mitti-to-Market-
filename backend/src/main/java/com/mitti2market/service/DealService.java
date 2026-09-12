@@ -283,6 +283,12 @@ public class DealService {
 
         if (remaining == 0) {
             produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
+            if (deal.getFarmer() != null) {
+                notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_LOCKED,
+                        "Stock Fully Reserved",
+                        "All available stock for \"" + produce.getName() + "\" has been locked in deals.",
+                        produce.getId(), "PRODUCE");
+            }
         } else if (remaining < 50) {
             produce.setStatus(Produce.ProduceStatus.LOW_STOCK);
         } else {
@@ -299,7 +305,7 @@ public class DealService {
     /**
      * Restore the reserved quantity when a locked (or later) deal is cancelled.
      */
-    private void restoreQuantity(Deal deal) {
+    public void restoreQuantity(Deal deal) {
         if (deal.getProduce() == null || deal.getQuantity() == null) return;
         if (deal.getStatus() == DealStatus.LOCK_PENDING || deal.getStatus() == DealStatus.NEGOTIATING) return;
 
@@ -332,9 +338,48 @@ public class DealService {
             produce.setReservedQuantity(reserved);
             if (produce.getQuantity() <= 0) {
                 produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
+                if (deal.getFarmer() != null) {
+                    notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_COMPLETED,
+                            "Produce Completely Sold Out",
+                            "Your listing \"" + produce.getName() + "\" has been completely sold and moved to history.",
+                            produce.getId(), "PRODUCE");
+                }
             }
             produceRepo.save(produce);
         }
+    }
+
+    /**
+     * Finalize partial quantity settlement during dispute resolution.
+     */
+    public void finalizePartialQuantity(Deal deal, int acceptedQty, int disputedQty, boolean returnDisputedToStock) {
+        if (deal == null || deal.getProduce() == null) return;
+        Produce produce = deal.getProduce();
+        int totalDealQty = deal.getQuantity() != null ? deal.getQuantity() : (acceptedQty + disputedQty);
+
+        int sold = (produce.getSoldQuantity() != null ? produce.getSoldQuantity() : 0) + acceptedQty;
+        int reserved = Math.max(0, (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) - totalDealQty);
+        produce.setSoldQuantity(sold);
+        produce.setReservedQuantity(reserved);
+
+        if (returnDisputedToStock && disputedQty > 0) {
+            produce.setQuantity(produce.getQuantity() + disputedQty);
+        }
+
+        if (produce.getQuantity() <= 0) {
+            produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
+            if (deal.getFarmer() != null) {
+                notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_COMPLETED,
+                        "Produce Completely Sold Out",
+                        "Your listing \"" + produce.getName() + "\" has been completely sold and moved to history.",
+                        produce.getId(), "PRODUCE");
+            }
+        } else if (produce.getQuantity() < 50) {
+            produce.setStatus(Produce.ProduceStatus.LOW_STOCK);
+        } else {
+            produce.setStatus(Produce.ProduceStatus.PARTIALLY_SOLD);
+        }
+        produceRepo.save(produce);
     }
 
     /**
@@ -350,6 +395,15 @@ public class DealService {
 
         if (deal.getStatus() == DealStatus.COMPLETED || deal.getStatus() == DealStatus.CANCELLED) {
             throw new BadRequestException("Cannot amend a " + deal.getStatus().name().toLowerCase() + " deal");
+        }
+
+        // Reject amendment if produce is expired
+        if (deal.getProduce() != null) {
+            Produce p = deal.getProduce();
+            if (p.getStatus() == Produce.ProduceStatus.EXPIRED ||
+                    (p.getExpiryDate() != null && p.getExpiryDate().isBefore(java.time.LocalDate.now()))) {
+                throw new BadRequestException("This produce has expired and terms cannot be amended");
+            }
         }
 
         String oldTerms = deal.getQuantity() + " " + deal.getUnit() + " @ ₹" + deal.getAgreedPrice() + "/" + deal.getUnit();

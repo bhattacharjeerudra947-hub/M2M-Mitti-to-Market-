@@ -422,7 +422,6 @@ function PriceAdvisorSection() {
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [location, setLocation] = useState('');
 
   useEffect(() => {
     if (isGuestModeActive) return;
@@ -432,9 +431,8 @@ function PriceAdvisorSection() {
   useEffect(() => {
     if (isGuestModeActive || !selected) return;
     setAnalyzing(true);
-    const params = location ? `?location=${encodeURIComponent(location)}` : '';
-    apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}${params}`).then(setAnalysis).catch(() => {}).finally(() => setAnalyzing(false));
-  }, [selected, location]);
+    apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}`).then(setAnalysis).catch(() => {}).finally(() => setAnalyzing(false));
+  }, [selected]);
 
   const trendIcon = (t) => t === 'Increasing' ? <TrendingUp className="w-4 h-4" /> : t === 'Decreasing' ? <TrendingDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />;
   const trendColor = (t) => t === 'Increasing' ? 'text-emerald-600' : t === 'Decreasing' ? 'text-rose-600' : 'text-gray-700';
@@ -443,9 +441,8 @@ function PriceAdvisorSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-3">
-        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Enter your location for regional pricing (e.g., Nashik, Pune)" className="flex-1 px-4 py-2.5 bg-white border border-navy-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition" />
-        <button onClick={() => setSelected({ ...selected })} className="px-4 py-2.5 bg-white text-navy-700 text-sm font-semibold rounded-xl border border-navy-200 hover:bg-navy-50 transition flex items-center gap-2"><RefreshCw className="w-4 h-4" />Refresh</button>
+      <div className="flex justify-end">
+        <button onClick={() => setSelected(selected ? { ...selected } : null)} className="px-4 py-2 bg-white text-navy-700 text-sm font-semibold rounded-xl border border-navy-200 hover:bg-navy-50 transition flex items-center gap-2 shadow-sm"><RefreshCw className="w-4 h-4" />Refresh</button>
       </div>
 
       {loading ? (
@@ -469,21 +466,19 @@ function PriceAdvisorSection() {
           <div className="lg:col-span-2 space-y-4">
             {selected && (() => {
               const [est, setEst] = useState(null); const [estLoading, setEstLoading] = useState(false);
-              useEffect(() => { if (!selected) return; setEstLoading(true); const p = new URLSearchParams({ crop: selected.name }); if (location) p.set('state', location); apiGet(`/api/price-advisor/estimate?${p}`).then(d => setEst(d)).catch(() => setEst(null)).finally(() => setEstLoading(false)); }, [selected, location]);
+              useEffect(() => { if (!selected) return; setEstLoading(true); const p = new URLSearchParams({ crop: selected.name }); apiGet(`/api/price-advisor/estimate?${p}`).then(d => setEst(d)).catch(() => setEst(null)).finally(() => setEstLoading(false)); }, [selected]);
               if (estLoading) return <div className="bg-white rounded-2xl border border-navy-100 p-5 flex items-center gap-3"><Loader2 className="w-4 h-4 animate-spin text-navy-500" /><p className="text-sm text-gray-500">Checking historical dataset & live mandi prices…</p></div>;
-              if (!est) return null;
-              const srcLabel = est.source === 'DATASET_MODEL' ? { text: 'Based on historical crop-price dataset', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Database } : est.source === 'LIVE_MANDI' ? { text: 'Live government mandi prices', cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: ShieldCheck } : { text: 'No verified data available', cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: Info };
+              if (!est || est.source === 'UNAVAILABLE' || (est.source !== 'DATASET_MODEL' && est.source !== 'LIVE_MANDI')) return null;
+              const srcLabel = est.source === 'DATASET_MODEL' ? { text: 'Based on historical crop-price dataset', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Database } : { text: 'Live government mandi prices', cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: ShieldCheck };
               const Icon = srcLabel.icon;
               return (
                 <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
                   <div className="flex items-start justify-between gap-3 mb-3"><div><h3 className="text-sm font-bold text-navy-900">Data-Backed Estimate</h3><p className="text-[11px] text-navy-500 mt-0.5">{est.explanation}</p></div><span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border shrink-0 inline-flex items-center gap-1 ${srcLabel.cls}`}><Icon className="w-3 h-3" />{srcLabel.text}</span></div>
-                  {est.source === 'UNAVAILABLE' ? <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">Mitti2Market does not display fabricated prices for this crop/location.</p> : (
-                    <div className="grid grid-cols-3 gap-3 text-center">
-                      <div className="p-3 bg-gray-50 rounded-xl"><p className="text-lg font-bold text-navy-900">₹{est.medianPrice}</p><p className="text-[10px] text-gray-500">Median ₹/{est.unit || 'kg'}</p></div>
-                      <div className="p-3 bg-gray-50 rounded-xl"><p className="text-lg font-bold text-navy-900">₹{est.rangeLow}–₹{est.rangeHigh}</p><p className="text-[10px] text-gray-500">Expected range</p></div>
-                      <div className="p-3 bg-gray-50 rounded-xl"><p className="text-lg font-bold text-navy-900">{est.samples}</p><p className="text-[10px] text-gray-500">Data points</p></div>
-                    </div>
-                  )}
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="p-3 bg-gray-50 rounded-xl"><p className="text-lg font-bold text-navy-900">₹{est.medianPrice}</p><p className="text-[10px] text-gray-500">Median ₹/{est.unit || 'kg'}</p></div>
+                    <div className="p-3 bg-gray-50 rounded-xl"><p className="text-lg font-bold text-navy-900">₹{est.rangeLow}–₹{est.rangeHigh}</p><p className="text-[10px] text-gray-500">Expected range</p></div>
+                    <div className="p-3 bg-gray-50 rounded-xl"><p className="text-lg font-bold text-navy-900">{est.samples}</p><p className="text-[10px] text-gray-500">Data points</p></div>
+                  </div>
                 </div>
               );
             })()}
