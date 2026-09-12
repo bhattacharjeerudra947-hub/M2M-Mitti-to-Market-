@@ -30,7 +30,7 @@ public interface DealRepository extends JpaRepository<Deal, Long> {
 
     long countByStatus(Deal.DealStatus status);
 
-    /** Max numeric sequence from deal IDs like M2M-2026-10003 (used to avoid duplicate IDs after restart) */
-    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(deal_id, '-', -1) AS UNSIGNED)), 10000) FROM deals", nativeQuery = true)
-    long findMaxDealSequence();
+    /** All existing deal IDs (used to compute max counter sequence safely across any SQL database) */
+    @Query("SELECT d.dealId FROM Deal d WHERE d.dealId IS NOT NULL")
+    List<String> findAllDealIds();
 }

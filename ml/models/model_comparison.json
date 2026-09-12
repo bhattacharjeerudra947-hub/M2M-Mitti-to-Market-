@@ -1,0 +1,16 @@
+{
+    "baseline": "previous_price",
+    "baseline_rule": "next price = current price",
+    "ml_model": "GradientBoostingRegressor",
+    "blend_alpha": 0.15,
+    "validation_type": "chronological_future_holdout",
+    "cutoff_date": "2024-01-01",
+    "testing_rows": 224,
+    "baseline_MAE": 286.43,
+    "baseline_RMSE": 597.66,
+    "baseline_R2": 0.9883,
+    "ml_MAE": 287.2,
+    "ml_RMSE": 595.77,
+    "ml_R2": 0.9884,
+    "ml_MAE_improvement_percent": -0.27
+}

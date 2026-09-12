@@ -801,6 +801,21 @@ public class LogisticsService {
         return out;
     }
 
+    /**
+     * Update driver live location coordinates during in-transit / delivery tracking.
+     */
+    @Transactional
+    public Logistics updateLiveLocation(Long logisticsId, Long userId, Double latitude, Double longitude) {
+        Logistics logistics = logisticsRepo.findById(logisticsId)
+                .orElseThrow(() -> new ResourceNotFoundException("Logistics", "id", logisticsId));
+        verifyDealAccess(logistics.getDeal(), userId);
+
+        if (latitude != null && longitude != null) {
+            addEvent(logistics, logistics.getStatus(), "Live driver location updated", latitude, longitude);
+        }
+        return logistics;
+    }
+
 
     /**
      * Fetch + verify a logistics record — the user must be a deal party.
