@@ -8,7 +8,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/market-prices")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
 public class MarketPriceController {
 
     private final MandiPriceService mandiPriceService;
@@ -22,14 +22,18 @@ public class MarketPriceController {
             @RequestParam(required = false) String commodity,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String district,
-            @RequestParam(required = false) String market) {
+            @RequestParam(required = false) String market,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude) {
 
         return ResponseEntity.ok(
                 mandiPriceService.searchPrices(
                         commodity,
                         state,
                         district,
-                        market
+                        market,
+                        latitude,
+                        longitude
                 )
         );
     }
