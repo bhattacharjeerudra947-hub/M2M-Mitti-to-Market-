@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { getMyLogistics, updateLogisticsStatus } from '../api/dealApi';
 import {
   Truck, MapPin, Package, IndianRupee, Loader2, RefreshCw,
-  AlertTriangle, Inbox, ChevronDown
+  AlertTriangle, Inbox, ChevronDown, ExternalLink, Route as RouteIcon
 } from 'lucide-react';
 
 const STATUS_FLOW = ['REQUESTED', 'ASSIGNED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
@@ -169,16 +170,27 @@ export default function FarmerLogistics() {
                           {s.vehicleNumber && <span>Vehicle: {s.vehicleNumber}</span>}
                         </div>
 
-                        {next && (
-                          <button
-                            onClick={() => advance(s)}
-                            disabled={busy === s.id}
-                            className="px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-xl hover:bg-navy-800 disabled:opacity-50 transition inline-flex items-center gap-2"
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-navy-50">
+                          <Link
+                            to={`/deals/${s.dealId}`}
+                            className="px-3 py-1.5 bg-navy-50 hover:bg-navy-100 text-navy-800 text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5"
                           >
-                            {busy === s.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                            Mark as {STATUS_LABELS[next]}
-                          </button>
-                        )}
+                            <RouteIcon className="w-3.5 h-3.5 text-emerald-600" />
+                            View Interactive Route & Map
+                            <ExternalLink className="w-3 h-3 text-navy-400" />
+                          </Link>
+
+                          {next && (
+                            <button
+                              onClick={() => advance(s)}
+                              disabled={busy === s.id}
+                              className="px-4 py-2 bg-navy-900 text-white text-xs font-semibold rounded-xl hover:bg-navy-800 disabled:opacity-50 transition inline-flex items-center gap-2"
+                            >
+                              {busy === s.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                              Mark as {STATUS_LABELS[next]}
+                            </button>
+                          )}
+                        </div>
                         {s.status === 'DELIVERED' && (
                           <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 inline-flex items-center gap-1.5">
                             ✓ Delivered on {fmtDate(s.actualDelivery)}
