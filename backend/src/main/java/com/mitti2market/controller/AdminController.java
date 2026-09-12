@@ -32,6 +32,7 @@ public class AdminController {
     private final DisputeRepository disputeRepository;
     private final ProduceService produceService;
     private final AppealService appealService;
+    private final LogisticsService logisticsService;
     private final TokenService tokens;
 
     private Long extractAdminId(String authHeader) {
@@ -311,5 +312,36 @@ public class AdminController {
     @GetMapping("/audit-log")
     public ResponseEntity<?> getAuditLog() {
         return ResponseEntity.ok(ApiResponse.ok(auditLogService.getAllAuditLogs()));
+    }
+
+    /**
+     * GET /api/admin/logistics — all deal logistics/shipments for monitoring.
+     */
+    @GetMapping("/logistics")
+    public ResponseEntity<?> getAllLogistics() {
+        return ResponseEntity.ok(ApiResponse.ok(logisticsService.getAllLogisticsForAdmin()));
+    }
+
+    /**
+     * GET /api/admin/logistics/stats — shipment count breakdown by status.
+     */
+    @GetMapping("/logistics/stats")
+    public ResponseEntity<?> getLogisticsStats() {
+        List<Map<String, Object>> all = logisticsService.getAllLogisticsForAdmin();
+        long total = all.size();
+        long requested = all.stream().filter(m -> "REQUESTED".equals(m.get("status"))).count();
+        long assigned = all.stream().filter(m -> "ASSIGNED".equals(m.get("status"))).count();
+        long pickupScheduled = all.stream().filter(m -> "PICKUP_SCHEDULED".equals(m.get("status"))).count();
+        long inTransit = all.stream().filter(m -> "IN_TRANSIT".equals(m.get("status")) || "PICKED_UP".equals(m.get("status")) || "OUT_FOR_DELIVERY".equals(m.get("status"))).count();
+        long delivered = all.stream().filter(m -> "DELIVERED".equals(m.get("status"))).count();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("total", total);
+        stats.put("requested", requested);
+        stats.put("assigned", assigned);
+        stats.put("pickupScheduled", pickupScheduled);
+        stats.put("inTransit", inTransit);
+        stats.put("delivered", delivered);
+        return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 }

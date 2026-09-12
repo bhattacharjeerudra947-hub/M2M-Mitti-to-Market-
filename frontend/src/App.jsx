@@ -58,6 +58,8 @@ import AdminReports from './pages/admin/AdminReports';
 import AdminFeedback from './pages/admin/AdminFeedback';
 import AdminDeals from './pages/admin/AdminDeals';
 import AdminProduce from './pages/admin/AdminProduce';
+import AdminLogistics from './pages/admin/AdminLogistics';
+import AdminVehicles from './pages/admin/AdminVehicles';
 import AdminDisputes from './pages/admin/AdminDisputes';
 import AdminAppeals from './pages/admin/AdminAppeals';
 import AdminAuditLog from './pages/admin/AdminAuditLog';
@@ -261,6 +263,8 @@ export default function App() {
             <Route path="feedback" element={<AdminFeedback />} />
             <Route path="deals" element={<AdminDeals />} />
             <Route path="produce" element={<AdminProduce />} />
+            <Route path="logistics" element={<AdminLogistics />} />
+            <Route path="vehicles" element={<AdminVehicles />} />
             <Route path="disputes" element={<AdminDisputes />} />
             <Route path="audit-log" element={<AdminAuditLog />} />
             <Route path="settings" element={<AdminSettings />} />
