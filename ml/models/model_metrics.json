@@ -1,8 +1,21 @@
 {
-    "model": "RandomForestRegressor",
-    "training_rows": 2196,
-    "testing_rows": 550,
-    "MAE": 966.25,
-    "RMSE": 1799.06,
-    "R2": 0.9448
+    "model": "GradientBoostingRegressor",
+    "blend_alpha": 0.15,
+    "target": "next_month_percentage_change",
+    "validation_type": "chronological_future_holdout",
+    "cutoff_date": "2024-01-01",
+    "training_rows": 2295,
+    "validation_rows": 179,
+    "testing_rows": 224,
+    "training_target_start": "2010-08-01",
+    "training_target_end": "2022-12-01",
+    "testing_target_start": "2024-01-01",
+    "testing_target_end": "2025-03-01",
+    "MAE": 287.2,
+    "RMSE": 595.77,
+    "R2": 0.9884,
+    "baseline_MAE": 286.43,
+    "baseline_RMSE": 597.66,
+    "baseline_R2": 0.9883,
+    "MAE_improvement_percent": -0.27
 }

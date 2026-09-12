@@ -179,7 +179,6 @@ body {
   translate: no;
 }
 
-<<<<<<< Updated upstream
 /* ── Voice Assistant Mic Wobble & Pulse Animations ── */
 @keyframes mic-wobble {
   0% { transform: scale(1) rotate(0deg); }
@@ -224,8 +223,6 @@ body {
   animation: sound-bar-bounce 0.8s ease-in-out infinite 0.4s;
 }
 
-
-=======
 /* ── Suppress Google Maps Development / Unbilled Dialog & Watermark ── */
 .gm-err-container,
 .gm-err-content,
@@ -263,5 +260,3 @@ div[style*="z-index: 1000001"] {
 .gm-style {
   background-color: #f8fafc !important;
 }
-
->>>>>>> Stashed changes

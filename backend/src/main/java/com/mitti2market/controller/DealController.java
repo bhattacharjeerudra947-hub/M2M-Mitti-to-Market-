@@ -251,8 +251,30 @@ public class DealController {
         }
     }
 
+    /** Update live logistics / driver location */
+    @RequestMapping(value = "/logistics/{logisticsId}/location", method = {RequestMethod.POST, RequestMethod.PUT})
+    public ResponseEntity<?> updateLogisticsLocation(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long logisticsId,
+            @RequestBody Map<String, Object> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Double lat = body.get("latitude") != null ? Double.valueOf(body.get("latitude").toString()) : null;
+            Double lng = body.get("longitude") != null ? Double.valueOf(body.get("longitude").toString()) : null;
+            Logistics logistics = logisticsService.updateLiveLocation(logisticsId, userId, lat, lng);
+            return ResponseEntity.ok(ApiResponse.ok("Location updated", Map.of(
+                    "id", logistics.getId(),
+                    "trackingId", logistics.getTrackingId()
+            )));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     /** Set logistics coordinates (registered or live) for a deal and recompute shared route */
-    @PostMapping("/{dealId}/locations")
+    @RequestMapping(value = "/{dealId}/locations", method = {RequestMethod.POST, RequestMethod.PUT})
     public ResponseEntity<?> setDealLocations(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable Long dealId,
