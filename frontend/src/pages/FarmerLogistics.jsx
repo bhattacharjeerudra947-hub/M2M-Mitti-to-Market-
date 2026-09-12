@@ -164,10 +164,15 @@ export default function FarmerLogistics() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 text-[11px] text-navy-500">
-                          <span className="inline-flex items-center gap-1"><Package className="w-3 h-3" /> Tracking #{s.trackingId}</span>
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-navy-500">
+                          <span className="inline-flex items-center gap-1 font-mono font-medium"><Package className="w-3 h-3 text-emerald-600" /> Tracking #{s.trackingId}</span>
+                          {(s.assignedVehicleNumber || s.vehicleNumber) && (
+                            <span className="inline-flex items-center gap-1 font-medium text-navy-800">
+                              <Truck className="w-3 h-3 text-blue-600" />
+                              Vehicle: {s.assignedVehicleLabel || s.assignedVehicleNumber || s.vehicleNumber}
+                            </span>
+                          )}
                           {s.transporterName && <span>Transporter: {s.transporterName}</span>}
-                          {s.vehicleNumber && <span>Vehicle: {s.vehicleNumber}</span>}
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-navy-50">

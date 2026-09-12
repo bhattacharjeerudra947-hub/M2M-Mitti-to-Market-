@@ -21,6 +21,12 @@ public class RouteRequest {
     /** Where destination coords came from: "REGISTERED" | "LIVE" */
     private String destinationSource = "REGISTERED";
 
+    /** Optional address label for pickup / origin */
+    private String originAddress;
+
+    /** Optional address label for destination / delivery */
+    private String destinationAddress;
+
     /** Deal ID — used to fetch cargo quantity for cost estimation */
     private Long dealId;
 

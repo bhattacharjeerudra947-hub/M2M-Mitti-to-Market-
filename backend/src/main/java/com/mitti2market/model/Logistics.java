@@ -79,6 +79,11 @@ public class Logistics {
     @Column(columnDefinition = "LONGTEXT")
     private String alternativeRoutesJson;
 
+    // Mitti2Market platform vehicle assignment (MITTI2MARKET logistics type)
+    private Long assignedVehicleId;
+    private String assignedVehicleNumber;
+    private String assignedVehicleLabel;
+
     // Special requirements
     private String specialHandling;
     private String packagingRequirements;

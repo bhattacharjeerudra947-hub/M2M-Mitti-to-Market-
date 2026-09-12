@@ -139,7 +139,7 @@ export default function LocationPicker({
           <div>
             <h4 className="text-sm font-bold text-navy-900">{label}</h4>
             <p className="text-[11px] text-navy-500 font-medium">
-              {role} Location Source
+              {role} Location Source {disabled && '· (Read Only)'}
             </p>
           </div>
         </div>

@@ -100,6 +100,38 @@ export async function getDealRouteInfo(dealId) {
   return apiGet(`/api/deals/${dealId}/route-info`);
 }
 
+// ──────── Platform Vehicles ────────
+
+export async function getAvailableVehicles(dealId) {
+  return apiGet(`/api/deals/${dealId}/logistics/vehicles`);
+}
+
+export async function assignVehicle(dealId, vehicleId) {
+  return apiPost(`/api/deals/${dealId}/logistics/assign`, { vehicleId });
+}
+
+export async function getAllVehicles() {
+  return apiGet('/api/vehicles');
+}
+
+export async function createVehicle(body) {
+  return apiPost('/api/vehicles', body);
+}
+
+export async function updateVehicle(vehicleId, body) {
+  return apiPut(`/api/vehicles/${vehicleId}`, body);
+}
+
+// ──────── Admin Logistics ────────
+
+export async function getAdminLogistics() {
+  return apiGet('/api/admin/logistics');
+}
+
+export async function getAdminLogisticsStats() {
+  return apiGet('/api/admin/logistics/stats');
+}
+
 // ──────── Deal Timeline + Disputes ────────
 
 export async function getDealTimeline(dealId) {

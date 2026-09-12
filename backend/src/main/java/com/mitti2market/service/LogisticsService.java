@@ -34,6 +34,8 @@ public class LogisticsService {
     private final RouteOptimizationService routeOptimizer;
     private final GoogleMapsService googleMapsService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final VehicleService vehicleService;
+    private final com.mitti2market.repository.TransportVehicleRepository vehicleRepo;
 
     private final AtomicLong trkCounter = new AtomicLong(100000);
 
@@ -423,14 +425,20 @@ public class LogisticsService {
         Logistics.LocationSource destSrc = "LIVE".equalsIgnoreCase(req.getDestinationSource())
                 ? Logistics.LocationSource.LIVE : Logistics.LocationSource.REGISTERED;
 
-        // Update deal location coordinates
+        // Update deal location coordinates & addresses
         if (req.getOrigin() != null) {
             deal.setPickupLatitude(req.getOrigin().getLatitude());
             deal.setPickupLongitude(req.getOrigin().getLongitude());
         }
+        if (req.getOriginAddress() != null && !req.getOriginAddress().isBlank()) {
+            deal.setPickupLocation(req.getOriginAddress());
+        }
         if (req.getDestination() != null) {
             deal.setDeliveryLatitude(req.getDestination().getLatitude());
             deal.setDeliveryLongitude(req.getDestination().getLongitude());
+        }
+        if (req.getDestinationAddress() != null && !req.getDestinationAddress().isBlank()) {
+            deal.setDeliveryLocation(req.getDestinationAddress());
         }
         dealRepo.save(deal);
 
@@ -455,9 +463,15 @@ public class LogisticsService {
             logistics.setPickupLatitude(req.getOrigin().getLatitude());
             logistics.setPickupLongitude(req.getOrigin().getLongitude());
         }
+        if (req.getOriginAddress() != null && !req.getOriginAddress().isBlank()) {
+            logistics.setPickupLocation(req.getOriginAddress());
+        }
         if (req.getDestination() != null) {
             logistics.setDeliveryLatitude(req.getDestination().getLatitude());
             logistics.setDeliveryLongitude(req.getDestination().getLongitude());
+        }
+        if (req.getDestinationAddress() != null && !req.getDestinationAddress().isBlank()) {
+            logistics.setDeliveryLocation(req.getDestinationAddress());
         }
         logistics.setPickupLocationSource(origSrc);
         logistics.setDeliveryLocationSource(destSrc);
@@ -585,16 +599,15 @@ public class LogisticsService {
     }
 
     /**
-     * All logistics records where the user is the farmer or buyer of the
-     * underlying deal — powers the Farmer/Business logistics pages.
+     * All logistics records where the user is the farmer or buyer —
+     * uses an efficient JPA query instead of loading all records.
      */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getMyLogistics(Long userId) {
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Logistics l : logisticsRepo.findAll()) {
+        for (Logistics l : logisticsRepo.findByUserId(userId)) {
             Deal d = l.getDeal();
             if (d == null || d.getFarmer() == null || d.getBuyer() == null) continue;
-            if (!d.getFarmer().getId().equals(userId) && !d.getBuyer().getId().equals(userId)) continue;
 
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", l.getId());
@@ -614,11 +627,177 @@ public class LogisticsService {
             m.put("routeEstimatedCost", l.getRouteEstimatedCost());
             m.put("vehicleNumber", l.getVehicleNumber() != null ? l.getVehicleNumber() : "");
             m.put("transporterName", l.getTransporterName() != null ? l.getTransporterName() : "");
+            m.put("assignedVehicleNumber", l.getAssignedVehicleNumber() != null ? l.getAssignedVehicleNumber() : "");
+            m.put("assignedVehicleLabel", l.getAssignedVehicleLabel() != null ? l.getAssignedVehicleLabel() : "");
             m.put("createdAt", l.getCreatedAt());
             out.add(m);
         }
         return out;
     }
+
+    /**
+     * Get available platform vehicles for a deal — eligible (capacity ok) and ineligible (too small).
+     * Includes estimated cost based on the deal's computed route distance.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAvailableVehicles(Long dealId, Long userId) {
+        Deal deal = dealRepo.findById(dealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deal", "id", dealId));
+        verifyDealAccess(deal, userId);
+
+        double cargoKg = deal.getQuantity() != null ? deal.getQuantity().doubleValue() : 0.0;
+
+        // Get route distance from logistics record or compute haversine fallback
+        double distanceKm = 0.0;
+        java.util.Optional<Logistics> optL = logisticsRepo.findByDealId(dealId);
+        if (optL.isPresent() && optL.get().getRouteDistanceKm() != null) {
+            distanceKm = optL.get().getRouteDistanceKm();
+        } else {
+            // Fallback: haversine from farmer to buyer
+            Double fromLat = deal.getPickupLatitude() != null ? deal.getPickupLatitude() : deal.getFarmer().getLatitude();
+            Double fromLng = deal.getPickupLongitude() != null ? deal.getPickupLongitude() : deal.getFarmer().getLongitude();
+            Double toLat   = deal.getDeliveryLatitude() != null ? deal.getDeliveryLatitude() : deal.getBuyer().getLatitude();
+            Double toLng   = deal.getDeliveryLongitude() != null ? deal.getDeliveryLongitude() : deal.getBuyer().getLongitude();
+            if (fromLat != null && toLat != null) {
+                distanceKm = RouteService.haversineKm(fromLat, fromLng, toLat, toLng);
+            }
+        }
+
+        Map<String, Object> result = vehicleService.getVehiclesForDeal(cargoKg, distanceKm);
+        result.put("dealId", dealId);
+        result.put("dealNumber", deal.getDealId());
+        result.put("cropName", deal.getCropName());
+        return result;
+    }
+
+    /**
+     * Assign a Mitti2Market platform vehicle to a deal logistics record.
+     * Atomically marks the vehicle ASSIGNED to prevent double-assignment.
+     */
+    @Transactional
+    public Map<String, Object> assignVehicle(Long dealId, Long vehicleId, Long userId) {
+        Deal deal = dealRepo.findById(dealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deal", "id", dealId));
+        verifyDealAccess(deal, userId);
+
+        if (deal.getStatus() == Deal.DealStatus.COMPLETED || deal.getStatus() == Deal.DealStatus.CANCELLED) {
+            throw new BadRequestException("Cannot assign vehicle to a completed or cancelled deal");
+        }
+
+        com.mitti2market.model.TransportVehicle vehicle = vehicleRepo.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle", "id", vehicleId));
+
+        if (vehicle.getAvailabilityStatus() != com.mitti2market.model.TransportVehicle.AvailabilityStatus.AVAILABLE) {
+            throw new BadRequestException("Vehicle " + vehicle.getVehicleNumber() + " is not currently available");
+        }
+
+        double cargoKg = deal.getQuantity() != null ? deal.getQuantity().doubleValue() : 0.0;
+        if (vehicle.getCapacityKg() < cargoKg) {
+            throw new BadRequestException(
+                    "Vehicle capacity (" + vehicle.getCapacityKg().intValue() + " kg) is insufficient for cargo ("
+                    + (int) cargoKg + " kg)");
+        }
+
+        // Get or create logistics record
+        Logistics logistics = logisticsRepo.findByDealId(dealId).orElseGet(() -> {
+            String trkId = "M2M-TRK-" + (trkCounter.incrementAndGet());
+            Logistics l = Logistics.builder()
+                    .trackingId(trkId)
+                    .deal(deal)
+                    .type(LogisticsType.MITTI2MARKET)
+                    .pickupLocation(deal.getPickupLocation())
+                    .deliveryLocation(deal.getDeliveryLocation())
+                    .pickupLatitude(deal.getPickupLatitude() != null ? deal.getPickupLatitude() : deal.getFarmer().getLatitude())
+                    .pickupLongitude(deal.getPickupLongitude() != null ? deal.getPickupLongitude() : deal.getFarmer().getLongitude())
+                    .deliveryLatitude(deal.getDeliveryLatitude() != null ? deal.getDeliveryLatitude() : deal.getBuyer().getLatitude())
+                    .deliveryLongitude(deal.getDeliveryLongitude() != null ? deal.getDeliveryLongitude() : deal.getBuyer().getLongitude())
+                    .status(LogisticsStatus.REQUESTED)
+                    .build();
+            computeAndStoreRoute(l);
+            return logisticsRepo.save(l);
+        });
+
+        // Atomically mark vehicle ASSIGNED
+        vehicleService.markAssigned(vehicleId);
+
+        // Update logistics with vehicle info
+        logistics.setAssignedVehicleId(vehicleId);
+        logistics.setAssignedVehicleNumber(vehicle.getVehicleNumber());
+        logistics.setAssignedVehicleLabel(vehicle.getVehicleLabel() != null
+                ? vehicle.getVehicleLabel()
+                : vehicle.getVehicleType().label() + " – " + vehicle.getVehicleNumber());
+        logistics.setVehicleNumber(vehicle.getVehicleNumber());
+        logistics.setVehicleType(vehicle.getVehicleType().label());
+        logistics.setStatus(LogisticsStatus.ASSIGNED);
+        logistics = logisticsRepo.save(logistics);
+
+        // Transition deal status
+        String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
+        stateMachine.transition(deal.getId(), Deal.DealStatus.LOGISTICS_ASSIGNED, userId, actorRole,
+                "Platform vehicle assigned: " + vehicle.getVehicleNumber(), null);
+
+        addEvent(logistics, LogisticsStatus.ASSIGNED,
+                "Platform vehicle assigned: " + vehicle.getVehicleLabel() + " (" + vehicle.getVehicleNumber() + ")",
+                null);
+
+        // Notify the other party
+        Long otherUserId = userId.equals(deal.getFarmer().getId()) ? deal.getBuyer().getId() : deal.getFarmer().getId();
+        notificationService.createNotification(otherUserId, Notification.NotificationType.LOGISTICS_UPDATE,
+                "Vehicle Assigned",
+                "Mitti2Market vehicle " + vehicle.getVehicleNumber() + " has been assigned for deal " + deal.getDealId());
+
+        // Return vehicle + route summary
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("logisticsId", logistics.getId());
+        result.put("trackingId", logistics.getTrackingId());
+        result.put("assignedVehicleId", vehicleId);
+        result.put("assignedVehicleNumber", vehicle.getVehicleNumber());
+        result.put("assignedVehicleLabel", logistics.getAssignedVehicleLabel());
+        result.put("vehicleType", vehicle.getVehicleType().label());
+        result.put("capacityKg", vehicle.getCapacityKg());
+        result.put("status", logistics.getStatus().name());
+        result.put("routeDistanceKm", logistics.getRouteDistanceKm());
+        result.put("estimatedCostRupees", logistics.getRouteDistanceKm() != null
+                ? vehicle.estimateCost(logistics.getRouteDistanceKm()) : null);
+        return result;
+    }
+
+    /**
+     * Admin: all logistics records in reverse chronological order.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getAllLogisticsForAdmin() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Logistics l : logisticsRepo.findAllByOrderByCreatedAtDesc()) {
+            Deal d = l.getDeal();
+            if (d == null) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", l.getId());
+            m.put("trackingId", l.getTrackingId());
+            m.put("type", l.getType() != null ? l.getType().name() : "OWN");
+            m.put("status", l.getStatus() != null ? l.getStatus().name() : "REQUESTED");
+            m.put("dealId", d.getId());
+            m.put("dealNumber", d.getDealId());
+            m.put("farmerName", d.getFarmer() != null ? d.getFarmer().getName() : "");
+            m.put("buyerName", d.getBuyer() != null ? d.getBuyer().getName() : "");
+            m.put("cropName", d.getCropName());
+            m.put("quantityKg", d.getQuantity());
+            m.put("pickupLocation", l.getPickupLocation());
+            m.put("deliveryLocation", l.getDeliveryLocation());
+            m.put("routeDistanceKm", l.getRouteDistanceKm());
+            m.put("routeEstimatedCost", l.getRouteEstimatedCost());
+            m.put("vehicleNumber", l.getVehicleNumber());
+            m.put("assignedVehicleNumber", l.getAssignedVehicleNumber());
+            m.put("assignedVehicleLabel", l.getAssignedVehicleLabel());
+            m.put("scheduledPickup", l.getScheduledPickup());
+            m.put("expectedDelivery", l.getExpectedDelivery());
+            m.put("actualDelivery", l.getActualDelivery());
+            m.put("createdAt", l.getCreatedAt());
+            out.add(m);
+        }
+        return out;
+    }
+
 
     /**
      * Fetch + verify a logistics record — the user must be a deal party.
