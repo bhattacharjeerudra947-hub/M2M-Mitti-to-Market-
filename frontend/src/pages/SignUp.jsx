@@ -957,7 +957,7 @@ export default function SignUp() {
                 {formData.otpSent && !formData.otpVerified && (
                   <div className="pt-2 border-t border-gray-200/80 animate-in fade-in space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <label className="font-semibold text-gray-700">Enter MSG91 OTP</label>
+                      <label className="font-semibold text-gray-700">Enter OTP</label>
                       {formData.devOtpHint && (
                         <span className="text-[11px] bg-amber-100 text-amber-800 font-mono px-2 py-0.5 rounded">
                           Dev OTP: {formData.devOtpHint}
