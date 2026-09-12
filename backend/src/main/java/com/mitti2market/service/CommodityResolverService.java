@@ -8,11 +8,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.time.Duration;
+import java.util.*;
 
 @Service
 public class CommodityResolverService {
@@ -20,608 +17,215 @@ public class CommodityResolverService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    public CommodityResolverService(
-            WebClient.Builder webClientBuilder,
-            ObjectMapper objectMapper) {
-
-        this.webClient = webClientBuilder.build();
-        this.objectMapper = objectMapper;
-    }
-
     @Value("${mandi.api.key}")
     private String apiKey;
 
     @Value("${mandi.api.url}")
     private String apiUrl;
 
-    /*
-     * =========================================================
-     * RESOLVE USER COMMODITY
-     * =========================================================
-     *
-     * Example:
-     *
-     * tomato
-     * Tomatoes
-     * TOMATO
-     *
-     * can resolve to the official commodity name:
-     *
-     * Tomato
+    // Multilingual dictionary mapping aliases (English, Hindi, Bengali, Hinglish, etc.)
+    // directly to official mandi commodity names
+    private static final Map<String, String> COMMODITY_DICTIONARY = new HashMap<>();
+
+    static {
+        // VEGETABLES
+        mapAliases("Tomato", "tomato", "tomatoes", "tamatar", "tometo", "tomata", "टमाटर", "টমেটো", "বিলিতি");
+        mapAliases("Potato", "potato", "potatoes", "alu", "aaloo", "aalu", "batata", "आलू", "আলু");
+        mapAliases("Onion", "onion", "onions", "pyaj", "pyaaz", "pyaz", "kanda", "dungri", "प्याज़", "प्याज", "পেঁয়াজ");
+        mapAliases("Green Chilli", "green chilli", "green chili", "chilli", "chili", "mirch", "hari mirch", "mirchi", "हरी मिर्च", "मिर्च", "কাঁচা লঙ্কা", "লঙ্কা");
+        mapAliases("Chilli Red", "red chilli", "red chili", "lal mirch", "dry chilli", "लाल मिर्च", "শুকনো লঙ্কা");
+        mapAliases("Ginger(Green)", "ginger", "adrak", "adrakh", "ale", "अदरक", "আদা");
+        mapAliases("Garlic", "garlic", "lahsun", "lasun", "lehasun", "लहसुन", "রসুন");
+        mapAliases("Cauliflower", "cauliflower", "phool gobhi", "phool gobi", "gobhi", "gobi", "फूलगोभी", "ফুলকপি");
+        mapAliases("Cabbage", "cabbage", "patta gobhi", "patta gobi", "bandha gobhi", "पत्तागोभी", "বাঁধাকপি");
+        mapAliases("Brinjal", "brinjal", "eggplant", "aubergine", "baingan", "baigan", "vangi", "बैंगन", "বেগুন");
+        mapAliases("Bhindi(Ladies Finger)", "bhindi", "okra", "ladies finger", "ladyfinger", "bhendi", "भिंडी", "ঢ্যাঁড়শ");
+        mapAliases("Cucumbar(Kheera)", "cucumber", "kheera", "khira", "kakdi", "shosha", "खीरा", "শসা");
+        mapAliases("Carrot", "carrot", "gajar", "गाजर", "গাজর");
+        mapAliases("Radish", "radish", "mooli", "muli", "मूली", "মুলো");
+        mapAliases("Bottle Gourd", "bottle gourd", "lauki", "ghiya", "doodhi", "lau", "लौकी", "লাউ");
+        mapAliases("Bitter Gourd", "bitter gourd", "karela", "karala", "करेला", "করলা");
+        mapAliases("Capsicum", "capsicum", "shimla mirch", "bell pepper", "शिमला मिर्च", "ক্যাপসিকাম");
+        mapAliases("Green Peas", "green peas", "peas", "matar", "हरी मटर", "मटर", "মটরশুঁটি");
+        mapAliases("Spinach", "spinach", "palak", "पालक", "পালংশাক");
+
+        // GRAINS & CEREALS
+        mapAliases("Wheat", "wheat", "gehu", "gehun", "kanak", "गेहूं", "गेहूँ", "গম");
+        mapAliases("Paddy(Dhan)(Common)", "rice", "paddy", "dhan", "chawal", "tandul", "chaanwal", "धान", "चावल", "ধান", "চাল");
+        mapAliases("Maize", "maize", "corn", "makka", "makkai", "makai", "मक्का", "ভুট্টা");
+        mapAliases("Bajra(Pearl Millet/Cumbu)", "bajra", "pearl millet", "cumbu", "बाजरा", "বাজরা");
+        mapAliases("Jowar(Sorghum)", "jowar", "sorghum", "jowari", "ज्वार", "জোয়ার");
+        mapAliases("Barley (Jau)", "barley", "jau", "जौ", "বার্লি");
+
+        // PULSES
+        mapAliases("Bengal Gram(Gram)(Whole)", "chana", "gram", "bengal gram", "kala chana", "चना", "ছোলা");
+        mapAliases("Arhar (Tur/Red Gram)(Whole)", "tur", "toor", "arhar", "tur dal", "toor dal", "तुअर", "अरहर", "তুড় ডাল");
+        mapAliases("Moong(Green Gram)(Whole)", "moong", "mung", "moong dal", "mung bean", "मूंग", "মুগ");
+        mapAliases("Mash(Urd/Black Gram)(Whole)", "urad", "mash", "urad dal", "black gram", "उड़द", "বিউলি");
+        mapAliases("Masur(Lentil)(Whole)", "masur", "masoor", "lentil", "masoor dal", "मसूर", "মসুর");
+
+        // OILSEEDS
+        mapAliases("Mustard", "mustard", "sarson", "sarso", "rai", "toria", "सरसों", "সর্ষে", "রাই");
+        mapAliases("Soyabean", "soyabean", "soybean", "soya", "सोयाबीन", "সয়াবিন");
+        mapAliases("Groundnut", "groundnut", "peanut", "moongphali", "mungfali", "singdana", "मूंगफली", "বাদাম", "চীনাবাদাম");
+        mapAliases("Sesamum(Sesame,Gingelly,Til)", "sesame", "til", "gingelly", "तिल", "তিল");
+        mapAliases("Sunflower", "sunflower", "surajmukhi", "सूरजमुखी", "সূর্যমুখী");
+
+        // FRUITS
+        mapAliases("Apple", "apple", "seb", "saeb", "सेब", "আপেল");
+        mapAliases("Banana", "banana", "kela", "केला", "কলা");
+        mapAliases("Mango", "mango", "aam", "আম", "आम");
+        mapAliases("Grapes", "grapes", "angoor", "angur", "draksh", "अंगूर", "আঙুর");
+        mapAliases("Orange", "orange", "santara", "santre", "narangi", "santola", "संतरा", "কমলালেবু");
+        mapAliases("Pomegranate", "pomegranate", "anaar", "anar", "dalim", "bedana", "अनार", "বেদানা", "ডালিম");
+        mapAliases("Water Melon", "watermelon", "water melon", "tarbooj", "tarbuz", "तरबूज", "তরমুজ");
+        mapAliases("Papaya", "papaya", "papita", "पपीता", "পেঁপে");
+        mapAliases("Guava", "guava", "amrood", "amrud", "peyara", "अमरूद", "পেয়ারা");
+        mapAliases("Pineapple", "pineapple", "ananas", "अनानास", "আনারস");
+        mapAliases("Lemon", "lemon", "nimbu", "neebu", "lebu", "नींबू", "লেবু");
+
+        // COMMERCIAL & SPICES
+        mapAliases("Cotton", "cotton", "kapas", "rui", "कपास", "তুলা");
+        mapAliases("Sugarcane", "sugarcane", "ganna", "aakh", "गन्ना", "আখ");
+        mapAliases("Turmeric", "turmeric", "haldi", "हल्दी", "হলুদ");
+        mapAliases("Coriander(Leaves)", "coriander", "dhaniya", "dhoniya", "ধনে", "धनिया");
+        mapAliases("Cumin Seed(Jeera)", "cumin", "jeera", "jira", "जीरा", "জিরে");
+        mapAliases("Black Pepper", "black pepper", "kali mirch", "gol morich", "काली मिर्च", "গোলমরিচ");
+        mapAliases("Cardamoms", "cardamom", "elaichi", "elachi", "इलायची", "এলাচ");
+        mapAliases("Tea", "tea", "chai", "चाय", "চা");
+        mapAliases("Coffee", "coffee", "कॉफ़ी", "কফি");
+        mapAliases("Coconut", "coconut", "nariyal", "narkel", "नारियल", "নারকেল");
+    }
+
+    private static void mapAliases(String officialName, String... aliases) {
+        COMMODITY_DICTIONARY.put(normalize(officialName), officialName);
+        for (String alias : aliases) {
+            COMMODITY_DICTIONARY.put(normalize(alias), officialName);
+        }
+    }
+
+    public CommodityResolverService(
+            WebClient.Builder webClientBuilder,
+            ObjectMapper objectMapper) {
+        this.webClient = webClientBuilder.build();
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Instantly resolves user input to official mandi commodity name.
+     * Checks in-memory dictionary first (<1ms), then clean title-casing.
      */
-
     public String resolveCommodity(String userCommodity) {
-
-        if (userCommodity == null
-                || userCommodity.isBlank()) {
-
+        if (userCommodity == null || userCommodity.isBlank()) {
             return null;
         }
 
-        String cleaned =
-                cleanCommodity(userCommodity);
-
+        String cleaned = cleanCommodity(userCommodity);
         if (cleaned.isBlank()) {
             return null;
         }
 
-        System.out.println("=================================");
-        System.out.println("COMMODITY RESOLVER");
-        System.out.println("User commodity : " + userCommodity);
-        System.out.println("Cleaned        : " + cleaned);
-        System.out.println("=================================");
+        String normalized = normalize(cleaned);
 
-        /*
-         * First try exact government API filtering.
-         *
-         * This is the fastest and safest path.
-         */
-
-        String exact =
-                findExactCommodity(cleaned);
-
-        if (exact != null) {
-            return exact;
+        // 1. Direct dictionary match (<0.1 ms)
+        if (COMMODITY_DICTIONARY.containsKey(normalized)) {
+            return COMMODITY_DICTIONARY.get(normalized);
         }
 
-        /*
-         * If exact matching fails, load commodity names from
-         * the government dataset and perform dynamic matching.
-         */
+        // 2. Word-by-word exact token matching from cleaned input
+        String[] words = cleaned.split("[^a-zA-Z0-9\\u0900-\\u097F\\u0980-\\u09FF]+");
+        for (String word : words) {
+            String normWord = normalize(word);
+            if (!normWord.isBlank() && COMMODITY_DICTIONARY.containsKey(normWord)) {
+                return COMMODITY_DICTIONARY.get(normWord);
+            }
+        }
 
-        return findFromGovernmentCatalog(cleaned);
+        // Multi-word alias matching (e.g. "green chilli", "bottle gourd", "hari mirch")
+        for (Map.Entry<String, String> entry : COMMODITY_DICTIONARY.entrySet()) {
+            String key = entry.getKey();
+            if (normalized.contains(key) && key.length() >= 4) {
+                return entry.getValue();
+            }
+        }
+
+        // 3. Fast exact API check with 2-second timeout (only 1 single request, no pagination loops)
+        String onlineMatch = findExactCommodityQuick(cleaned);
+        if (onlineMatch != null) {
+            COMMODITY_DICTIONARY.put(normalized, onlineMatch);
+            return onlineMatch;
+        }
+
+        // 4. Default to Capitalized title case as standard commodity representation
+        return toTitleCase(cleaned);
     }
 
-    // =========================================================
-    // EXACT GOVERNMENT SEARCH
-    // =========================================================
+    public String resolveWithVariations(String userCommodity) {
+        return resolveCommodity(userCommodity);
+    }
 
-    private String findExactCommodity(
-            String commodity) {
-
+    private String findExactCommodityQuick(String commodity) {
         try {
-
-            URI uri =
-                    UriComponentsBuilder
-                            .fromHttpUrl(apiUrl)
-                            .queryParam(
-                                    "api-key",
-                                    apiKey
-                            )
-                            .queryParam(
-                                    "format",
-                                    "json"
-                            )
-                            .queryParam(
-                                    "limit",
-                                    10
-                            )
-                            .queryParam(
-                                    "offset",
-                                    0
-                            )
-                            .queryParam(
-                                    "filters[commodity]",
-                                    commodity
-                            )
-                            .build()
-                            .encode()
-                            .toUri();
-
-            String response =
-                    webClient
-                            .get()
-                            .uri(uri)
-                            .header(
-                                    "Accept",
-                                    "application/json"
-                            )
-                            .retrieve()
-                            .bodyToMono(
-                                    String.class
-                            )
-                            .block();
-
-            if (response == null
-                    || response.isBlank()) {
-
-                return null;
-            }
-
-            JsonNode root =
-                    objectMapper.readTree(response);
-
-            JsonNode records =
-                    root.path("records");
-
-            if (!records.isArray()
-                    || records.isEmpty()) {
-
-                return null;
-            }
-
-            for (JsonNode record : records) {
-
-                String commodityName =
-                        record
-                                .path("commodity")
-                                .asText("")
-                                .trim();
-
-                if (!commodityName.isBlank()) {
-
-                    System.out.println(
-                            "Exact commodity match: "
-                                    + commodityName
-                    );
-
-                    return commodityName;
-                }
-            }
-
-        } catch (Exception e) {
-
-            System.err.println(
-                    "Exact commodity search error: "
-                            + e.getMessage()
-            );
-        }
-
-        return null;
-    }
-
-    // =========================================================
-    // DYNAMIC GOVERNMENT CATALOG
-    // =========================================================
-
-    private String findFromGovernmentCatalog(
-            String userCommodity) {
-
-        try {
-
-            /*
-             * The API supports pagination.
-             *
-             * We retrieve only the commodity field instead of
-             * downloading prices, markets and other fields.
-             *
-             * This keeps the response relatively small.
-             */
-
-            Set<String> commodities =
-                    new HashSet<>();
-
-            int offset = 0;
-
-            int pageSize = 1000;
-
-            /*
-             * Safety limit.
-             *
-             * We don't want an accidental huge API download.
-             */
-
-            int maxRecords = 10000;
-
-            while (offset < maxRecords) {
-
-                URI uri =
-                        UriComponentsBuilder
-                                .fromHttpUrl(apiUrl)
-                                .queryParam(
-                                        "api-key",
-                                        apiKey
-                                )
-                                .queryParam(
-                                        "format",
-                                        "json"
-                                )
-                                .queryParam(
-                                        "limit",
-                                        pageSize
-                                )
-                                .queryParam(
-                                        "offset",
-                                        offset
-                                )
-                                .queryParam(
-                                        "fields",
-                                        "commodity"
-                                )
-                                .build()
-                                .encode()
-                                .toUri();
-
-                String response =
-                        webClient
-                                .get()
-                                .uri(uri)
-                                .header(
-                                        "Accept",
-                                        "application/json"
-                                )
-                                .retrieve()
-                                .bodyToMono(
-                                        String.class
-                                )
-                                .block();
-
-                if (response == null
-                        || response.isBlank()) {
-
-                    break;
-                }
-
-                JsonNode root =
-                        objectMapper.readTree(response);
-
-                JsonNode records =
-                        root.path("records");
-
-                if (!records.isArray()
-                        || records.isEmpty()) {
-
-                    break;
-                }
-
-                int recordsReceived = 0;
-
-                for (JsonNode record : records) {
-
-                    String commodity =
-                            record
-                                    .path("commodity")
-                                    .asText("")
-                                    .trim();
-
-                    if (!commodity.isBlank()) {
-
-                        commodities.add(
-                                commodity
-                        );
-                    }
-
-                    recordsReceived++;
-                }
-
-                /*
-                 * If fewer records than the requested page
-                 * size were returned, we reached the end.
-                 */
-
-                if (recordsReceived < pageSize) {
-                    break;
-                }
-
-                offset += pageSize;
-            }
-
-            System.out.println(
-                    "Government commodity catalog size: "
-                            + commodities.size()
-            );
-
-            return findBestMatch(
-                    userCommodity,
-                    new ArrayList<>(commodities)
-            );
-
-        } catch (Exception e) {
-
-            System.err.println(
-                    "Dynamic commodity catalog error: "
-                            + e.getMessage()
-            );
-
-            return null;
-        }
-    }
-
-    // =========================================================
-    // DYNAMIC MATCHING
-    // =========================================================
-
-    private String findBestMatch(
-            String userCommodity,
-            List<String> commodities) {
-
-        if (commodities.isEmpty()) {
-            return null;
-        }
-
-        String input =
-                normalize(userCommodity);
-
-        /*
-         * -----------------------------------------------------
-         * 1. Exact normalized match
-         * -----------------------------------------------------
-         */
-
-        for (String commodity : commodities) {
-
-            if (normalize(commodity)
-                    .equals(input)) {
-
-                System.out.println(
-                        "Dynamic exact match: "
-                                + commodity
-                );
-
-                return commodity;
-            }
-        }
-
-        /*
-         * -----------------------------------------------------
-         * 2. Singular/plural matching
-         * -----------------------------------------------------
-         */
-
-        String singular =
-                singularize(input);
-
-        for (String commodity : commodities) {
-
-            String normalized =
-                    normalize(commodity);
-
-            if (normalized.equals(singular)) {
-
-                System.out.println(
-                        "Dynamic singular match: "
-                                + commodity
-                );
-
-                return commodity;
-            }
-        }
-
-        /*
-         * -----------------------------------------------------
-         * 3. Containment matching
-         * -----------------------------------------------------
-         *
-         * Example:
-         *
-         * user:
-         * "dragon fruit"
-         *
-         * government:
-         * "Dragon Fruit"
-         */
-
-        List<String> candidates =
-                new ArrayList<>();
-
-        for (String commodity : commodities) {
-
-            String normalized =
-                    normalize(commodity);
-
-            if (normalized.contains(input)
-                    || input.contains(normalized)) {
-
-                candidates.add(commodity);
-            }
-        }
-
-        if (!candidates.isEmpty()) {
-
-            candidates.sort(
-                    Comparator.comparingInt(
-                            value ->
-                                    normalize(value)
-                                            .length()
-                    )
-            );
-
-            String result =
-                    candidates.get(0);
-
-            System.out.println(
-                    "Dynamic containment match: "
-                            + result
-            );
-
-            return result;
-        }
-
-        /*
-         * -----------------------------------------------------
-         * 4. Token matching
-         * -----------------------------------------------------
-         */
-
-        String[] inputTokens =
-                input.split("\\s+");
-
-        String bestMatch = null;
-
-        int bestScore = 0;
-
-        for (String commodity : commodities) {
-
-            String normalized =
-                    normalize(commodity);
-
-            String[] tokens =
-                    normalized.split("\\s+");
-
-            int score = 0;
-
-            for (String inputToken : inputTokens) {
-
-                for (String token : tokens) {
-
-                    if (token.equals(inputToken)) {
-                        score++;
+            URI uri = UriComponentsBuilder
+                    .fromHttpUrl(apiUrl)
+                    .queryParam("api-key", apiKey)
+                    .queryParam("format", "json")
+                    .queryParam("limit", 2)
+                    .queryParam("offset", 0)
+                    .queryParam("filters[commodity]", toTitleCase(commodity))
+                    .build()
+                    .encode()
+                    .toUri();
+
+            String response = webClient
+                    .get()
+                    .uri(uri)
+                    .header("Accept", "application/json")
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofMillis(2000))
+                    .block();
+
+            if (response != null && !response.isBlank()) {
+                JsonNode root = objectMapper.readTree(response);
+                JsonNode records = root.path("records");
+                if (records.isArray() && !records.isEmpty()) {
+                    String name = records.get(0).path("commodity").asText("").trim();
+                    if (!name.isBlank()) {
+                        return name;
                     }
                 }
             }
-
-            if (score > bestScore) {
-
-                bestScore = score;
-
-                bestMatch = commodity;
-            }
+        } catch (Exception ignored) {
+            // Fast failure to avoid UI latency
         }
-
-        /*
-         * Require at least one meaningful token.
-         */
-
-        if (bestScore > 0) {
-
-            System.out.println(
-                    "Dynamic token match: "
-                            + bestMatch
-            );
-
-            return bestMatch;
-        }
-
         return null;
     }
 
-    // =========================================================
-    // NORMALIZATION
-    // =========================================================
+    private static String normalize(String value) {
+        if (value == null) return "";
+        return value.trim().toLowerCase().replaceAll("[^a-zA-Z0-9\u0900-\u097F\u0980-\u09FF]", "");
+    }
 
-    private String normalize(String value) {
-
-        if (value == null) {
-            return "";
-        }
-
-        String result =
-                value
-                        .trim()
-                        .toLowerCase();
-
-        result =
-                result.replaceAll(
-                        "[^a-z0-9\\s]",
-                        " "
-                );
-
-        result =
-                result.replaceAll(
-                        "\\s+",
-                        " "
-                )
+    private static String cleanCommodity(String value) {
+        if (value == null) return "";
+        return value.trim().toLowerCase()
+                .replaceAll("[?.,!]+", " ")
+                .replaceAll("\\s+", " ")
                 .trim();
-
-        return result;
     }
 
-    // =========================================================
-    // SINGULARIZATION
-    // =========================================================
-
-    private String singularize(
-            String value) {
-
-        if (value == null
-                || value.isBlank()) {
-
-            return value;
+    private static String toTitleCase(String input) {
+        if (input == null || input.isBlank()) return input;
+        String[] words = input.trim().split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                sb.append(Character.toUpperCase(word.charAt(0)))
+                  .append(word.substring(1).toLowerCase())
+                  .append(" ");
+            }
         }
-
-        if (value.endsWith("ies")
-                && value.length() > 4) {
-
-            return value.substring(
-                    0,
-                    value.length() - 3
-            ) + "y";
-        }
-
-        if (value.endsWith("es")
-                && value.length() > 4) {
-
-            return value.substring(
-                    0,
-                    value.length() - 2
-            );
-        }
-
-        if (value.endsWith("s")
-                && value.length() > 3) {
-
-            return value.substring(
-                    0,
-                    value.length() - 1
-            );
-        }
-
-        return value;
-    }
-
-    // =========================================================
-    // CLEAN USER INPUT
-    // =========================================================
-
-    private String cleanCommodity(
-            String value) {
-
-        String result =
-                value
-                        .trim()
-                        .toLowerCase();
-
-        result =
-                result.replaceAll(
-                        "[?.,!]+",
-                        " "
-                );
-
-        result =
-                result.replaceAll(
-                        "\\s+",
-                        " "
-                )
-                .trim();
-
-        return result;
-    }
-
-    // =========================================================
-    // PUBLIC VARIATION SUPPORT
-    // =========================================================
-
-    public String resolveWithVariations(
-            String userCommodity) {
-
-        if (userCommodity == null
-                || userCommodity.isBlank()) {
-
-            return null;
-        }
-
-        return resolveCommodity(
-                userCommodity
-        );
+        return sb.toString().trim();
     }
 }
