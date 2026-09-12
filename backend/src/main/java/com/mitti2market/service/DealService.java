@@ -116,12 +116,19 @@ public class DealService {
             unit = (String) details.getOrDefault("unit", "kg");
         }
 
-        // Fail fast: never create a deal that can't be locked because the
-        // listing no longer has enough stock. The full reservation still
-        // happens atomically at lock time in reserveQuantity().
-        if (produce != null && quantity > produce.getQuantity()) {
-            throw new BadRequestException("Only " + produce.getQuantity() + " " + produce.getUnit() +
-                    " remains available for " + produce.getName() + ". Deal quantity is " + quantity + " " + unit);
+        // Fail fast: reject expired or sold-out produce, or deals exceeding available quantity
+        if (produce != null) {
+            if (produce.getStatus() == Produce.ProduceStatus.EXPIRED ||
+                    (produce.getExpiryDate() != null && produce.getExpiryDate().isBefore(java.time.LocalDate.now()))) {
+                throw new BadRequestException("This produce has expired and is no longer available for new deals");
+            }
+            if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || produce.getQuantity() <= 0) {
+                throw new BadRequestException("This produce is completely sold out");
+            }
+            if (quantity > produce.getQuantity()) {
+                throw new BadRequestException("Only " + produce.getQuantity() + " " + produce.getUnit() +
+                        " remains available for " + produce.getName() + ". Deal quantity is " + quantity + " " + unit);
+            }
         }
 
         String dealIdStr = "M2M-" + LocalDateTime.now().getYear() + "-" + (DEAL_COUNTER.incrementAndGet());
@@ -250,7 +257,10 @@ public class DealService {
     private synchronized void reserveQuantity(Deal deal) {
         if (deal.getProduce() == null || deal.getQuantity() == null) return;
 
-        Produce produce = deal.getProduce();
+        Long produceId = deal.getProduce().getId();
+        Produce produce = produceRepo.findByIdWithLock(produceId)
+                .orElseThrow(() -> new BadRequestException("Associated produce listing not found"));
+
         if (produce.getQuantity() < deal.getQuantity()) {
             throw new BadRequestException("Only " + produce.getQuantity() + " " + deal.getUnit() +
                     " remains available for " + produce.getName() + ". Deal quantity is " + deal.getQuantity() + " " + deal.getUnit());
@@ -268,7 +278,8 @@ public class DealService {
         } else {
             produce.setStatus(Produce.ProduceStatus.PARTIALLY_SOLD);
         }
-        produceRepo.save(produce);
+        produce = produceRepo.save(produce);
+        deal.setProduce(produce);
 
         stateMachine.recordEvent(deal.getId(), "QUANTITY_RESERVED", null, "SYSTEM",
                 "Reserved " + deal.getQuantity() + " " + deal.getUnit() + " of " + produce.getName() +
@@ -419,7 +430,7 @@ public class DealService {
     }
 
     public Deal getDealByConversation(String conversationId) {
-        return deals.findByConversationId(conversationId)
+        return deals.findByConversationIdOrderByCreatedAtDesc(conversationId)
                 .stream()
                 .filter(d -> d.getStatus() != DealStatus.CANCELLED && d.getStatus() != DealStatus.COMPLETED)
                 .findFirst()

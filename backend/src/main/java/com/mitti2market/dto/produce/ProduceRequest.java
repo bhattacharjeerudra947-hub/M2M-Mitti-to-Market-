@@ -40,6 +40,15 @@ public class ProduceRequest {
     /** Expected harvest or ready date */
     private java.time.LocalDate readyDate;
 
+    /** Actual or estimated harvest date */
+    private java.time.LocalDate harvestDate;
+
+    /** Expected shelf life (e.g. 7_DAYS, 15_DAYS, 1_MONTH, 3_MONTHS, 6_MONTHS) */
+    private String shelfLife;
+
+    /** Explicit expiration date if provided by farmer */
+    private java.time.LocalDate expiryDate;
+
     /** Client-generated idempotency key for offline-first sync (prevents duplicate listings) */
     private String idempotencyKey;
 }

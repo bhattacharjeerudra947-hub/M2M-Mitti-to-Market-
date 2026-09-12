@@ -47,6 +47,9 @@ export default function AddProduce() {
     pricePerUnit: '',
     location: profileLocation,
     readyDate: '',
+    harvestDate: new Date().toISOString().split('T')[0],
+    shelfLife: '15_DAYS',
+    customExpiryDate: '',
     description: '',
   });
 
@@ -349,6 +352,18 @@ export default function AddProduce() {
         setUploadingImage(false);
       }
 
+      let computedExpiry = form.expiryDate;
+      if (form.shelfLife === 'CUSTOM') {
+        computedExpiry = form.customExpiryDate || null;
+      } else {
+        const base = form.harvestDate ? new Date(form.harvestDate) : new Date();
+        const daysMap = { '3_DAYS': 3, '7_DAYS': 7, '15_DAYS': 15, '1_MONTH': 30, '3_MONTHS': 90, '6_MONTHS': 180 };
+        const addDays = daysMap[form.shelfLife] || 15;
+        const d = new Date(base);
+        d.setDate(d.getDate() + addDays);
+        computedExpiry = d.toISOString().split('T')[0];
+      }
+
       await apiPost('/api/produce', {
         farmerId: user.id,
         name: form.name.trim(),
@@ -357,6 +372,9 @@ export default function AddProduce() {
         unit: form.unit,
         pricePerUnit: Number(form.pricePerUnit),
         readyDate: form.readyDate || null,
+        harvestDate: form.harvestDate || null,
+        shelfLife: form.shelfLife,
+        expiryDate: computedExpiry,
         description: form.description.trim(),
         location: form.location.trim(),
         imageUrl: imageUrl,
@@ -741,9 +759,85 @@ export default function AddProduce() {
                 ) : null}
               </div>
 
-              {/* Expected Ready Date — for Matching Engine */}
+              {/* ═══ Harvest Date & Shelf Life (Expiry System) ═══ */}
+              <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-navy-900 flex items-center gap-1.5">
+                    <span>🌱</span> Harvest Date & Shelf Life / Freshness *
+                  </label>
+                  <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+                    Auto-Expiry Protected
+                  </span>
+                </div>
+                <p className="text-xs text-navy-600">
+                  Mitti2Market guarantees buyer freshness. Produce will remain visible until its shelf life expires, after which it automatically moves to your sales history.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Harvest Date</label>
+                    <input
+                      type="date"
+                      name="harvestDate"
+                      value={form.harvestDate}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Expected Shelf Life</label>
+                    <select
+                      name="shelfLife"
+                      value={form.shelfLife}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition"
+                    >
+                      <option value="3_DAYS">3 Days (Leafy greens, berries)</option>
+                      <option value="7_DAYS">7 Days (Fresh vegetables, mushrooms)</option>
+                      <option value="15_DAYS">15 Days (Tomatoes, cucumbers, peppers)</option>
+                      <option value="1_MONTH">1 Month (Root crops, onions, potatoes)</option>
+                      <option value="3_MONTHS">3 Months (Squash, citrus, grains)</option>
+                      <option value="6_MONTHS">6 Months (Pulses, dry cereals, spices)</option>
+                      <option value="CUSTOM">Custom Expiry Date</option>
+                    </select>
+                  </div>
+                </div>
+
+                {form.shelfLife === 'CUSTOM' && (
+                  <div className="pt-1">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Custom Expiry Date</label>
+                    <input
+                      type="date"
+                      name="customExpiryDate"
+                      value={form.customExpiryDate}
+                      onChange={handleChange}
+                      min={form.harvestDate || new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2.5 bg-white border border-emerald-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition"
+                    />
+                  </div>
+                )}
+
+                <div className="p-2.5 bg-white/80 rounded-xl border border-emerald-100 text-xs text-emerald-900 flex items-center justify-between">
+                  <span className="font-medium">Estimated Expiry:</span>
+                  <span className="font-bold font-mono">
+                    {form.shelfLife === 'CUSTOM'
+                      ? form.customExpiryDate || 'Select Date'
+                      : (() => {
+                          const base = form.harvestDate ? new Date(form.harvestDate) : new Date();
+                          const daysMap = { '3_DAYS': 3, '7_DAYS': 7, '15_DAYS': 15, '1_MONTH': 30, '3_MONTHS': 90, '6_MONTHS': 180 };
+                          const addDays = daysMap[form.shelfLife] || 15;
+                          const d = new Date(base);
+                          d.setDate(d.getDate() + addDays);
+                          return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                        })()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Optional Ready Date — for Matching Engine */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Expected Ready / Harvest Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Expected Ready Date (Optional)</label>
                 <input
                   type="date"
                   name="readyDate"
@@ -752,7 +846,7 @@ export default function AddProduce() {
                   className="w-full px-4 py-3 bg-gray-50 border border-navy-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">
-                  Optional. Used by AI to pair with bulk buyers needing delivery by a specific date.
+                  Used by AI to pair with bulk buyers needing future delivery.
                 </p>
               </div>
 

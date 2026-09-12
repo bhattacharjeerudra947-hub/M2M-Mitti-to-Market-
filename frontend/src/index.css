@@ -179,6 +179,7 @@ body {
   translate: no;
 }
 
+<<<<<<< Updated upstream
 /* ── Voice Assistant Mic Wobble & Pulse Animations ── */
 @keyframes mic-wobble {
   0% { transform: scale(1) rotate(0deg); }
@@ -224,3 +225,43 @@ body {
 }
 
 
+=======
+/* ── Suppress Google Maps Development / Unbilled Dialog & Watermark ── */
+.gm-err-container,
+.gm-err-content,
+.gm-err-icon,
+.gm-err-title,
+.gm-err-message,
+.gm-err-autocomplete,
+.dismissButton,
+div[jsaction*="dismiss"],
+button[jsaction*="dismiss"],
+.gm-style div[style*="background-color: white"][style*="box-shadow"],
+div:has(> .gm-err-container) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+}
+
+/* Hide the darkened gray watermark grid overlay */
+.gm-style-pbc,
+div[style*="z-index: 1000001"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure map canvas & controls remain interactive */
+.gm-style {
+  background-color: #f8fafc !important;
+}
+
+>>>>>>> Stashed changes

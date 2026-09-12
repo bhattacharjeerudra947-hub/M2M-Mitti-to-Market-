@@ -66,6 +66,20 @@ public class Produce {
 
     /** Expected harvest or availability date */
     private LocalDate readyDate;
+
+    /** Actual or estimated harvest date */
+    private LocalDate harvestDate;
+
+    /** Expected shelf life / validity (e.g., 7_DAYS, 15_DAYS, 1_MONTH, 3_MONTHS, 6_MONTHS) */
+    private String shelfLife;
+
+    /** Calculated or specified expiration date */
+    private LocalDate expiryDate;
+
+    /** Flag to prevent duplicate expiry warning notifications */
+    @Builder.Default
+    private Boolean expiryWarningSent = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

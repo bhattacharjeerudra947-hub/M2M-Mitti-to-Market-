@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Check, X, Truck, Package, MapPin, Clock, AlertCircle, ChevronDown, ChevronUp, Star } from 'lucide-react';
@@ -8,6 +8,7 @@ import {
   getTimeline, confirmDelivery
 } from '../api/dealApi';
 import { apiGet } from '../api';
+import { onMessage, onNotification } from '../utils/messageStream';
 
 const STATUS_FLOW = ['NEGOTIATING','LOCK_PENDING','LOCKED','LOGISTICS_PENDING','LOGISTICS_ASSIGNED',
   'PICKUP_SCHEDULED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','COMPLETED'];
@@ -20,7 +21,7 @@ const STATUS_LABELS = {
   CANCELLED: '❌ Cancelled', DISPUTED: '⚠️ Disputed'
 };
 
-export default function DealLockPanel({ conversationId, otherUserId, produceId, produceName }) {
+export default function DealLockPanel({ conversationId, otherUserId, produceId, produceName, latestMessageTimestamp }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [deal, setDeal] = useState(null);
@@ -34,27 +35,20 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Lock form state
+  // Lock form state — pure deal terms only. Locations are collected AFTER deal is locked.
   const [lockForm, setLockForm] = useState({
     cropName: produceName || '',
     quantity: '',
     unit: 'kg',
     agreedPrice: '',
-    pickupLocation: '',
-    deliveryLocation: '',
-    pickupLatitude: '',
-    pickupLongitude: '',
-    deliveryLatitude: '',
-    deliveryLongitude: '',
     conditions: '',
     farmerId: '',
     buyerId: '',
     produceId: produceId || ''
   });
-  const [locBusy, setLocBusy] = useState(''); // 'pickup' | 'delivery'
 
   // Logistics details form
-const [logisticsForm, setLogisticsForm] = useState({
+  const [logisticsForm, setLogisticsForm] = useState({
     transporterName: '',
     vehicleNumber: '', vehicleType: '', scheduledPickup: '', expectedDelivery: ''
   });
@@ -62,9 +56,7 @@ const [logisticsForm, setLogisticsForm] = useState({
   // Delivery form
   const [deliveryForm, setDeliveryForm] = useState({ receivedQuantity: '', qualityNotes: '' });
 
-  useEffect(() => { loadDeal(); }, [conversationId]);
-
-  const loadDeal = async () => {
+  const loadDeal = useCallback(async () => {
     if (!conversationId) { setLoading(false); return; }
     try {
       const data = await getDealByConversation(conversationId);
@@ -79,7 +71,44 @@ const [logisticsForm, setLogisticsForm] = useState({
     } finally {
       setLoading(false);
     }
-  };
+  }, [conversationId]);
+
+  useEffect(() => {
+    loadDeal();
+
+    // 1. Real-time SSE subscriptions — refresh deal state immediately on incoming messages & notifications
+    const unsubMsg = onMessage((msg) => {
+      if (!msg) return;
+      if (msg.conversationId === conversationId || 
+          msg.content?.includes('Deal') || 
+          msg.content?.includes('lock') || 
+          msg.content?.includes('confirmed')) {
+        loadDeal();
+      }
+    });
+
+    const unsubNotif = onNotification((notif) => {
+      if (!notif) return;
+      if (notif.type?.includes('DEAL') || notif.title?.includes('Deal')) {
+        loadDeal();
+      }
+    });
+
+    // 2. Fast 2.5s polling loop while in chat view to guarantee buyer & farmer windows stay 100% in sync
+    const interval = setInterval(() => {
+      loadDeal();
+    }, 2500);
+
+    const onFocus = () => loadDeal();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      if (unsubMsg) unsubMsg();
+      if (unsubNotif) unsubNotif();
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [conversationId, loadDeal, latestMessageTimestamp]);
 
   // Auto-dismiss error banners so stale messages never linger
   useEffect(() => {
@@ -118,7 +147,7 @@ const [logisticsForm, setLogisticsForm] = useState({
       const result = await initiateDealLock(conversationId, data);
       setDeal(result);
       setShowLockForm(false);
-      setLockForm({ cropName: produceName || '', quantity: '', unit: 'kg', agreedPrice: '', pickupLocation: '', deliveryLocation: '', pickupLatitude: '', pickupLongitude: '', deliveryLatitude: '', deliveryLongitude: '', conditions: '', farmerId: '', buyerId: '', produceId: produceId || '' });
+      setLockForm({ cropName: produceName || '', quantity: '', unit: 'kg', agreedPrice: '', conditions: '', farmerId: '', buyerId: '', produceId: produceId || '' });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -168,33 +197,6 @@ const [logisticsForm, setLogisticsForm] = useState({
     } finally { setActionLoading(false); }
   };
 
-  /** Use the browser's location for pickup (farmer side) or delivery (buyer side). */
-  const useMyLocation = async (side) => {
-    setError('');
-    if (!navigator.geolocation) {
-      setError('Geolocation not available on this device — enter coordinates manually below.');
-      return;
-    }
-    setLocBusy(side);
-    try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 15000 });
-      });
-      const lat = pos.coords.latitude.toFixed(6);
-      const lng = pos.coords.longitude.toFixed(6);
-      if (side === 'pickup') {
-        setLockForm((f) => ({ ...f, pickupLatitude: lat, pickupLongitude: lng }));
-      } else {
-        setLockForm((f) => ({ ...f, deliveryLatitude: lat, deliveryLongitude: lng }));
-      }
-      setError('');
-    } catch (e) {
-      setError('Could not get your location — enter coordinates manually instead.');
-    } finally {
-      setLocBusy('');
-    }
-  };
-
   const handleUpdateLogisticsDetails = async () => {
     if (!logistics) return;
     setError('');
@@ -229,7 +231,8 @@ const [logisticsForm, setLogisticsForm] = useState({
     finally { setActionLoading(false); }
   };
 
-  const isFarmer = user?.role === 'FARMER';
+  const isFarmer = (user?.role?.toUpperCase() === 'FARMER') || (deal && String(deal.farmerId) === String(user?.id));
+  const isBuyer = (user?.role?.toUpperCase() === 'BUSINESS') || (user?.role?.toUpperCase() === 'BUYER') || (deal && String(deal.buyerId) === String(user?.id));
   const myConfirmed = isFarmer ? deal?.farmerConfirmed : deal?.buyerConfirmed;
   const otherConfirmed = isFarmer ? deal?.buyerConfirmed : deal?.farmerConfirmed;
 
@@ -267,45 +270,6 @@ const [logisticsForm, setLogisticsForm] = useState({
             </div>
             <input value={lockForm.agreedPrice} onChange={e => setLockForm({...lockForm, agreedPrice: e.target.value})}
               type="number" placeholder="Agreed price per unit (₹)" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
-            {/* ── Pickup location (farmer side) ── */}
-            <div className="space-y-1.5">
-              <div className="flex gap-2">
-                <input value={lockForm.pickupLocation} onChange={e => setLockForm({...lockForm, pickupLocation: e.target.value})}
-                  placeholder="Pickup location (name/address)" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
-                <button type="button" onClick={() => useMyLocation('pickup')} disabled={locBusy === 'pickup'}
-                  className="px-3 py-2 bg-navy-900 text-white rounded-xl text-xs font-semibold hover:bg-navy-800 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap">
-                  <MapPin className="w-3 h-3" /> {locBusy === 'pickup' ? 'Getting…' : 'Use my location'}
-                </button>
-              </div>
-              {(lockForm.pickupLatitude || lockForm.pickupLongitude) && (
-                <div className="flex gap-2">
-                  <input value={lockForm.pickupLatitude} onChange={e => setLockForm({...lockForm, pickupLatitude: e.target.value})}
-                    placeholder="Pickup lat" className="flex-1 px-3 py-2 bg-emerald-50/50 border border-emerald-200 rounded-xl text-xs" />
-                  <input value={lockForm.pickupLongitude} onChange={e => setLockForm({...lockForm, pickupLongitude: e.target.value})}
-                    placeholder="Pickup lng" className="flex-1 px-3 py-2 bg-emerald-50/50 border border-emerald-200 rounded-xl text-xs" />
-                </div>
-              )}
-            </div>
-            {/* ── Delivery location (buyer side) ── */}
-            <div className="space-y-1.5">
-              <div className="flex gap-2">
-                <input value={lockForm.deliveryLocation} onChange={e => setLockForm({...lockForm, deliveryLocation: e.target.value})}
-                  placeholder="Delivery location (name/address)" className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
-                <button type="button" onClick={() => useMyLocation('delivery')} disabled={locBusy === 'delivery'}
-                  className="px-3 py-2 bg-blue-700 text-white rounded-xl text-xs font-semibold hover:bg-blue-800 disabled:opacity-50 flex items-center gap-1 whitespace-nowrap">
-                  <MapPin className="w-3 h-3" /> {locBusy === 'delivery' ? 'Getting…' : 'Use my location'}
-                </button>
-              </div>
-              {(lockForm.deliveryLatitude || lockForm.deliveryLongitude) && (
-                <div className="flex gap-2">
-                  <input value={lockForm.deliveryLatitude} onChange={e => setLockForm({...lockForm, deliveryLatitude: e.target.value})}
-                    placeholder="Delivery lat" className="flex-1 px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-xl text-xs" />
-                  <input value={lockForm.deliveryLongitude} onChange={e => setLockForm({...lockForm, deliveryLongitude: e.target.value})}
-                    placeholder="Delivery lng" className="flex-1 px-3 py-2 bg-blue-50/50 border border-blue-200 rounded-xl text-xs" />
-                </div>
-              )}
-            </div>
-            <p className="text-[10px] text-gray-400">📍 Coordinates are shared only with the other party for this deal — never shown publicly.</p>
             <input value={lockForm.conditions} onChange={e => setLockForm({...lockForm, conditions: e.target.value})}
               placeholder="Any conditions (optional)" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
             {lockForm.quantity && lockForm.agreedPrice && (
@@ -378,26 +342,49 @@ const [logisticsForm, setLogisticsForm] = useState({
 
       {/* LOCK_PENDING — Confirm buttons */}
       {deal.status === 'LOCK_PENDING' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs">
-            <div className={`w-2 h-2 rounded-full ${myConfirmed ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-            <span>You: {myConfirmed ? '✅ Confirmed' : '⏳ Pending'}</span>
+        <div className="space-y-2.5 bg-amber-50/80 border border-amber-200 rounded-xl p-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-navy-900">Confirmation Needed</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              {myConfirmed ? 'Waiting for Partner' : 'Action Required'}
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className={`w-2 h-2 rounded-full ${otherConfirmed ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-            <span>{isFarmer ? 'Buyer' : 'Farmer'}: {otherConfirmed ? '✅ Confirmed' : '⏳ Pending'}</span>
-          </div>
-          {!myConfirmed && (
-            <div className="flex gap-2">
-              <button onClick={handleConfirm} disabled={actionLoading}
-                className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1">
-                <Check className="w-3 h-3" /> Confirm Deal
-              </button>
-              <button onClick={handleCancel} disabled={actionLoading}
-                className="py-2 px-4 bg-red-50 text-red-600 rounded-xl text-xs font-semibold border border-red-200 hover:bg-red-100 disabled:opacity-50">
-                <X className="w-3 h-3 inline" /> Cancel
-              </button>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className={`p-2 rounded-lg border ${myConfirmed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-amber-300 text-gray-800 shadow-sm'}`}>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${myConfirmed ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                <span className="font-medium">You: {myConfirmed ? '✅ Confirmed' : '⏳ Pending'}</span>
+              </div>
             </div>
+            <div className={`p-2 rounded-lg border ${otherConfirmed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-white border-gray-200 text-gray-600'}`}>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${otherConfirmed ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                <span className="font-medium">{isFarmer ? 'Buyer' : 'Farmer'}: {otherConfirmed ? '✅ Confirmed' : '⏳ Pending'}</span>
+              </div>
+            </div>
+          </div>
+
+          {!myConfirmed ? (
+            <div className="space-y-1.5 pt-1">
+              <p className="text-[11px] text-amber-900 font-medium">
+                👉 {isFarmer ? 'Buyer' : 'Farmer'} requested to lock this deal. Please review terms above and confirm to seal the agreement:
+              </p>
+              <div className="flex gap-2">
+                <button onClick={handleConfirm} disabled={actionLoading}
+                  className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow transition">
+                  <Check className="w-3.5 h-3.5" /> Confirm Deal
+                </button>
+                <button onClick={handleCancel} disabled={actionLoading}
+                  className="py-2.5 px-4 bg-white text-red-600 rounded-xl text-xs font-semibold border border-red-200 hover:bg-red-50 disabled:opacity-50 transition">
+                  <X className="w-3.5 h-3.5 inline" /> Decline
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-emerald-700 font-medium text-center pt-0.5">
+              ✓ You confirmed this deal! Waiting for {isFarmer ? 'the buyer' : 'the farmer'} to confirm.
+            </p>
           )}
         </div>
       )}
@@ -416,6 +403,42 @@ const [logisticsForm, setLogisticsForm] = useState({
               🚚 Mitti2Market
             </button>
           </div>
+        </div>
+      )}
+
+      {/* POST-DEAL-LOCK: Route & Location Configuration Banner */}
+      {['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED', 'PICKUP_SCHEDULED'].includes(deal.status) && (
+        <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 space-y-2 mt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+              {isFarmer ? 'Produce Pickup Location' : 'Produce Delivery Location'}
+            </span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              (isFarmer ? deal.pickupLocation : deal.deliveryLocation)
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-amber-100 text-amber-800'
+            }`}>
+              {(isFarmer ? deal.pickupLocation : deal.deliveryLocation) ? '✓ Confirmed' : 'Action Required'}
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-600">
+            {isFarmer
+              ? (deal.pickupLocation 
+                  ? `Pickup: ${deal.pickupLocation}` 
+                  : 'Deal is locked! Please confirm the pickup location where transport will collect produce.')
+              : (deal.deliveryLocation 
+                  ? `Delivery: ${deal.deliveryLocation}` 
+                  : 'Deal is locked! Please confirm the delivery location where produce should be delivered.')}
+          </p>
+          <button
+            onClick={() => navigate(`/deal/${deal.id}`)}
+            className="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-1.5 shadow-sm">
+            <MapPin className="w-3.5 h-3.5" />
+            {isFarmer
+              ? (deal.pickupLocation ? 'Open Route Workspace (Review Pickup)' : '📍 Set Pickup Location on Map')
+              : (deal.deliveryLocation ? 'Open Route Workspace (Review Delivery)' : '📍 Set Delivery Location on Map')}
+          </button>
         </div>
       )}
 

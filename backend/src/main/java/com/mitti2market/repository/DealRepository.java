@@ -18,6 +18,8 @@ public interface DealRepository extends JpaRepository<Deal, Long> {
 
     List<Deal> findByConversationId(String conversationId);
 
+    List<Deal> findByConversationIdOrderByCreatedAtDesc(String conversationId);
+
     Optional<Deal> findByConversationIdAndStatusNot(String conversationId, Deal.DealStatus status);
 
     @Query("SELECT d FROM Deal d WHERE d.farmer.id = :userId OR d.buyer.id = :userId ORDER BY d.createdAt DESC")
