@@ -251,6 +251,37 @@ public class DealController {
         }
     }
 
+    /** Set logistics coordinates (registered or live) for a deal and recompute shared route */
+    @PostMapping("/{dealId}/locations")
+    public ResponseEntity<?> setDealLocations(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long dealId,
+            @RequestBody com.mitti2market.dto.RouteRequest body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Deal locations updated", logisticsService.setDealLocations(dealId, userId, body)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /** Get identical shared route info and polyline for both Farmer and Buyer */
+    @GetMapping("/{dealId}/route-info")
+    public ResponseEntity<?> getDealRouteInfo(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long dealId) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Deal route info", logisticsService.getSharedRouteInfo(dealId, userId)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     /** Optimize a multi-stop route (capacity-aware nearest-neighbor) */
     @PostMapping("/logistics/optimize-route")
     public ResponseEntity<?> optimizeRoute(

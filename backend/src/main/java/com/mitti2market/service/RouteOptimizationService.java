@@ -125,6 +125,109 @@ public class RouteOptimizationService {
         return result;
     }
 
+    /**
+     * Score and select the most optimal route among Google Maps alternatives.
+     * Primary priority: Shortest practical distance.
+     * Secondary priority: Lower estimated travel time.
+     * Provides an explainable rationale for the decision.
+     */
+    public com.mitti2market.dto.OptimalRouteResult scoreAndSelect(
+            List<com.mitti2market.dto.RouteCandidate> candidates,
+            com.mitti2market.dto.LatLng origin,
+            com.mitti2market.dto.LatLng destination,
+            String originSource,
+            String destinationSource,
+            Double quantityKg) {
+
+        if (candidates == null || candidates.isEmpty()) {
+            throw new IllegalArgumentException("At least one route candidate is required");
+        }
+
+        double minDistance = Double.MAX_VALUE;
+        double minDuration = Double.MAX_VALUE;
+
+        for (com.mitti2market.dto.RouteCandidate rc : candidates) {
+            if (rc.getDistanceKm() < minDistance) minDistance = rc.getDistanceKm();
+            if (rc.getDurationMinutes() < minDuration) minDuration = rc.getDurationMinutes();
+        }
+
+        // Composite scoring: distance weight = 0.65, duration weight = 0.35
+        for (com.mitti2market.dto.RouteCandidate rc : candidates) {
+            double distRatio = minDistance > 0 ? (rc.getDistanceKm() / minDistance) : 1.0;
+            double durRatio = minDuration > 0 ? (rc.getDurationMinutes() / minDuration) : 1.0;
+            double score = (distRatio * 0.65) + (durRatio * 0.35);
+            rc.setScore(Math.round(score * 1000.0) / 1000.0);
+        }
+
+        // Determine best route
+        com.mitti2market.dto.RouteCandidate shortest = candidates.stream()
+                .min(Comparator.comparingDouble(com.mitti2market.dto.RouteCandidate::getDistanceKm))
+                .orElse(candidates.get(0));
+
+        com.mitti2market.dto.RouteCandidate fastest = candidates.stream()
+                .min(Comparator.comparingDouble(com.mitti2market.dto.RouteCandidate::getDurationMinutes))
+                .orElse(candidates.get(0));
+
+        com.mitti2market.dto.RouteCandidate selected;
+        String why;
+        String selectionType;
+
+        double timeSavedMin = shortest.getDurationMinutes() - fastest.getDurationMinutes();
+        double extraDistanceKm = fastest.getDistanceKm() - shortest.getDistanceKm();
+        double extraDistPct = shortest.getDistanceKm() > 0 ? (extraDistanceKm / shortest.getDistanceKm()) * 100.0 : 0.0;
+
+        // If fastest route saves > 15 minutes and extra distance is reasonable (< 15%), choose fastest
+        if (timeSavedMin >= 15 && extraDistPct <= 15.0 && extraDistanceKm > 0) {
+            selected = fastest;
+            selectionType = "FASTEST";
+            why = String.format("Saves %d min of travel time with only %.1f km extra distance (%.0f%% difference). Avoids major delays and congested roads.",
+                    Math.round(timeSavedMin), extraDistanceKm, extraDistPct);
+        } else if (Math.abs(shortest.getDistanceKm() - fastest.getDistanceKm()) < 1.0) {
+            selected = fastest;
+            selectionType = "SHORTEST";
+            why = String.format("Shortest practical distance (%.1f km) and lowest estimated travel time (%d min).",
+                    selected.getDistanceKm(), Math.round(selected.getDurationMinutes()));
+        } else if (timeSavedMin > 5 && extraDistPct <= 8.0) {
+            selected = fastest;
+            selectionType = "BALANCED";
+            why = String.format("Best balance of distance and transit time. Saves %d min with only %.1f km additional travel.",
+                    Math.round(timeSavedMin), extraDistanceKm);
+        } else {
+            selected = shortest;
+            selectionType = "SHORTEST";
+            why = String.format("Shortest direct road route (%.1f km). Estimated travel time is %d min.",
+                    shortest.getDistanceKm(), Math.round(shortest.getDurationMinutes()));
+        }
+
+        selected.setRecommended(true);
+
+        // Estimate logistics cost for recommended route
+        double cargoKg = quantityKg != null && quantityKg > 0 ? quantityKg : 0.0;
+        com.mitti2market.dto.RouteEstimate est = com.mitti2market.dto.RouteEstimate.builder()
+                .distanceKm(selected.getDistanceKm())
+                .durationMinutes(selected.getDurationMinutes())
+                .build();
+        Map<String, Object> costMap = costService.estimateCost(est, cargoKg);
+
+        Double totalCost = costMap.get("total") instanceof Number n ? n.doubleValue() : null;
+        Double costPerKg = costMap.get("costPerKg") instanceof Number n ? n.doubleValue() : null;
+
+        return com.mitti2market.dto.OptimalRouteResult.builder()
+                .selectedRoute(selected)
+                .allRoutes(candidates)
+                .origin(origin)
+                .destination(destination)
+                .whySelected(why)
+                .selectionType(selectionType)
+                .originSource(originSource != null ? originSource : "REGISTERED")
+                .destinationSource(destinationSource != null ? destinationSource : "REGISTERED")
+                .provider("google_maps")
+                .estimatedCostRupees(totalCost)
+                .costPerKg(costPerKg)
+                .quantityKg(cargoKg)
+                .build();
+    }
+
     private double weightKg(Map<String, Object> stop) {
         Object w = stop.get("weightKg");
         if (w == null) return 0.0;

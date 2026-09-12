@@ -59,6 +59,26 @@ public class Logistics {
     private String routeCaveat;
     private LocalDateTime routeComputedAt;
 
+    // Google Maps enriched routing & source details
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private LocationSource pickupLocationSource = LocationSource.REGISTERED;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private LocationSource deliveryLocationSource = LocationSource.REGISTERED;
+
+    @Column(columnDefinition = "TEXT")
+    private String routePolylineEncoded;
+
+    @Column(columnDefinition = "TEXT")
+    private String routeSelectionReason;
+
+    private String routeSelectionType;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String alternativeRoutesJson;
+
     // Special requirements
     private String specialHandling;
     private String packagingRequirements;
@@ -85,5 +105,10 @@ public class Logistics {
         IN_TRANSIT,
         OUT_FOR_DELIVERY,
         DELIVERED
+    }
+
+    public enum LocationSource {
+        REGISTERED,
+        LIVE
     }
 }

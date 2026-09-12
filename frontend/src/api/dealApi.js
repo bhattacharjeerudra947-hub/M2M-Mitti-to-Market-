@@ -92,6 +92,14 @@ export async function optimizeRoute(body) {
   return apiPost('/api/deals/logistics/optimize-route', body);
 }
 
+export async function setDealLocations(dealId, body) {
+  return apiPost(`/api/deals/${dealId}/locations`, body);
+}
+
+export async function getDealRouteInfo(dealId) {
+  return apiGet(`/api/deals/${dealId}/route-info`);
+}
+
 // ──────── Deal Timeline + Disputes ────────
 
 export async function getDealTimeline(dealId) {

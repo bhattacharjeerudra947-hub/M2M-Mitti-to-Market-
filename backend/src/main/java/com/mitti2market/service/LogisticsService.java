@@ -32,6 +32,8 @@ public class LogisticsService {
     private final LogisticsCostService costService;
     private final DealCompletionService dealCompletionService;
     private final RouteOptimizationService routeOptimizer;
+    private final GoogleMapsService googleMapsService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     private final AtomicLong trkCounter = new AtomicLong(100000);
 
@@ -284,8 +286,44 @@ public class LogisticsService {
 
         if (fromLat == null || toLat == null) return; // no coordinates yet — route later
 
-        RouteEstimate est = routeService.estimateRoute(fromLat, fromLng, toLat, toLng);
         int qty = logistics.getDeal().getQuantity() != null ? logistics.getDeal().getQuantity() : 0;
+
+        // If Google Maps is configured, fetch alternatives and score them
+        if (googleMapsService.isConfigured()) {
+            try {
+                com.mitti2market.dto.LatLng orig = com.mitti2market.dto.LatLng.of(fromLat, fromLng);
+                com.mitti2market.dto.LatLng dest = com.mitti2market.dto.LatLng.of(toLat, toLng);
+                List<com.mitti2market.dto.RouteCandidate> candidates = googleMapsService.getRoutes(orig, dest);
+                if (candidates != null && !candidates.isEmpty()) {
+                    String origSrc = logistics.getPickupLocationSource() != null ? logistics.getPickupLocationSource().name() : "REGISTERED";
+                    String destSrc = logistics.getDeliveryLocationSource() != null ? logistics.getDeliveryLocationSource().name() : "REGISTERED";
+                    com.mitti2market.dto.OptimalRouteResult opt = routeOptimizer.scoreAndSelect(
+                            candidates, orig, dest, origSrc, destSrc, (double) qty);
+
+                    com.mitti2market.dto.RouteCandidate best = opt.getSelectedRoute();
+                    logistics.setRouteDistanceKm(best.getDistanceKm());
+                    logistics.setRouteDurationMinutes(best.getDurationMinutes());
+                    logistics.setRouteEstimatedCost(opt.getEstimatedCostRupees());
+                    logistics.setRouteProvider("google_maps");
+                    logistics.setRouteSummary(best.getSummary() != null ? best.getSummary() : (best.getDistanceKm() + " km"));
+                    logistics.setRouteCaveat("Google Maps live road route");
+                    logistics.setRoutePolylineEncoded(best.getPolylineEncoded());
+                    logistics.setRouteSelectionReason(opt.getWhySelected());
+                    logistics.setRouteSelectionType(opt.getSelectionType());
+                    try {
+                        logistics.setAlternativeRoutesJson(objectMapper.writeValueAsString(candidates));
+                    } catch (Exception ex) {
+                        // Ignore JSON serialization issue
+                    }
+                    logistics.setRouteComputedAt(LocalDateTime.now());
+                    return;
+                }
+            } catch (Exception e) {
+                // Fall through to fallback routeService
+            }
+        }
+
+        RouteEstimate est = routeService.estimateRoute(fromLat, fromLng, toLat, toLng);
         Map<String, Object> cost = costService.estimateCost(est, qty);
 
         logistics.setRouteDistanceKm(est.getDistanceKm());
@@ -295,6 +333,247 @@ public class LogisticsService {
         logistics.setRouteSummary(est.getSummary());
         logistics.setRouteCaveat(est.getCaveat());
         logistics.setRouteComputedAt(LocalDateTime.now());
+    }
+
+    /**
+     * Calculate route alternatives between two locations with explainable scoring.
+     */
+    public com.mitti2market.dto.OptimalRouteResult calculateRoute(com.mitti2market.dto.RouteRequest req) {
+        if (req.getOrigin() == null || req.getDestination() == null) {
+            throw new BadRequestException("Origin and Destination coordinates are required");
+        }
+
+        double fromLat = req.getOrigin().getLatitude();
+        double fromLng = req.getOrigin().getLongitude();
+        double toLat = req.getDestination().getLatitude();
+        double toLng = req.getDestination().getLongitude();
+
+        Double cargoKg = req.getQuantityKg();
+        if (cargoKg == null && req.getDealId() != null) {
+            dealRepo.findById(req.getDealId()).ifPresent(d -> {
+                // Cargo quantity from deal
+            });
+            Deal d = dealRepo.findById(req.getDealId()).orElse(null);
+            if (d != null && d.getQuantity() != null) {
+                cargoKg = d.getQuantity().doubleValue();
+            }
+        }
+        if (cargoKg == null) cargoKg = 0.0;
+
+        if (googleMapsService.isConfigured()) {
+            try {
+                List<com.mitti2market.dto.RouteCandidate> candidates = googleMapsService.getRoutes(req.getOrigin(), req.getDestination());
+                if (candidates != null && !candidates.isEmpty()) {
+                    return routeOptimizer.scoreAndSelect(
+                            candidates,
+                            req.getOrigin(),
+                            req.getDestination(),
+                            req.getOriginSource(),
+                            req.getDestinationSource(),
+                            cargoKg
+                    );
+                }
+            } catch (Exception e) {
+                // Fall back to offline route estimation
+            }
+        }
+
+        // Fallback using RouteService
+        RouteEstimate est = routeService.estimateRoute(fromLat, fromLng, toLat, toLng);
+        Map<String, Object> cost = costService.estimateCost(est, cargoKg);
+
+        com.mitti2market.dto.RouteCandidate singleCandidate = com.mitti2market.dto.RouteCandidate.builder()
+                .routeIndex(0)
+                .distanceKm(est.getDistanceKm())
+                .durationMinutes(est.getDurationMinutes())
+                .summary(est.getSummary())
+                .recommended(true)
+                .score(1.0)
+                .warnings(List.of())
+                .build();
+
+        return com.mitti2market.dto.OptimalRouteResult.builder()
+                .selectedRoute(singleCandidate)
+                .allRoutes(List.of(singleCandidate))
+                .origin(req.getOrigin())
+                .destination(req.getDestination())
+                .whySelected("Direct route estimation based on configured road network assumptions.")
+                .selectionType("SHORTEST")
+                .originSource(req.getOriginSource())
+                .destinationSource(req.getDestinationSource())
+                .provider(est.getProvider())
+                .estimatedCostRupees((Double) cost.get("total"))
+                .costPerKg((Double) cost.get("costPerKg"))
+                .quantityKg(cargoKg)
+                .build();
+    }
+
+    /**
+     * Save chosen logistics locations for a deal and recompute optimal route.
+     * Both Farmer and Buyer see the updated identical route information.
+     */
+    @Transactional
+    public Map<String, Object> setDealLocations(Long dealId, Long userId, com.mitti2market.dto.RouteRequest req) {
+        Deal deal = dealRepo.findById(dealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deal", "id", dealId));
+        verifyDealAccess(deal, userId);
+
+        Logistics.LocationSource origSrc = "LIVE".equalsIgnoreCase(req.getOriginSource())
+                ? Logistics.LocationSource.LIVE : Logistics.LocationSource.REGISTERED;
+        Logistics.LocationSource destSrc = "LIVE".equalsIgnoreCase(req.getDestinationSource())
+                ? Logistics.LocationSource.LIVE : Logistics.LocationSource.REGISTERED;
+
+        // Update deal location coordinates
+        if (req.getOrigin() != null) {
+            deal.setPickupLatitude(req.getOrigin().getLatitude());
+            deal.setPickupLongitude(req.getOrigin().getLongitude());
+        }
+        if (req.getDestination() != null) {
+            deal.setDeliveryLatitude(req.getDestination().getLatitude());
+            deal.setDeliveryLongitude(req.getDestination().getLongitude());
+        }
+        dealRepo.save(deal);
+
+        // Find or build logistics record
+        Optional<Logistics> optLogistics = logisticsRepo.findByDealId(dealId);
+        Logistics logistics;
+        if (optLogistics.isPresent()) {
+            logistics = optLogistics.get();
+        } else {
+            String trackingId = "M2M-TRK-" + (trkCounter.incrementAndGet());
+            logistics = Logistics.builder()
+                    .trackingId(trackingId)
+                    .deal(deal)
+                    .type(LogisticsType.MITTI2MARKET)
+                    .pickupLocation(deal.getPickupLocation())
+                    .deliveryLocation(deal.getDeliveryLocation())
+                    .status(LogisticsStatus.REQUESTED)
+                    .build();
+        }
+
+        if (req.getOrigin() != null) {
+            logistics.setPickupLatitude(req.getOrigin().getLatitude());
+            logistics.setPickupLongitude(req.getOrigin().getLongitude());
+        }
+        if (req.getDestination() != null) {
+            logistics.setDeliveryLatitude(req.getDestination().getLatitude());
+            logistics.setDeliveryLongitude(req.getDestination().getLongitude());
+        }
+        logistics.setPickupLocationSource(origSrc);
+        logistics.setDeliveryLocationSource(destSrc);
+
+        computeAndStoreRoute(logistics);
+        logistics = logisticsRepo.save(logistics);
+
+        addEvent(logistics, logistics.getStatus(),
+                "Logistics locations updated: " + origSrc + " pickup → " + destSrc + " delivery",
+                null);
+
+        return getSharedRouteInfo(dealId, userId);
+    }
+
+    /**
+     * Get shared route information for a deal.
+     * Guarantees both Farmer and Buyer see identical route details, polyline, and cost.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getSharedRouteInfo(Long dealId, Long userId) {
+        Deal deal = dealRepo.findById(dealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deal", "id", dealId));
+        verifyDealAccess(deal, userId);
+
+        Optional<Logistics> optLogistics = logisticsRepo.findByDealId(dealId);
+        Double fromLat = null;
+        Double fromLng = null;
+        Double toLat = null;
+        Double toLng = null;
+        String origSrc = "REGISTERED";
+        String destSrc = "REGISTERED";
+
+        if (optLogistics.isPresent()) {
+            Logistics l = optLogistics.get();
+            fromLat = l.getPickupLatitude();
+            fromLng = l.getPickupLongitude();
+            toLat = l.getDeliveryLatitude();
+            toLng = l.getDeliveryLongitude();
+            if (l.getPickupLocationSource() != null) origSrc = l.getPickupLocationSource().name();
+            if (l.getDeliveryLocationSource() != null) destSrc = l.getDeliveryLocationSource().name();
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("dealId", deal.getId());
+            result.put("dealNumber", deal.getDealId());
+            result.put("logisticsId", l.getId());
+            result.put("trackingId", l.getTrackingId());
+            result.put("pickupLocation", l.getPickupLocation() != null ? l.getPickupLocation() : deal.getPickupLocation());
+            result.put("deliveryLocation", l.getDeliveryLocation() != null ? l.getDeliveryLocation() : deal.getDeliveryLocation());
+            result.put("pickupLatitude", fromLat);
+            result.put("pickupLongitude", fromLng);
+            result.put("deliveryLatitude", toLat);
+            result.put("deliveryLongitude", toLng);
+            result.put("pickupLocationSource", origSrc);
+            result.put("deliveryLocationSource", destSrc);
+            result.put("distanceKm", l.getRouteDistanceKm());
+            result.put("durationMinutes", l.getRouteDurationMinutes());
+            result.put("estimatedCost", l.getRouteEstimatedCost());
+            result.put("provider", l.getRouteProvider() != null ? l.getRouteProvider() : "google_maps");
+            result.put("summary", l.getRouteSummary());
+            result.put("polylineEncoded", l.getRoutePolylineEncoded());
+            result.put("selectionReason", l.getRouteSelectionReason());
+            result.put("selectionType", l.getRouteSelectionType());
+            result.put("computedAt", l.getRouteComputedAt());
+
+            // Farmer & Buyer registered profiles for UI display
+            result.put("farmerRegistered", Map.of(
+                    "name", deal.getFarmer().getName(),
+                    "location", deal.getFarmer().getLocation() != null ? deal.getFarmer().getLocation() : "",
+                    "latitude", deal.getFarmer().getLatitude() != null ? deal.getFarmer().getLatitude() : 0.0,
+                    "longitude", deal.getFarmer().getLongitude() != null ? deal.getFarmer().getLongitude() : 0.0
+            ));
+            result.put("buyerRegistered", Map.of(
+                    "name", deal.getBuyer().getName(),
+                    "location", deal.getBuyer().getLocation() != null ? deal.getBuyer().getLocation() : "",
+                    "latitude", deal.getBuyer().getLatitude() != null ? deal.getBuyer().getLatitude() : 0.0,
+                    "longitude", deal.getBuyer().getLongitude() != null ? deal.getBuyer().getLongitude() : 0.0
+            ));
+
+            if (l.getAlternativeRoutesJson() != null) {
+                try {
+                    result.put("alternativeRoutes", objectMapper.readValue(l.getAlternativeRoutesJson(), List.class));
+                } catch (Exception ignored) {}
+            }
+            return result;
+        }
+
+        // If no logistics record yet, fall back to deal / user profiles
+        fromLat = deal.getPickupLatitude() != null ? deal.getPickupLatitude() : deal.getFarmer().getLatitude();
+        fromLng = deal.getPickupLongitude() != null ? deal.getPickupLongitude() : deal.getFarmer().getLongitude();
+        toLat = deal.getDeliveryLatitude() != null ? deal.getDeliveryLatitude() : deal.getBuyer().getLatitude();
+        toLng = deal.getDeliveryLongitude() != null ? deal.getDeliveryLongitude() : deal.getBuyer().getLongitude();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dealId", deal.getId());
+        result.put("dealNumber", deal.getDealId());
+        result.put("pickupLocation", deal.getPickupLocation());
+        result.put("deliveryLocation", deal.getDeliveryLocation());
+        result.put("pickupLatitude", fromLat);
+        result.put("pickupLongitude", fromLng);
+        result.put("deliveryLatitude", toLat);
+        result.put("deliveryLongitude", toLng);
+        result.put("pickupLocationSource", "REGISTERED");
+        result.put("deliveryLocationSource", "REGISTERED");
+        result.put("farmerRegistered", Map.of(
+                "name", deal.getFarmer().getName(),
+                "location", deal.getFarmer().getLocation() != null ? deal.getFarmer().getLocation() : "",
+                "latitude", deal.getFarmer().getLatitude() != null ? deal.getFarmer().getLatitude() : 0.0,
+                "longitude", deal.getFarmer().getLongitude() != null ? deal.getFarmer().getLongitude() : 0.0
+        ));
+        result.put("buyerRegistered", Map.of(
+                "name", deal.getBuyer().getName(),
+                "location", deal.getBuyer().getLocation() != null ? deal.getBuyer().getLocation() : "",
+                "latitude", deal.getBuyer().getLatitude() != null ? deal.getBuyer().getLatitude() : 0.0,
+                "longitude", deal.getBuyer().getLongitude() != null ? deal.getBuyer().getLongitude() : 0.0
+        ));
+        return result;
     }
 
     /**

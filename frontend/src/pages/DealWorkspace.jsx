@@ -9,9 +9,12 @@ import {
 import { getDeal, getLogistics, cancelDeal, getDealTimeline, getDisputes, openDispute } from '../api/dealApi';
 import { getConversationOffers } from '../api/dealApi';
 import LogisticsTracking from '../components/LogisticsTracking';
+import RouteOptimizerPanel from '../components/RouteOptimizerPanel';
+import DealRouteMap from '../components/DealRouteMap';
 import DealRatingModal from '../components/DealRatingModal';
 import ReportModal from '../components/ReportModal';
 import { getDealRatings } from '../services/ratingApi';
+import { getDealRouteInfo } from '../api/locationApi';
 
 const STATUS_LABELS = {
   NEGOTIATING: '💬 Bargaining', LOCK_PENDING: '⏳ Confirming', LOCKED: '🔒 Deal Locked',
@@ -88,6 +91,7 @@ export default function DealWorkspace() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [myRatingExists, setMyRatingExists] = useState(false);
   const [myRating, setMyRating] = useState(null);
+  const [routeInfo, setRouteInfo] = useState(null);
 
   const isFarmer = user?.role === 'FARMER';
   const sidebarRole = isFarmer ? 'farmer' : 'business';
@@ -114,7 +118,8 @@ export default function DealWorkspace() {
       getDealTimeline(dealId),
       getLogistics(dealId),
       getDisputes(dealId),
-    ]).then(([d, t, l, dis]) => {
+      getDealRouteInfo(dealId),
+    ]).then(([d, t, l, dis, rInfo]) => {
       if (d.status === 'fulfilled') {
         setDeal(d.value);
         if (d.value?.conversationId) {
@@ -126,6 +131,7 @@ export default function DealWorkspace() {
       if (t.status === 'fulfilled') setTimeline(t.value || []);
       if (l.status === 'fulfilled') setLogistics(l.value);
       if (dis.status === 'fulfilled') setDisputes(dis.value || []);
+      if (rInfo.status === 'fulfilled') setRouteInfo(rInfo.value);
       setLoading(false);
     });
   };
@@ -306,34 +312,68 @@ export default function DealWorkspace() {
                 </div>
 
                 <div className="space-y-5">
-                  {/* ═══ LOGISTICS ═══ */}
-                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs text-gray-400 uppercase font-medium tracking-wide">Logistics</p>
+                  {/* ═══ LOGISTICS & DYNAMIC ROUTE OPTIMIZATION ═══ */}
+                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 space-y-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-gray-400 uppercase font-medium tracking-wide">Logistics & Route</p>
                       {logistics?.type && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
                           {logistics.type === 'OWN' ? '🚗 Own Logistics' : '🚚 Mitti2Market Logistics'}
                         </span>
                       )}
                     </div>
+
+                    {/* Interactive Route Optimizer with Dual Location Selectors */}
+                    {['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED'].includes(deal.status) && (
+                      <RouteOptimizerPanel
+                        dealId={dealId}
+                        deal={deal}
+                        onConfirmed={load}
+                        readOnly={deal.status !== 'LOCKED' && deal.status !== 'LOGISTICS_PENDING'}
+                      />
+                    )}
+
+                    {/* Shared Google Map Display for deal with route data */}
+                    {routeInfo && routeInfo.distanceKm && !['LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED'].includes(deal.status) && (
+                      <DealRouteMap
+                        origin={{
+                          latitude: routeInfo.pickupLatitude,
+                          longitude: routeInfo.pickupLongitude,
+                          label: 'Pickup',
+                        }}
+                        destination={{
+                          latitude: routeInfo.deliveryLatitude,
+                          longitude: routeInfo.deliveryLongitude,
+                          label: 'Destination',
+                        }}
+                        optimalRoute={routeInfo}
+                        alternatives={routeInfo.alternativeRoutes || []}
+                        selectionReason={routeInfo.selectionReason}
+                        selectionType={routeInfo.selectionType}
+                        distanceKm={routeInfo.distanceKm}
+                        durationMinutes={routeInfo.durationMinutes}
+                        estimatedCost={routeInfo.estimatedCost}
+                      />
+                    )}
+
                     {logistics ? (
                       <>
-                        <div className="space-y-2.5 text-sm mb-4">
+                        <div className="space-y-2.5 text-sm pt-2 border-t border-navy-50">
                           <div className="flex justify-between"><span className="text-gray-500">Tracking ID</span><span className="font-bold text-navy-900">{logistics.trackingId}</span></div>
                           <div className="flex justify-between"><span className="text-gray-500">Status</span>
                             <span className={`font-semibold ${logistics.status === 'DELIVERED' ? 'text-emerald-600' : logistics.status === 'REQUESTED' ? 'text-amber-600' : 'text-blue-700'}`}>{logistics.status.replace(/_/g, ' ')}</span>
                           </div>
-{logistics.vehicleNumber && <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="font-semibold text-navy-900">{logistics.vehicleNumber}</span></div>}
+                          {logistics.vehicleNumber && <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="font-semibold text-navy-900">{logistics.vehicleNumber}</span></div>}
                           {logistics.expectedDelivery && <div className="flex justify-between"><span className="text-gray-500">Expected delivery</span><span className="font-semibold text-navy-900">{formatDateTime(logistics.expectedDelivery)}</span></div>}
                         </div>
                         <LogisticsTracking logistics={logistics} deal={deal} onUpdate={refreshLogistics} />
                       </>
                     ) : (
-                      <p className="text-sm text-gray-500">
-                        {['LOCKED', 'LOGISTICS_PENDING'].includes(deal.status)
-                          ? 'Logistics not selected yet — choose Own or Mitti2Market logistics from the chat.'
-                          : 'No logistics arranged for this deal yet.'}
-                      </p>
+                      !['LOCKED', 'LOGISTICS_PENDING'].includes(deal.status) && (
+                        <p className="text-sm text-gray-500">
+                          No logistics arranged for this deal yet.
+                        </p>
+                      )
                     )}
                   </div>
 
