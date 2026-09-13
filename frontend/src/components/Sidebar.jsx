@@ -60,6 +60,35 @@ const businessGuestRestricted = new Set([
   '/business/deals',
 ]);
 
+function SidebarNavLink({ to, icon: Icon, label, isActive, onNavigate }) {
+  return (
+    <Link
+      to={to}
+      onClick={onNavigate}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+        isActive
+          ? 'bg-mustard-50 text-navy-900 border border-mustard-200 shadow-sm'
+          : 'text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900'
+      }`}
+    >
+      <Icon className={`w-5 h-5 ${isActive ? 'text-navy-900' : 'text-navy-400'}`} />
+      {label}
+    </Link>
+  );
+}
+
+function SidebarGuestNavLink({ icon: Icon, label, onGuestClick }) {
+  return (
+    <button
+      onClick={onGuestClick}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900"
+    >
+      <Icon className="w-5 h-5 text-navy-400" />
+      {label}
+    </button>
+  );
+}
+
 export default function Sidebar({ role = 'farmer' }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -115,30 +144,9 @@ export default function Sidebar({ role = 'farmer' }) {
     navigate('/login', { replace: true });
   };
 
-  const NavLink = ({ to, icon: Icon, label }) => {
-    const isActive = location.pathname === to || (to !== `/${role}` && location.pathname.startsWith(to));
-    return (
-      <Link to={to} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive ? 'bg-mustard-50 text-navy-900 border border-mustard-200 shadow-sm' : 'text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900'}`}>
-        <Icon className={`w-5 h-5 ${isActive ? 'text-navy-900' : 'text-navy-400'}`} />
-        {label}
-      </Link>
-    );
-  };
-
-  // Guest-restricted link: clicking opens auth modal instead of navigating
-  const GuestNavLink = ({ to, icon: Icon, label }) => {
-    const isActive = location.pathname === to || (to !== `/${role}` && location.pathname.startsWith(to));
-    return (
-      <button onClick={() => { setMobileOpen(false); openAuthRequired(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900`}>
-        <Icon className={`w-5 h-5 text-navy-400`} />
-        {label}
-      </button>
-    );
-  };
-
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-4">
+  const sidebarContent = (
+    <div className="flex flex-col min-h-full">
+      <div className="p-4 shrink-0">
         <Link to="/" className="flex items-center mb-6"><M2MLogo size="sm" /></Link>
         <div className="flex items-center gap-3 mb-6 p-3 bg-mustard-50 border border-mustard-200 rounded-xl">
           {effectivePhoto ? (
@@ -167,21 +175,40 @@ export default function Sidebar({ role = 'farmer' }) {
         </div>
       </div>
 
-      <div className="flex-1 px-3 space-y-0.5 overflow-y-auto">
-        {links.map((link) => (
-          isGuestModeActive && guestRestricted.has(link.to)
-            ? <GuestNavLink key={link.to} {...link} />
-            : <NavLink key={link.to} {...link} />
-        ))}
+      <div className="flex-1 px-3 space-y-0.5 py-1">
+        {links.map((link) => {
+          const isActive = location.pathname === link.to || (link.to !== `/${role}` && location.pathname.startsWith(link.to));
+          return isGuestModeActive && guestRestricted.has(link.to) ? (
+            <SidebarGuestNavLink
+              key={link.to}
+              icon={link.icon}
+              label={link.label}
+              onGuestClick={() => { setMobileOpen(false); openAuthRequired(); }}
+            />
+          ) : (
+            <SidebarNavLink
+              key={link.to}
+              to={link.to}
+              icon={link.icon}
+              label={link.label}
+              isActive={isActive}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          );
+        })}
       </div>
 
-      <div className="border-t border-navy-100 p-3 space-y-2">
+      <div className="border-t border-navy-100 p-3 space-y-2 mt-auto shrink-0">
         {!isGuestModeActive && <SyncStatusBar role={role} />}
         <div className="space-y-0.5">
         {(user?.role === 'HUB_OPERATOR' || user?.role === 'ADMIN') && (
-          <Link to="/hub-operator" onClick={() => setMobileOpen(false)}>
-            <NavLink to="/hub-operator" icon={Warehouse} label="Hub Operator Station" />
-          </Link>
+          <SidebarNavLink
+            to="/hub-operator"
+            icon={Warehouse}
+            label="Hub Operator Station"
+            isActive={location.pathname === '/hub-operator'}
+            onNavigate={() => setMobileOpen(false)}
+          />
         )}
         {isGuestModeActive ? (
           <button onClick={openAuthRequired} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all">
@@ -189,9 +216,13 @@ export default function Sidebar({ role = 'farmer' }) {
             Profile
           </button>
         ) : (
-          <Link to="/profile" onClick={() => setMobileOpen(false)}>
-            <NavLink to="/profile" icon={User} label="Profile" />
-          </Link>
+          <SidebarNavLink
+            to="/profile"
+            icon={User}
+            label="Profile"
+            isActive={location.pathname === '/profile'}
+            onNavigate={() => setMobileOpen(false)}
+          />
         )}
         <button onClick={() => { if (isGuestModeActive) { openAuthRequired(); } else { setShowNotifications(!showNotifications); } }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-600 hover:bg-mustard-50/50 hover:text-navy-900 transition-all relative">
           <NotificationPanel compact />
@@ -216,16 +247,16 @@ export default function Sidebar({ role = 'farmer' }) {
       </button>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white border-r border-navy-100 h-screen sticky top-0 flex-col">
-        <SidebarContent />
+      <aside className="hidden lg:flex w-64 bg-white border-r border-navy-100 h-screen max-h-screen sticky top-0 flex-col shrink-0 overflow-y-auto overscroll-contain">
+        {sidebarContent}
       </aside>
 
       {/* Mobile sidebar */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40">
           <div className="absolute inset-0 bg-navy-900/20" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl flex flex-col border-r border-navy-100">
-            <SidebarContent />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl flex flex-col border-r border-navy-100 overflow-y-auto overscroll-contain">
+            {sidebarContent}
           </aside>
         </div>
       )}
