@@ -175,13 +175,17 @@ public class DealController {
         if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
 
         try {
-            Logistics.LogisticsType type = Logistics.LogisticsType.valueOf(body.get("type").toUpperCase());
+            String typeStr = body != null ? body.get("type") : null;
+            if (typeStr == null || typeStr.isBlank()) {
+                throw new BadRequestException("Logistics type ('MITTI2MARKET' or 'OWN') is required");
+            }
+            Logistics.LogisticsType type = Logistics.LogisticsType.valueOf(typeStr.toUpperCase());
             Logistics logistics = logisticsService.selectLogistics(dealId, userId, type);
             return ResponseEntity.ok(ApiResponse.ok("Logistics selected", Map.of(
                     "id", logistics.getId(),
-                    "trackingId", logistics.getTrackingId(),
-                    "type", logistics.getType().name(),
-                    "status", logistics.getStatus().name()
+                    "trackingId", logistics.getTrackingId() != null ? logistics.getTrackingId() : "",
+                    "type", logistics.getType() != null ? logistics.getType().name() : type.name(),
+                    "status", logistics.getStatus() != null ? logistics.getStatus().name() : "REQUESTED"
             )));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -362,9 +366,13 @@ public class DealController {
         Long userId = extractUserId(authHeader);
         if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
 
-        Logistics logistics = logisticsService.getLogisticsForDeal(dealId);
-        if (logistics == null) return ResponseEntity.ok(ApiResponse.ok(null));
-        return ResponseEntity.ok(ApiResponse.ok(logisticsToMap(logistics)));
+        try {
+            Logistics logistics = logisticsService.getLogisticsForDeal(dealId);
+            if (logistics == null) return ResponseEntity.ok(ApiResponse.ok(null));
+            return ResponseEntity.ok(ApiResponse.ok(logisticsToMap(logistics)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 
     /** Get logistics timeline */
@@ -375,17 +383,19 @@ public class DealController {
         Long userId = extractUserId(authHeader);
         if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
 
-        List<LogisticsEvent> events = logisticsService.getTimeline(logisticsId);
-        return ResponseEntity.ok(ApiResponse.ok(events.stream().map(e -> Map.of(
-                "id", e.getId(),
-                "status", e.getStatus().name(),
-                "description", e.getDescription() != null ? e.getDescription() : "",
-                "location", e.getLocation() != null ? e.getLocation() : "",
-                "timestamp", e.getTimestamp()
-        )).toList()));
+        try {
+            List<LogisticsEvent> events = logisticsService.getTimeline(logisticsId);
+            return ResponseEntity.ok(ApiResponse.ok(events.stream().map(e -> Map.of(
+                    "id", e.getId(),
+                    "status", e.getStatus() != null ? e.getStatus().name() : "",
+                    "description", e.getDescription() != null ? e.getDescription() : "",
+                    "location", e.getLocation() != null ? e.getLocation() : "",
+                    "timestamp", e.getTimestamp() != null ? e.getTimestamp() : ""
+            )).toList()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
-
-
 
     /** Confirm delivery (buyer) */
     @PostMapping("/{dealId}/confirm-delivery")
@@ -409,7 +419,7 @@ public class DealController {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("id", l.getId());
         resp.put("trackingId", l.getTrackingId());
-        resp.put("type", l.getType().name());
+        resp.put("type", l.getType() != null ? l.getType().name() : "MITTI2MARKET");
         resp.put("status", l.getStatus() != null ? l.getStatus().name() : "");
         resp.put("vehicleNumber", l.getVehicleNumber() != null ? l.getVehicleNumber() : "");
         resp.put("vehicleType", l.getVehicleType() != null ? l.getVehicleType() : "");
