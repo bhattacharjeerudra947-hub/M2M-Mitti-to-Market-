@@ -5,7 +5,7 @@ import DealRouteMap from './DealRouteMap';
 import VehicleCard from './VehicleCard';
 import HubStagingSelector from './HubStagingSelector';
 import { calculateRoute, setDealLocations, getDealRouteInfo } from '../api/locationApi';
-import { getAvailableVehicles, assignVehicle } from '../api/dealApi';
+import { getAvailableVehicles, assignVehicle, configureOwnLogistics } from '../api/dealApi';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -54,12 +54,22 @@ export default function RouteOptimizerPanel({
   const [selectedHub, setSelectedHub] = useState(deal?.stagedHub || null);
 
   // Logistics & Vehicle selection state
-  const [logisticsMode, setLogisticsMode] = useState('MITTI2MARKET'); // 'MITTI2MARKET' | 'OWN'
+  const [logisticsMode, setLogisticsMode] = useState(deal?.logisticsMode || 'MITTI2MARKET'); // 'MITTI2MARKET' | 'OWN'
   const [vehiclesData, setVehiclesData] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [assigningVehicle, setAssigningVehicle] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState('');
+
+  // Own logistics state
+  const [ownProvider, setOwnProvider] = useState(deal?.ownLogisticsProvider || (isFarmer ? 'FARMER' : 'BUYER'));
+  const [providerName, setProviderName] = useState(deal?.logisticsProviderName || '');
+  const [providerPhone, setProviderPhone] = useState(deal?.logisticsProviderPhone || '');
+  const [vehicleNumber, setVehicleNumber] = useState(deal?.logisticsVehicleNumber || '');
+  const [estimatedCost, setEstimatedCost] = useState(deal?.estimatedLogisticsCost || '');
+  const [providerId, setProviderId] = useState(deal?.logisticsProviderId || '');
+  const [savingOwnLogistics, setSavingOwnLogistics] = useState(false);
+  const [ownSuccess, setOwnSuccess] = useState('');
 
   // Load vehicles for deal
   const loadVehicles = () => {
@@ -136,6 +146,33 @@ export default function RouteOptimizerPanel({
       setError(err?.message || 'Failed to assign vehicle');
     } finally {
       setAssigningVehicle(false);
+    }
+  };
+
+  const handleSaveOwnLogistics = async (e) => {
+    e?.preventDefault?.();
+    if (!dealId) return;
+    setSavingOwnLogistics(true);
+    setError('');
+    setOwnSuccess('');
+
+    try {
+      const res = await configureOwnLogistics(dealId, {
+        ownLogisticsProvider: ownProvider,
+        logisticsProviderName: providerName,
+        logisticsProviderPhone: providerPhone,
+        logisticsVehicleNumber: vehicleNumber,
+        estimatedLogisticsCost: estimatedCost ? parseFloat(estimatedCost) : null,
+      });
+      if (res?.logisticsProviderId) {
+        setProviderId(res.logisticsProviderId);
+      }
+      setOwnSuccess(`Self-arranged transport saved successfully! (ID: ${res?.logisticsProviderId || 'LP-OWN'})`);
+      onConfirmed(res);
+    } catch (err) {
+      setError(err?.message || 'Failed to save self-arranged logistics');
+    } finally {
+      setSavingOwnLogistics(false);
     }
   };
 
@@ -613,11 +650,146 @@ export default function RouteOptimizerPanel({
         )}
 
         {logisticsMode === 'OWN' && (
-          <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-2">
-            <p className="font-semibold">Self-Arranged Transport Selected</p>
-            <p className="text-[11px] text-blue-700">
-              The buyer or farmer will manage their own transit vehicle. Mitti2Market will provide accurate route navigation, calculated distance ({routeInfo?.distanceKm ? `${routeInfo.distanceKm} km` : 'pending'}), and delivery confirmation tracking once the shipment arrives.
-            </p>
+          <div className="space-y-4 pt-1">
+            <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
+              <p className="font-semibold flex items-center justify-between">
+                <span>🚛 Self-Arranged Transport Protocol</span>
+                {providerId && (
+                  <span className="font-mono text-[11px] bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded font-bold">
+                    {providerId}
+                  </span>
+                )}
+              </p>
+              <p className="text-[11px] text-blue-700">
+                You or your trade partner are managing transit directly. Record transporter details below for digital orchestration, route guidance, and escrow delivery verification.
+              </p>
+            </div>
+
+            {ownSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{ownSuccess}</span>
+              </div>
+            )}
+
+            {/* Provider Party Selector: Farmer, Buyer, or Third-Party */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-navy-800">
+                Who is arranging / providing transport?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'FARMER', label: 'Farmer Arranged', desc: 'Farmer local vehicle/tempo' },
+                  { id: 'BUYER', label: 'Buyer Arranged', desc: 'Buyer pickup truck/fleet' },
+                  { id: 'THIRD_PARTY', label: '3rd-Party Transporter', desc: 'Commercial transporter' },
+                ].map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => setOwnProvider(p.id)}
+                    className={`p-2.5 rounded-xl border text-left transition ${
+                      ownProvider === p.id
+                        ? 'border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500 font-semibold text-emerald-900'
+                        : 'border-navy-100 bg-white hover:bg-gray-50 text-navy-700'
+                    }`}
+                  >
+                    <div className="text-xs">{p.label}</div>
+                    <div className="text-[10px] text-navy-500 font-normal mt-0.5">{p.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Transporter Details Form */}
+            <form onSubmit={handleSaveOwnLogistics} className="bg-gray-50/80 border border-navy-100 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between pb-1 border-b border-gray-200">
+                <span className="text-xs font-bold text-navy-800">Transporter & Driver Details</span>
+                <span className="text-[10px] text-gray-500 font-mono">
+                  Assigned ID: {providerId || 'LP-OWN-XXXXXX'}
+                </span>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-navy-700 mb-1">
+                    {ownProvider === 'FARMER' ? 'Farmer / Driver Name' : ownProvider === 'BUYER' ? 'Buyer / Driver Name' : 'Transporter / Driver Name'}
+                  </label>
+                  <input
+                    type="text"
+                    disabled={readOnly}
+                    value={providerName}
+                    onChange={(e) => setProviderName(e.target.value)}
+                    placeholder="e.g. Ramesh Logistics / Suresh Yadav"
+                    className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-500 text-navy-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-navy-700 mb-1">
+                    Driver / Transporter Contact Phone
+                  </label>
+                  <input
+                    type="tel"
+                    disabled={readOnly}
+                    value={providerPhone}
+                    onChange={(e) => setProviderPhone(e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-500 text-navy-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-navy-700 mb-1">
+                    Vehicle Number / Reference Code
+                  </label>
+                  <input
+                    type="text"
+                    disabled={readOnly}
+                    value={vehicleNumber}
+                    onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                    placeholder="e.g. MH 12 AB 1234 or TRACTOR-01"
+                    className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-500 uppercase font-mono text-navy-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-navy-700 mb-1">
+                    Estimated Self-Arranged Cost (₹)
+                  </label>
+                  <input
+                    type="number"
+                    disabled={readOnly}
+                    value={estimatedCost}
+                    onChange={(e) => setEstimatedCost(e.target.value)}
+                    placeholder="e.g. 1500"
+                    className="w-full text-xs px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-emerald-500 font-mono text-navy-900"
+                  />
+                </div>
+              </div>
+
+              {!readOnly && (
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingOwnLogistics}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shadow-xs"
+                  >
+                    {savingOwnLogistics ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Saving Details...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Confirm Self-Arranged Transport
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </form>
           </div>
         )}
       </div>

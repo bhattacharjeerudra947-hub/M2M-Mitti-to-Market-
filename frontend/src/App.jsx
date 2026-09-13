@@ -25,6 +25,7 @@ import PriceAdvisorPage from './pages/PriceAdvisorPage';
 import BuyerRequests from './pages/BuyerRequests';
 import FarmerOrders from './pages/FarmerOrders';
 import FarmerLogistics from './pages/FarmerLogistics';
+import FarmerNearbyStorage from './pages/FarmerNearbyStorage';
 import FarmerEarnings from './pages/FarmerEarnings';
 import BusinessDashboard from './pages/BusinessDashboard';
 import Marketplace from './pages/Marketplace';
@@ -223,6 +224,7 @@ export default function App() {
           <Route path="/marketplace" element={<ExploreMarketplace />} />
           <Route path="/marketplace/:id" element={<ProductDetails />} />
           <Route path="/produce/:id" element={<ProductDetails />} />
+          <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about-us" element={<AboutUs />} />
@@ -239,6 +241,7 @@ export default function App() {
             <Route index element={<FarmerDashboard />} />
             <Route path="produce" element={<FarmerProducts />} />
             <Route path="produce/:id" element={<ProductDetails />} />
+            <Route path="product/:id" element={<ProductDetails />} />
             <Route path="add-produce" element={<AddProduce />} />
             <Route path="matches" element={<FarmerMatches />} />
             <Route path="price-advisor" element={<PriceAdvisorPage />} />
@@ -246,6 +249,7 @@ export default function App() {
             <Route path="deal-advisor" element={<DealAdvisor />} />
             <Route path="orders" element={<FarmerOrders />} />
             <Route path="logistics" element={<FarmerLogistics />} />
+            <Route path="storage" element={<FarmerNearbyStorage />} />
             <Route path="earnings" element={<FarmerEarnings />} />
             <Route path="chat" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />

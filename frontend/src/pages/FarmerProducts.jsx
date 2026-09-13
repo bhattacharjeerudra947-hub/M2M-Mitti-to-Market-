@@ -267,28 +267,67 @@ export default function FarmerProducts() {
                       </div>
 
                       {/* Stock Breakdown Progress */}
-                      <div className="bg-gray-50 rounded-xl p-3 mb-3 text-xs space-y-1.5">
-                        <div className="flex justify-between font-semibold">
-                          <span className="text-navy-600">Available Stock</span>
-                          <span className={remainingQty === 0 ? 'text-red-600 font-bold' : 'text-navy-900'}>
-                            {remainingQty} {item.unit}
-                          </span>
-                        </div>
+                      {(() => {
+                        const listed = item.listedQuantity || item.quantity || 0;
+                        const reserved = item.reservedQuantity || 0;
+                        const sold = item.soldQuantity || 0;
+                        const available = item.availableQuantity != null ? item.availableQuantity : item.quantity || 0;
+                        const total = Math.max(listed, available + reserved + sold);
 
-                        {totalQty > 0 && (
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-emerald-600 h-full rounded-full transition-all"
-                              style={{ width: `${Math.min(100, Math.max(0, (remainingQty / totalQty) * 100))}%` }}
-                            />
+                        const availPct = total > 0 ? (available / total) * 100 : 0;
+                        const resPct = total > 0 ? (reserved / total) * 100 : 0;
+                        const soldPct = total > 0 ? (sold / total) * 100 : 0;
+
+                        return (
+                          <div className="bg-gray-50/90 border border-gray-100 rounded-xl p-3 mb-3 text-xs space-y-2">
+                            <div className="flex justify-between items-baseline font-semibold">
+                              <span className="text-navy-700">Stock Breakdown</span>
+                              <span className={available === 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-bold'}>
+                                {available} {item.unit} available
+                              </span>
+                            </div>
+
+                            {/* Multi-segment progress bar */}
+                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden flex">
+                              <div
+                                title={`Available: ${available} ${item.unit}`}
+                                className="bg-emerald-500 h-full transition-all"
+                                style={{ width: `${availPct}%` }}
+                              />
+                              <div
+                                title={`Reserved: ${reserved} ${item.unit}`}
+                                className="bg-amber-400 h-full transition-all"
+                                style={{ width: `${resPct}%` }}
+                              />
+                              <div
+                                title={`Sold: ${sold} ${item.unit}`}
+                                className="bg-blue-600 h-full transition-all"
+                                style={{ width: `${soldPct}%` }}
+                              />
+                            </div>
+
+                            {/* 4-Stat Grid: Listed, Reserved, Sold, Available */}
+                            <div className="grid grid-cols-4 gap-1 text-[10px] text-center pt-1 border-t border-gray-100">
+                              <div className="bg-white p-1 rounded border border-gray-100">
+                                <span className="text-gray-400 block uppercase text-[8px]">Listed</span>
+                                <span className="font-bold text-navy-800">{listed}</span>
+                              </div>
+                              <div className="bg-white p-1 rounded border border-gray-100">
+                                <span className="text-amber-600 block uppercase text-[8px]">Reserved</span>
+                                <span className="font-bold text-amber-700">{reserved}</span>
+                              </div>
+                              <div className="bg-white p-1 rounded border border-gray-100">
+                                <span className="text-blue-600 block uppercase text-[8px]">Sold</span>
+                                <span className="font-bold text-blue-700">{sold}</span>
+                              </div>
+                              <div className="bg-white p-1 rounded border border-gray-100">
+                                <span className="text-emerald-600 block uppercase text-[8px]">Available</span>
+                                <span className="font-bold text-emerald-700">{available}</span>
+                              </div>
+                            </div>
                           </div>
-                        )}
-
-                        <div className="flex justify-between text-[11px] text-gray-500 pt-0.5">
-                          <span>Listed: {totalQty} {item.unit}</span>
-                          {soldQty > 0 && <span className="text-emerald-700 font-medium">Sold: {soldQty} {item.unit}</span>}
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Shelf Life & Expiry Information */}
                       <div className="space-y-1.5 text-xs text-navy-600 mb-3">

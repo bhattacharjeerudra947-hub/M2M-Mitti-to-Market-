@@ -132,11 +132,12 @@ public class DealService {
                     (produce.getExpiryDate() != null && produce.getExpiryDate().isBefore(java.time.LocalDate.now()))) {
                 throw new BadRequestException("This produce has expired and is no longer available for new deals");
             }
-            if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || produce.getQuantity() <= 0) {
+            int available = produce.getAvailableQuantity();
+            if (produce.getStatus() == Produce.ProduceStatus.SOLD_OUT || available <= 0) {
                 throw new BadRequestException("This produce is completely sold out");
             }
-            if (quantity > produce.getQuantity()) {
-                throw new BadRequestException("Only " + produce.getQuantity() + " " + produce.getUnit() +
+            if (quantity > available) {
+                throw new BadRequestException("Only " + available + " " + produce.getUnit() +
                         " remains available for " + produce.getName() + ". Deal quantity is " + quantity + " " + unit);
             }
         }
@@ -271,28 +272,24 @@ public class DealService {
         Produce produce = produceRepo.findByIdWithLock(produceId)
                 .orElseThrow(() -> new BadRequestException("Associated produce listing not found"));
 
-        if (produce.getQuantity() < deal.getQuantity()) {
-            throw new BadRequestException("Only " + produce.getQuantity() + " " + deal.getUnit() +
+        int available = produce.getAvailableQuantity();
+        if (available < deal.getQuantity()) {
+            throw new BadRequestException("Only " + available + " " + deal.getUnit() +
                     " remains available for " + produce.getName() + ". Deal quantity is " + deal.getQuantity() + " " + deal.getUnit());
         }
 
-        int remaining = produce.getQuantity() - deal.getQuantity();
         int reserved = (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) + deal.getQuantity();
-        produce.setQuantity(remaining);
         produce.setReservedQuantity(reserved);
+        produce.recalculateQuantityAndStatus();
+        int remaining = produce.getQuantity();
 
         if (remaining == 0) {
-            produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
             if (deal.getFarmer() != null) {
                 notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_LOCKED,
                         "Stock Fully Reserved",
                         "All available stock for \"" + produce.getName() + "\" has been locked in deals.",
                         produce.getId(), "PRODUCE");
             }
-        } else if (remaining < 50) {
-            produce.setStatus(Produce.ProduceStatus.LOW_STOCK);
-        } else {
-            produce.setStatus(Produce.ProduceStatus.PARTIALLY_SOLD);
         }
         produce = produceRepo.save(produce);
         deal.setProduce(produce);
@@ -310,18 +307,9 @@ public class DealService {
         if (deal.getStatus() == DealStatus.LOCK_PENDING || deal.getStatus() == DealStatus.NEGOTIATING) return;
 
         Produce produce = deal.getProduce();
-        int restored = produce.getQuantity() + deal.getQuantity();
         int reserved = Math.max(0, (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) - deal.getQuantity());
-        produce.setQuantity(restored);
         produce.setReservedQuantity(reserved);
-
-        // Re-derive status from the restored stock level
-        if (produce.getStatus() != Produce.ProduceStatus.ADMIN_REMOVED
-                && produce.getStatus() != Produce.ProduceStatus.REMOVED) {
-            int listed = produce.getListedQuantity() != null ? produce.getListedQuantity() : restored;
-            produce.setStatus(restored >= listed ? Produce.ProduceStatus.AVAILABLE
-                    : restored < 50 ? Produce.ProduceStatus.LOW_STOCK : Produce.ProduceStatus.PARTIALLY_SOLD);
-        }
+        produce.recalculateQuantityAndStatus();
         produceRepo.save(produce);
     }
 
@@ -336,14 +324,12 @@ public class DealService {
             int reserved = Math.max(0, (produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0) - deal.getQuantity());
             produce.setSoldQuantity(sold);
             produce.setReservedQuantity(reserved);
-            if (produce.getQuantity() <= 0) {
-                produce.setStatus(Produce.ProduceStatus.SOLD_OUT);
-                if (deal.getFarmer() != null) {
-                    notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_COMPLETED,
-                            "Produce Completely Sold Out",
-                            "Your listing \"" + produce.getName() + "\" has been completely sold and moved to history.",
-                            produce.getId(), "PRODUCE");
-                }
+            produce.recalculateQuantityAndStatus();
+            if (produce.getQuantity() <= 0 && deal.getFarmer() != null) {
+                notificationService.createNotification(deal.getFarmer().getId(), Notification.NotificationType.DEAL_COMPLETED,
+                        "Produce Completely Sold Out",
+                        "Your listing \"" + produce.getName() + "\" has been completely sold and moved to history.",
+                        produce.getId(), "PRODUCE");
             }
             produceRepo.save(produce);
         }
@@ -561,7 +547,16 @@ public class DealService {
         resp.put("farmerConfirmed", confs.stream().anyMatch(c -> c.getUser().getId().equals(deal.getFarmer().getId()) && c.getConfirmed()));
         resp.put("buyerConfirmed", confs.stream().anyMatch(c -> c.getUser().getId().equals(deal.getBuyer().getId()) && c.getConfirmed()));
 
-        // Logistics info if assigned
+        // Logistics & Payment info
+        resp.put("logisticsMode", deal.getLogisticsMode());
+        resp.put("ownLogisticsProvider", deal.getOwnLogisticsProvider());
+        resp.put("logisticsProviderId", deal.getLogisticsProviderId());
+        resp.put("logisticsProviderName", deal.getLogisticsProviderName());
+        resp.put("logisticsProviderPhone", deal.getLogisticsProviderPhone());
+        resp.put("logisticsVehicleNumber", deal.getLogisticsVehicleNumber());
+        resp.put("estimatedLogisticsCost", deal.getEstimatedLogisticsCost());
+        resp.put("paymentStatus", deal.getPaymentStatus());
+
         logisticsRepo.findByDealId(deal.getId()).ifPresent(l -> {
             resp.put("logisticsType", l.getType().name());
             resp.put("logisticsStatus", l.getStatus().name());

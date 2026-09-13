@@ -57,6 +57,25 @@ public class Deal {
 
     private String conversationId;
 
+    /** Logistics mode: MITTI2MARKET or OWN */
+    @Builder.Default
+    private String logisticsMode = "MITTI2MARKET";
+
+    /** If OWN: FARMER, BUYER, or THIRD_PARTY */
+    private String ownLogisticsProvider;
+
+    /** Logistics reference code (e.g. M2M-LP-001245 or LP-OWN-000124) */
+    private String logisticsProviderId;
+
+    private String logisticsProviderName;
+    private String logisticsProviderPhone;
+    private String logisticsVehicleNumber;
+    private Double estimatedLogisticsCost;
+
+    /** Payment status: UNPAID, PAID_ESCROW, RELEASED_TO_FARMER, REFUNDED */
+    @Builder.Default
+    private String paymentStatus = "UNPAID";
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

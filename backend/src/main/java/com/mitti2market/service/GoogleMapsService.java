@@ -31,6 +31,8 @@ public class GoogleMapsService {
             "https://maps.googleapis.com/maps/api/geocode/json";
     private static final String DIRECTIONS_URL =
             "https://maps.googleapis.com/maps/api/directions/json";
+    private static final String PLACES_TEXT_SEARCH_URL =
+            "https://maps.googleapis.com/maps/api/place/textsearch/json";
 
     @Value("${google.maps.api-key:}")
     private String apiKey;
@@ -223,6 +225,38 @@ public class GoogleMapsService {
                 .hasHighways(summary.toUpperCase().contains("NH") || summary.toUpperCase().contains("EXPRESSWAY"))
                 .recommended(false) // set by RouteOptimizationService
                 .build();
+    }
+
+    /**
+     * Search for places (e.g. cold storages, warehouses) using Google Places Text Search API.
+     */
+    public List<Map<String, Object>> searchPlaces(String query, Double lat, Double lng, Integer radiusMeters) {
+        if (!isConfigured()) {
+            throw new GoogleMapsException("Google Maps API key is not configured");
+        }
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(PLACES_TEXT_SEARCH_URL)
+                .queryParam("query", query)
+                .queryParam("region", "in")
+                .queryParam("key", apiKey);
+
+        if (lat != null && lng != null) {
+            builder.queryParam("location", lat + "," + lng);
+            builder.queryParam("radius", radiusMeters != null ? radiusMeters : 50000);
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.getForObject(builder.toUriString(), Map.class);
+            if (response != null && "OK".equals(response.get("status"))) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+                return results != null ? results : List.of();
+            }
+            return List.of();
+        } catch (Exception e) {
+            log.warn("Places search failed for query '{}': {}", query, e.getMessage());
+            throw new GoogleMapsException("Places search failed: " + e.getMessage(), e);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

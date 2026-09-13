@@ -97,7 +97,8 @@ public class ReverseLogisticsController {
 
         String imageUrl = null;
         if (file != null && !file.isEmpty()) {
-            imageUrl = cloudinaryService.uploadFile(file, "mitti2market/reverse");
+            Map<String, String> upload = cloudinaryService.uploadFile(file, "mitti2market/reverse", true);
+            imageUrl = upload.get("url");
         }
 
         ReverseLogistics.ReturnReason reason = ReverseLogistics.ReturnReason.valueOf(reasonStr);

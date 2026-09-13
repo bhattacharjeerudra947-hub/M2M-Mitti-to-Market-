@@ -61,6 +61,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/market-prices/**").permitAll()
                 .requestMatchers("/api/location/**").permitAll()
                 .requestMatchers("/api/logistics/**").permitAll()
+                .requestMatchers("/api/storage/**").permitAll()
                 // SSE stream self-validates the token via query param (EventSource can't send headers)
                 .requestMatchers("/api/messages/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/produce/**").permitAll()

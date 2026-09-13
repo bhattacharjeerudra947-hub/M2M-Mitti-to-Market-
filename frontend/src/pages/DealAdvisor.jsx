@@ -212,12 +212,36 @@ export default function DealAdvisor() {
                         {deal.buyerRating > 0 && <p className="text-xs text-amber-600">★ {deal.buyerRating.toFixed(1)} / 5</p>}
                       </div>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                      deal.recommendationRank === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-600'
-                    }`}>
-                      {deal.recommendationRank === 1 ? '⭐ RECOMMENDED' : `Rank #${deal.recommendationRank}`}
-                    </span>
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                      {deal.dealRecommendation && (
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-black tracking-wide uppercase ${
+                          deal.dealRecommendation === 'VALID DEAL'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : deal.dealRecommendation === 'NEGOTIATE'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-red-100 text-red-800 border border-red-300'
+                        }`}>
+                          {deal.dealRecommendation === 'VALID DEAL' ? '✓ VALID DEAL' : deal.dealRecommendation === 'NEGOTIATE' ? '🔄 NEGOTIATE' : '⚠️ NOT RECOMMENDED'}
+                        </span>
+                      )}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                        deal.recommendationRank === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-600'
+                      }`}>
+                        {deal.recommendationRank === 1 ? '⭐ RECOMMENDED' : `Rank #${deal.recommendationRank}`}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Explainability Summary */}
+                  {deal.dealEvaluationSummary && (
+                    <div className="mt-3 p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-950 flex items-start gap-2">
+                      <Brain className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">Deal AI Assessment: </span>
+                        <span>{deal.dealEvaluationSummary}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Key numbers */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">

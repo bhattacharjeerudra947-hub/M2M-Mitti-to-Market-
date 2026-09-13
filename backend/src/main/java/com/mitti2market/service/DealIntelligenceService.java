@@ -140,6 +140,40 @@ public class DealIntelligenceService {
 
         double confidence = confidenceLevel(distanceKm, buyer);
 
+        // 6. Deal AI Recommendation & Evaluation
+        double askingPrice = produce.getPricePerUnit() != null ? produce.getPricePerUnit() : offeredPrice;
+        double priceRatio = askingPrice > 0 ? offeredPrice / askingPrice : 1.0;
+        int availableQty = produce.getAvailableQuantity();
+
+        String dealRecommendation;
+        String priceAssessment;
+        if (netValue <= 0 || priceRatio < 0.70 || dealScore < 50) {
+            dealRecommendation = "NOT RECOMMENDED";
+            priceAssessment = "Offer is below target economic viability threshold.";
+        } else if (dealScore >= 70 && priceRatio >= 0.85 && (quantity <= availableQty || availableQty == 0) && netValue > 0) {
+            dealRecommendation = "VALID DEAL";
+            priceAssessment = "Price aligns well with market expectations.";
+        } else {
+            dealRecommendation = "NEGOTIATE";
+            priceAssessment = "Fair initial offer, but counter-negotiating could improve net realization.";
+        }
+
+        String logisticsAssessment;
+        if (logisticsCostPerUnit <= 2.5) {
+            logisticsAssessment = String.format("Efficient transit: %.1f km keeps freight around ₹%.2f/%s.", distanceKm, logisticsCostPerUnit, produce.getUnit());
+        } else if (logisticsCostPerUnit <= 5.0) {
+            logisticsAssessment = String.format("Moderate distance (%.1f km) with ₹%.2f/%s logistics overhead.", distanceKm, logisticsCostPerUnit, produce.getUnit());
+        } else {
+            logisticsAssessment = String.format("Long-haul transport (%.1f km) adds ₹%.2f/%s in transit cost.", distanceKm, logisticsCostPerUnit, produce.getUnit());
+        }
+
+        String dealEvaluationSummary = String.format(
+                "Price is ₹%.2f/%s (asking ₹%.2f/%s). Distance of %.1f km results in ~₹%.2f/%s transport cost, leaving a projected net return of ₹%.2f for %d %s.",
+                offeredPrice, produce.getUnit(), askingPrice, produce.getUnit(),
+                distanceKm, logisticsCostPerUnit, produce.getUnit(),
+                netValue, quantity, produce.getUnit()
+        );
+
         return DealAnalysis.builder()
                 .interestId(interest.getId())
                 .buyerId(buyer.getId())
@@ -162,6 +196,10 @@ public class DealIntelligenceService {
                 .netPerUnit(round2(netPerUnit))
                 .dealScore(round(dealScore))
                 .confidence(round(confidence))
+                .dealRecommendation(dealRecommendation)
+                .dealEvaluationSummary(dealEvaluationSummary)
+                .priceAssessment(priceAssessment)
+                .logisticsAssessment(logisticsAssessment)
                 .reasons(reasons)
                 .warnings(warnings)
                 .scoreBreakdown(breakdown)

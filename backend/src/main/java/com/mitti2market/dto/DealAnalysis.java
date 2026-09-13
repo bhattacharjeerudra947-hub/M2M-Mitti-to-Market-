@@ -50,6 +50,15 @@ public class DealAnalysis {
     private List<String> reasons;      // why this rank
     private List<String> warnings;     // caution flags
 
+    /** Deal AI recommendation badge: VALID DEAL, NEGOTIATE, NOT RECOMMENDED */
+    private String dealRecommendation;
+
+    /** Human-readable evaluation summary explaining the recommendation */
+    private String dealEvaluationSummary;
+
+    private String priceAssessment;
+    private String logisticsAssessment;
+
     // Extra context for the UI
     private Map<String, Double> scoreBreakdown; // e.g. price=85, logistics=70
 }
