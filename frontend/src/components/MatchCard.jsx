@@ -33,16 +33,30 @@ export default function MatchCard({ match, onStartDeal, onViewBuyer, onSkip, isS
   const isLocked = status === 'DEAL_LOCKED';
   const isCompleted = status === 'COMPLETED';
 
-  // Extract checklist items
-  const reasons = Array.isArray(matchReasons) && matchReasons.length > 0
+  // Extract checklist items with Price and Location at the TOP
+  const rawReasons = Array.isArray(matchReasons) && matchReasons.length > 0
     ? matchReasons
     : [
+        '✓ Top Price Match compatible',
+        '✓ Top Location Match compatible',
         '✓ Crop compatible',
         '✓ Quantity compatible',
-        '✓ Price compatible',
-        '✓ Location compatible',
         '✓ Availability timeframe compatible'
       ];
+
+  const reasons = [...rawReasons].sort((a, b) => {
+    const aIsPrice = a.toLowerCase().includes('price');
+    const bIsPrice = b.toLowerCase().includes('price');
+    if (aIsPrice && !bIsPrice) return -1;
+    if (!aIsPrice && bIsPrice) return 1;
+
+    const aIsLoc = a.toLowerCase().includes('location');
+    const bIsLoc = b.toLowerCase().includes('location');
+    if (aIsLoc && !bIsLoc) return -1;
+    if (!aIsLoc && bIsLoc) return 1;
+
+    return 0;
+  });
 
   return (
     <div className="bg-white rounded-3xl border-2 border-navy-100 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between">
@@ -61,6 +75,35 @@ export default function MatchCard({ match, onStartDeal, onViewBuyer, onSkip, isS
       </div>
 
       <div className="p-6 flex-1 flex flex-col items-center text-center">
+        {/* Top Priority Highlights: Price & Location Top */}
+        <div className="w-full grid grid-cols-2 gap-2 mb-3.5">
+          <div className="bg-emerald-50/90 border border-emerald-200 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center shadow-xs">
+            <span className="text-[10px] uppercase font-black text-emerald-800 tracking-wider flex items-center gap-1">
+              💰 Price Match
+            </span>
+            <span className="text-sm font-black text-navy-950 mt-0.5">
+              ₹{produce?.pricePerUnit} <span className="text-[10px] font-normal text-gray-500">vs</span> {requirement?.maxPrice ? `₹${requirement.maxPrice}` : 'Open'}
+            </span>
+            <span className="text-[9px] font-bold text-emerald-700 mt-0.5">
+              {requirement?.maxPrice && produce?.pricePerUnit && produce.pricePerUnit <= requirement.maxPrice
+                ? '✓ Within Buyer Budget'
+                : '✓ Competitive Price'}
+            </span>
+          </div>
+
+          <div className="bg-blue-50/90 border border-blue-200 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center shadow-xs">
+            <span className="text-[10px] uppercase font-black text-blue-800 tracking-wider flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-blue-600" /> Location Route
+            </span>
+            <span className="text-xs font-black text-navy-950 mt-0.5 truncate max-w-full px-1" title={`${produce?.location || 'Origin'} → ${requirement?.deliveryLocation || 'Destination'}`}>
+              {produce?.location || 'Local'} → {requirement?.deliveryLocation || 'Direct'}
+            </span>
+            <span className="text-[9px] font-bold text-blue-700 mt-0.5">
+              ✓ Direct Logistics Link
+            </span>
+          </div>
+        </div>
+
         {/* Farmer Produce Info */}
         <div className="w-full bg-mustard-50/40 rounded-2xl p-4 border border-mustard-100">
           <div className="flex items-center justify-center gap-2 mb-1">
@@ -76,11 +119,21 @@ export default function MatchCard({ match, onStartDeal, onViewBuyer, onSkip, isS
           <h4 className="text-base font-extrabold text-navy-950 uppercase tracking-wide">
             {produce?.name || 'Produce'}
           </h4>
-          <p className="text-sm font-bold text-primary-700 mt-1">
+
+          {/* Price & Location placed on top */}
+          <div className="mt-1.5 flex items-center justify-center gap-2 flex-wrap">
+            <span className="text-sm font-black text-emerald-800 bg-emerald-100/70 border border-emerald-200 px-2 py-0.5 rounded-lg">
+              ₹{produce?.pricePerUnit}/{produce?.unit || 'kg'}
+            </span>
+            {produce?.location && (
+              <span className="text-xs font-bold text-blue-900 bg-blue-100/70 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-blue-600" /> {produce.location}
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs font-bold text-primary-700 mt-2">
             {produce?.quantity} {produce?.unit || 'kg'} available
-          </p>
-          <p className="text-base font-black text-navy-900 mt-0.5">
-            ₹{produce?.pricePerUnit}/{produce?.unit || 'kg'}
           </p>
           {produce?.readyDate && (
             <p className="text-xs text-navy-600 mt-1 flex items-center justify-center gap-1">
@@ -117,27 +170,29 @@ export default function MatchCard({ match, onStartDeal, onViewBuyer, onSkip, isS
             </span>
           )}
 
+          {/* Buyer Budget & Delivery Location on top */}
+          <div className="mt-1 flex items-center justify-center gap-2 flex-wrap mb-2">
+            <span className="text-xs font-bold text-emerald-800 bg-emerald-100/70 border border-emerald-200 px-2 py-0.5 rounded-lg">
+              Budget: {requirement?.minPrice && requirement?.maxPrice
+                ? `₹${requirement.minPrice}–₹${requirement.maxPrice}/${requirement.unit || 'kg'}`
+                : requirement?.maxPrice
+                ? `up to ₹${requirement.maxPrice}/${requirement.unit || 'kg'}`
+                : 'Negotiable'}
+            </span>
+            {requirement?.deliveryLocation && (
+              <span className="text-xs font-bold text-blue-900 bg-blue-100/70 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-blue-600" /> {requirement.deliveryLocation}
+              </span>
+            )}
+          </div>
+
           <div className="space-y-1 text-xs text-navy-700">
             <p className="font-semibold text-navy-900">
               Wants: <span className="font-extrabold">{requirement?.quantity} {requirement?.unit || 'kg'}</span>
             </p>
-            <p className="font-medium text-navy-600">
-              Budget: <span className="font-bold text-navy-900">
-                {requirement?.minPrice && requirement?.maxPrice
-                  ? `₹${requirement.minPrice}–₹${requirement.maxPrice}/${requirement.unit || 'kg'}`
-                  : requirement?.maxPrice
-                  ? `up to ₹${requirement.maxPrice}/${requirement.unit || 'kg'}`
-                  : 'Negotiable'}
-              </span>
-            </p>
-            {requirement?.deliveryLocation && (
-              <p className="flex items-center justify-center gap-1 text-navy-500">
-                <MapPin className="w-3 h-3 text-navy-400" /> {requirement.deliveryLocation}
-              </p>
-            )}
             {requirement?.requiredBy && (
               <p className="flex items-center justify-center gap-1 text-navy-500">
-                <Calendar className="w-3 h-3 text-navy-400" /> Required by: {requirement.requiredBy}
+                <Calendar className="w-3.5 h-3.5 text-navy-400" /> Required by: {requirement.requiredBy}
               </p>
             )}
           </div>

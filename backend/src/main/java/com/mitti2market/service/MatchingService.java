@@ -125,34 +125,83 @@ public class MatchingService {
     /**
      * Evaluates compatibility and calculates score (0 - 100) + checklist reasons.
      *
-     * Weights:
-     * - Crop compatibility: 30%
-     * - Quantity compatibility: 20%
-     * - Price compatibility: 20%
-     * - Location compatibility: 10%
-     * - Ready / Required Date: 10%
-     * - Buyer Trust & Verification: 10%
+     * TOP PRIORITY FACTORS:
+     * - Price Compatibility: 30% (TOP 1 PRIORITY — farmer profitability & buyer budget)
+     * - Location & Proximity: 25% (TOP 2 PRIORITY — minimize transport cost & freight time)
+     * - Crop Compatibility: 25% (Prerequisite — must match)
+     * - Quantity Compatibility: 10% (Exact vs partial fulfillment)
+     * - Ready / Required Date: 5% (Harvest availability timeline)
+     * - Buyer Trust & Verification: 5% (Verified KYC business)
+     * Total = 100%
      */
     public MatchEvaluation evaluate(Produce produce, BuyerRequirement req) {
         MatchEvaluation eval = new MatchEvaluation();
         int totalScore = 0;
         List<String> reasons = new ArrayList<>();
 
-        // 1. Crop Match (30%)
+        // 1. Crop Match (25% — Mandatory Prerequisite)
         boolean cropMatch = com.mitti2market.util.CropNormalizer.matches(produce.getName(), req.getCrop());
         eval.isCropMatch = cropMatch;
 
-        if (cropMatch) {
-            totalScore += 30;
-            reasons.add("✓ Same crop (" + produce.getName() + ")");
-        } else {
+        if (!cropMatch) {
             reasons.add("✗ Incompatible crop");
             eval.score = 0;
             eval.reasons = reasons;
             return eval;
         }
+        totalScore += 25;
 
-        // 2. Quantity Match (20%)
+        // 2. Price Match (30% — TOP PRIORITY #1)
+        Double pPrice = produce.getPricePerUnit();
+        Double rMin = req.getMinPrice();
+        Double rMax = req.getMaxPrice();
+
+        if (pPrice != null) {
+            if (rMax == null && rMin == null) {
+                totalScore += 30;
+                reasons.add("✓ Top Price Match (₹" + pPrice + "/" + produce.getUnit() + ")");
+            } else {
+                double targetPrice = rMax != null ? rMax : (rMin != null ? rMin : pPrice);
+                double diff = Math.abs(pPrice - targetPrice);
+                double pctDiff = targetPrice > 0 ? (diff / targetPrice) * 100.0 : 0.0;
+
+                if (rMax != null && pPrice <= rMax) {
+                    totalScore += 30;
+                    reasons.add("✓ Top Price Match: Farmer ₹" + pPrice + " ≤ Buyer budget ₹" + rMax + "/" + produce.getUnit());
+                } else if (pctDiff <= 5.0 || diff <= 5.0) {
+                    totalScore += 27;
+                    reasons.add("✓ Top Price Match: within ±5% / ₹5 (Farmer ₹" + pPrice + " vs Target ₹" + targetPrice + ")");
+                } else if (rMax != null && pPrice <= rMax * 1.15) {
+                    totalScore += 15;
+                    reasons.add("⚠ Price negotiable: Farmer ₹" + pPrice + " close to Buyer budget ₹" + rMax);
+                } else {
+                    totalScore += 3;
+                    reasons.add("✗ Farmer price ₹" + pPrice + " exceeds buyer budget ₹" + rMax);
+                }
+            }
+        } else {
+            totalScore += 15;
+        }
+
+        // 3. Location Match (25% — TOP PRIORITY #2)
+        String pLoc = produce.getLocation() != null ? produce.getLocation().trim().toLowerCase() : "";
+        String rLoc = req.getDeliveryLocation() != null ? req.getDeliveryLocation().trim().toLowerCase() : "";
+
+        if (pLoc.isBlank() || rLoc.isBlank()) {
+            totalScore += 20;
+            reasons.add("✓ Delivery location flexible");
+        } else if (pLoc.contains(rLoc) || rLoc.contains(pLoc)) {
+            totalScore += 25;
+            reasons.add("✓ Top Location Match: Local route (" + produce.getLocation() + ")");
+        } else {
+            totalScore += 14;
+            reasons.add("✓ Location connected: Regional transport route (" + produce.getLocation() + " → " + req.getDeliveryLocation() + ")");
+        }
+
+        // 4. Crop Confirmation Checklist Reason
+        reasons.add("✓ Same crop (" + produce.getName() + ")");
+
+        // 5. Quantity Match (10%)
         int availQty = produce.getQuantity() != null ? produce.getQuantity() : 0;
         int reqQty = req.getRemainingQuantity() != null ? req.getRemainingQuantity() :
                      (req.getRequiredQuantity() != null ? req.getRequiredQuantity() : req.getQuantity());
@@ -160,99 +209,51 @@ public class MatchingService {
         if (reqQty <= 0) reqQty = 1;
 
         if (availQty >= reqQty) {
-            totalScore += 20;
+            totalScore += 10;
             reasons.add("✓ Quantity compatible (" + availQty + " " + produce.getUnit() + " available for " + reqQty + " " + req.getUnit() + " required)");
             eval.matchType = MatchType.EXACT;
         } else {
-            // Partial match
             double ratio = (double) availQty / reqQty;
-            int qScore = (int) Math.round(ratio * 20.0);
-            qScore = Math.max(5, Math.min(18, qScore));
+            int qScore = (int) Math.round(ratio * 10.0);
+            qScore = Math.max(3, Math.min(9, qScore));
             totalScore += qScore;
             reasons.add("⚠ Partial quantity (" + availQty + " " + produce.getUnit() + " available against " + reqQty + " " + req.getUnit() + " requirement)");
             eval.matchType = MatchType.PARTIAL;
         }
 
-        // 3. Price Match (20%) - Deterministic ±5% or ₹5 rule
-        Double pPrice = produce.getPricePerUnit();
-        Double rMin = req.getMinPrice();
-        Double rMax = req.getMaxPrice();
-
-        if (pPrice != null) {
-            if (rMax == null && rMin == null) {
-                totalScore += 20;
-                reasons.add("✓ Price compatible (₹" + pPrice + "/" + produce.getUnit() + ")");
-            } else {
-                double targetPrice = rMax != null ? rMax : (rMin != null ? rMin : pPrice);
-                double diff = Math.abs(pPrice - targetPrice);
-                double pctDiff = targetPrice > 0 ? (diff / targetPrice) * 100.0 : 0.0;
-
-                if (rMax != null && pPrice <= rMax) {
-                    totalScore += 20;
-                    reasons.add("✓ Price compatible (Farmer ₹" + pPrice + " ≤ Buyer budget ₹" + rMax + ")");
-                } else if (pctDiff <= 5.0 || diff <= 5.0) {
-                    totalScore += 18;
-                    reasons.add("✓ Price within ±5% / ₹5 threshold (Farmer ₹" + pPrice + " vs Target ₹" + targetPrice + ")");
-                } else if (rMax != null && pPrice <= rMax * 1.15) {
-                    totalScore += 10;
-                    reasons.add("⚠ Price negotiable (Farmer ₹" + pPrice + " close to Buyer budget ₹" + rMax + ")");
-                } else {
-                    totalScore += 2;
-                    reasons.add("✗ Farmer price ₹" + pPrice + " exceeds buyer budget ₹" + rMax);
-                }
-            }
-        } else {
-            totalScore += 10;
-        }
-
-        // 4. Location Match (10%)
-        String pLoc = produce.getLocation() != null ? produce.getLocation().trim().toLowerCase() : "";
-        String rLoc = req.getDeliveryLocation() != null ? req.getDeliveryLocation().trim().toLowerCase() : "";
-
-        if (pLoc.isBlank() || rLoc.isBlank()) {
-            totalScore += 8;
-            reasons.add("✓ Delivery location flexible");
-        } else if (pLoc.contains(rLoc) || rLoc.contains(pLoc)) {
-            totalScore += 10;
-            reasons.add("✓ Location compatible (" + produce.getLocation() + ")");
-        } else {
-            totalScore += 6;
-            reasons.add("✓ Regional transport available (" + produce.getLocation() + " to " + req.getDeliveryLocation() + ")");
-        }
-
-        // 5. Ready Date / Required Date (10%)
+        // 6. Ready Date / Required Date (5%)
         LocalDate ready = produce.getReadyDate();
         LocalDate needed = req.getRequiredBy();
 
         if (ready == null && needed == null) {
-            totalScore += 10;
+            totalScore += 5;
             reasons.add("✓ Immediate availability");
         } else if (ready != null && needed != null) {
             if (!ready.isAfter(needed)) {
-                totalScore += 10;
-                reasons.add("✓ Ready date compatible (Ready by " + ready + ", required by " + needed + ")");
+                totalScore += 5;
+                reasons.add("✓ Ready date compatible (" + ready + " vs " + needed + ")");
             } else if (ready.minusDays(3).isBefore(needed)) {
-                totalScore += 6;
+                totalScore += 3;
                 reasons.add("⚠ Ready date close (" + ready + " vs " + needed + ")");
             } else {
-                totalScore += 2;
+                totalScore += 1;
                 reasons.add("✗ Ready date after requirement deadline");
             }
         } else {
-            totalScore += 8;
+            totalScore += 4;
             reasons.add("✓ Availability timeline compatible");
         }
 
-        // 6. Trust & Verification (10%)
+        // 7. Trust & Verification (5%)
         boolean buyerVerified = req.getBuyer() != null &&
                 (Boolean.TRUE.equals(req.getBuyer().getVerified()) ||
                  req.getBuyer().getVerificationStatus() == User.VerificationStatus.VERIFIED);
 
         if (buyerVerified) {
-            totalScore += 10;
+            totalScore += 5;
             reasons.add("✓ Verified Business (" + req.getBuyer().getName() + ")");
         } else {
-            totalScore += 6;
+            totalScore += 3;
             reasons.add("✓ Active marketplace member");
         }
 
