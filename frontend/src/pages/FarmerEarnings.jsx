@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import PriceChart from '../components/PriceChart';
 import StatCard from '../components/StatCard';
 import { apiGet } from '../api';
+import { formatDate } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { Wallet, TrendingUp, ArrowUpRight, Banknote, Loader2, Inbox } from 'lucide-react';
 
@@ -118,7 +119,7 @@ export default function FarmerEarnings() {
                             <p className="text-sm font-semibold text-navy-900">Order #{o.id}</p>
                             <p className="text-xs text-navy-500">
                               {o.produceName || o.cropName || 'Produce'}
-                              {o.orderDate && ` • ${new Date(o.orderDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                              {o.orderDate && ` • ${formatDate(o.orderDate)}`}
                             </p>
                           </div>
                         </div>

@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { Package, Truck, Clock, Check, ChevronRight, Filter, Star } from 'lucide-react';
 import { getFarmerDeals, getBuyerDeals } from '../api/dealApi';
+import { formatDate } from '../utils/dateUtils';
 import DealRatingModal from '../components/DealRatingModal';
 
 const STATUS_LABELS = {
@@ -178,9 +179,9 @@ export default function MyDeals() {
                   )}
 
                   <div className="flex items-center justify-between text-[10px] text-gray-400 mt-2">
-                    <span>Created {deal.createdAt ? new Date(deal.createdAt).toLocaleDateString() : ''}</span>
-                    {deal.lockedAt && <span>Locked {new Date(deal.lockedAt).toLocaleDateString()}</span>}
-                    {deal.expectedDelivery && <span>ETA {new Date(deal.expectedDelivery).toLocaleDateString()}</span>}
+                    <span>Created {formatDate(deal.createdAt, '')}</span>
+                    {deal.lockedAt && <span>Locked {formatDate(deal.lockedAt)}</span>}
+                    {deal.expectedDelivery && <span>ETA {formatDate(deal.expectedDelivery)}</span>}
                   </div>
                 </div>
               ))}

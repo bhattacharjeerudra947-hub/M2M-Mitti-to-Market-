@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Star, Shield, Edit3, Save, X, Loader2, AlertCircle, CheckCircle2, ArrowLeft, FileText, Camera, Clock, Eye } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Star, Shield, Edit3, Save, X, Loader2, AlertCircle, CheckCircle2, Check, ArrowLeft, FileText, Camera, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../services/api';
 
@@ -21,6 +21,7 @@ async function updateProfilePhoto(photoUrl) {
 }
 import DocumentUpload from '../components/DocumentUpload';
 import { getUserRatings, getUserRatingSummary } from '../services/ratingApi';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 
 const STATUS_COLORS = {
   PENDING: 'bg-yellow-50 border-yellow-200 text-yellow-800',
@@ -208,6 +209,11 @@ export default function Profile() {
       setDocuments(docsResult.data.data);
     }
 
+    // Prominent green tick mark notification on successful upload
+    const docTitle = DOC_TYPE_LABELS[doc?.documentType] || (doc?.documentType === 'PROFILE_PHOTO' ? 'Profile photo' : 'Document');
+    setSuccess(`✓ ${docTitle} successfully uploaded and submitted for verification.`);
+    setTimeout(() => setSuccess(''), 6000);
+
     // If this was a profile photo, also persist it on the User record so
     // it becomes the authoritative profile picture (used by Sidebar, map,
     // and everywhere user.profilePhotoUrl is read).
@@ -310,7 +316,7 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
               </p>
               {profileData?.statusUpdatedAt && (
                 <p className="text-[11px] text-gray-500">
-                  Date: {new Date(profileData.statusUpdatedAt).toLocaleString()}
+                  Date: {formatDateTime(profileData.statusUpdatedAt)}
                 </p>
               )}
             </div>
@@ -329,7 +335,7 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
               </p>
               {profileData?.statusUpdatedAt && (
                 <p className="text-[11px] text-gray-500">
-                  Date: {new Date(profileData.statusUpdatedAt).toLocaleString()}
+                  Date: {formatDateTime(profileData.statusUpdatedAt)}
                 </p>
               )}
             </div>
@@ -356,7 +362,26 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
 
           <div className="p-6">
             {error && <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl mb-4"><AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /><p className="text-sm text-red-700">{error}</p></div>}
-            {success && <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-xl mb-4"><CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" /><p className="text-sm text-green-700">{success}</p></div>}
+            {success && (
+              <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-300 rounded-2xl mb-5 shadow-xs animate-in fade-in slide-in-from-top-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-2xs ring-4 ring-emerald-100">
+                  <Check className="w-4 h-4 stroke-[3]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-extrabold text-emerald-950 flex items-center gap-1.5">
+                    Successfully Uploaded / Saved <span className="text-emerald-600 font-black text-base">✓</span>
+                  </p>
+                  <p className="text-xs text-emerald-800 font-medium mt-0.5">{success}</p>
+                </div>
+                <button
+                  onClick={() => setSuccess('')}
+                  className="p-1.5 text-emerald-700 hover:text-emerald-950 rounded-lg hover:bg-emerald-100/60 transition"
+                  title="Dismiss notification"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {/* ═══ Tab: Personal Info ═══ */}
             {activeTab === 'info' && (
@@ -489,22 +514,46 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
                 {/* Upload new profile photo */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">Profile Photo</h3>
-                  <DocumentUpload documentType="PROFILE_PHOTO" label="Upload / Replace Photo" isPhoto={true} onUploadComplete={handleDocumentUploaded} />
+                  <DocumentUpload
+                    documentType="PROFILE_PHOTO"
+                    label="Upload / Replace Photo"
+                    isPhoto={true}
+                    existingDoc={documents.find(d => d.documentType === 'PROFILE_PHOTO')}
+                    onUploadComplete={handleDocumentUploaded}
+                  />
                 </div>
 
                 {/* Upload role-specific documents */}
                 {role === 'farmer' && (
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 mb-2">Identity Document</h3>
-                    <DocumentUpload documentType="AADHAAR_CARD" label="Aadhaar Card" isPhoto={false} onUploadComplete={handleDocumentUploaded} />
+                    <DocumentUpload
+                      documentType="AADHAAR_CARD"
+                      label="Aadhaar Card"
+                      isPhoto={false}
+                      existingDoc={documents.find(d => d.documentType === 'AADHAAR_CARD')}
+                      onUploadComplete={handleDocumentUploaded}
+                    />
                   </div>
                 )}
 
                 {role === 'business' && (
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold text-gray-700 mb-2">Business Documents</h3>
-                    <DocumentUpload documentType="BUSINESS_REGISTRATION" label="Business Registration" isPhoto={false} onUploadComplete={handleDocumentUploaded} />
-                    <DocumentUpload documentType="GST_CERTIFICATE" label="GST Certificate" isPhoto={false} onUploadComplete={handleDocumentUploaded} />
+                    <DocumentUpload
+                      documentType="BUSINESS_REGISTRATION"
+                      label="Business Registration"
+                      isPhoto={false}
+                      existingDoc={documents.find(d => d.documentType === 'BUSINESS_REGISTRATION')}
+                      onUploadComplete={handleDocumentUploaded}
+                    />
+                    <DocumentUpload
+                      documentType="GST_CERTIFICATE"
+                      label="GST Certificate"
+                      isPhoto={false}
+                      existingDoc={documents.find(d => d.documentType === 'GST_CERTIFICATE')}
+                      onUploadComplete={handleDocumentUploaded}
+                    />
                   </div>
                 )}
 
@@ -593,7 +642,7 @@ const dashboardPath = role === 'farmer' ? '/farmer' : '/business';
                             )}
                           </div>
                           <span className="text-[11px] text-gray-400">
-                            {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : ''}
+                            {formatDate(rev.createdAt, '')}
                           </span>
                         </div>
                         <div className="flex items-center gap-1 text-amber-400 text-sm">

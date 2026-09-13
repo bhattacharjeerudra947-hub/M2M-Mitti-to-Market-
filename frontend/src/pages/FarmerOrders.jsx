@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import { ClipboardList, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
+import { formatDate } from '../utils/dateUtils';
 
 const statusStages = {
   PENDING: [false, false, false, false],
@@ -70,7 +71,7 @@ function OrderCard({ order }) {
 
       <div className="mt-4 pt-3 border-t border-navy-50 flex items-center justify-between">
         <span className="text-xs text-navy-500">
-          {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : 'N/A'}
+          {formatDate(order.orderDate, 'N/A')}
         </span>
         <span className="font-bold text-navy-900">₹{order.totalPrice?.toLocaleString()}</span>
       </div>

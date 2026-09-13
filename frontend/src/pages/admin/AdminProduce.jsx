@@ -4,6 +4,7 @@ import {
   Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, genericStatusInfo,
   ConfirmDialog, selectCls,
 } from '../../components/admin/ui/adminUi';
+import { formatDate } from '../../utils/dateUtils';
 
 const PRODUCE_STATUSES = [
   'ALL', 'AVAILABLE', 'LOW_STOCK', 'PARTIALLY_SOLD', 'SOLD_OUT', 'PAUSED', 'EXPIRED', 'REMOVED', 'ADMIN_REMOVED',
@@ -100,7 +101,7 @@ export default function AdminProduce() {
                   <Td><span className="tabular-nums whitespace-nowrap">{p.pricePerUnit != null ? `₹${Number(p.pricePerUnit).toLocaleString()}/${p.unit || 'kg'}` : '—'}</span></Td>
                   <Td><span className="block max-w-[160px] truncate text-[13px] text-gray-600" title={p.location}>{p.location || '—'}</span></Td>
                   <Td><StatusDot tone={st.tone} label={st.label.replace(/_/g, ' ').toLowerCase()} /></Td>
-                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{p.createdAt ? new Date(p.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}</span></Td>
+                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(p.createdAt)}</span></Td>
                   <Td>
                     {removable ? (
                       <button

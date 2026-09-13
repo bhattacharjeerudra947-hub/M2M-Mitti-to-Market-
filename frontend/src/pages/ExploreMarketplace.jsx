@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
+import { formatDate } from '../utils/dateUtils';
 
 const categoryEmoji = {
   Fruits: '🍎',
@@ -15,12 +16,7 @@ const categoryEmoji = {
 };
 
 function formatListedDate(iso) {
-  if (!iso) return 'Recently';
-  try {
-    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-  } catch {
-    return 'Recently';
-  }
+  return formatDate(iso, 'Recently');
 }
 
 function StatusBadge({ status }) {

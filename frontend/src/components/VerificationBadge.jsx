@@ -1,4 +1,5 @@
 import { CheckCircle2, Clock, AlertCircle, XCircle, Shield } from 'lucide-react';
+import { formatDate } from '../utils/dateUtils';
 
 export default function VerificationBadge({ status, verified, verifiedAt, className = '', showDate = false }) {
   const normalize = (s) => {
@@ -14,7 +15,7 @@ export default function VerificationBadge({ status, verified, verifiedAt, classN
   const st = normalize(status);
 
   if (st === 'VERIFIED') {
-    const formattedDate = verifiedAt ? new Date(verifiedAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : null;
+    const formattedDate = verifiedAt ? formatDate(verifiedAt) : null;
     return (
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 ${className}`}>
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />

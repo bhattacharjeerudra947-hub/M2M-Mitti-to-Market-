@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuditLog } from '../../services/adminApi';
 import { Table, Td, TableSkeleton, EmptyState, ErrorState } from '../../components/admin/ui/adminUi';
+import { formatDate } from '../../utils/dateUtils';
 
 export default function AdminAuditLog() {
   const [logs, setLogs] = useState([]);
@@ -46,7 +47,7 @@ export default function AdminAuditLog() {
               <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
                 <Td>
                   <span className="block text-[13px] text-gray-900 whitespace-nowrap">
-                    {log.createdAt ? new Date(log.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    {formatDate(log.createdAt)}
                   </span>
                   <span className="block text-xs text-gray-500 whitespace-nowrap">
                     {log.createdAt ? new Date(log.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}

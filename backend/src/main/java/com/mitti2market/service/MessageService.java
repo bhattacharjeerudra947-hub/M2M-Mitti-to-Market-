@@ -53,10 +53,15 @@ public class MessageService {
 
         // Notify the receiver
         String preview = content.length() > 60 ? content.substring(0, 60) + "..." : content;
+        String metaJson = String.format("{\"conversationId\":\"%s\",\"senderId\":%d,\"senderName\":\"%s\"}",
+                conversationId, senderId, sender.getName().replace("\"", "\\\""));
         notificationService.createNotification(receiverId,
                 Notification.NotificationType.NEW_MESSAGE,
                 "New message from " + sender.getName(),
-                preview);
+                preview,
+                msg.getId(),
+                "MESSAGE",
+                metaJson);
 
         // Push instantly to both parties over SSE so the message pops up on screen
         Map<String, Object> payload = new LinkedHashMap<>();

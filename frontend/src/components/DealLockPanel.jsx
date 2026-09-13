@@ -9,6 +9,7 @@ import {
 } from '../api/dealApi';
 import { apiGet } from '../api';
 import { onMessage, onNotification } from '../utils/messageStream';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 
 const STATUS_FLOW = ['NEGOTIATING','LOCK_PENDING','LOCKED','LOGISTICS_PENDING','LOGISTICS_ASSIGNED',
   'PICKUP_SCHEDULED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','COMPLETED'];
@@ -315,7 +316,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         {deal.amendmentCount > 0 && (
           <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
             <span className="text-amber-600 font-semibold">✏️ Amended</span>
-            <span className="text-amber-600">{deal.amendmentCount}× · {deal.amendedAt ? new Date(deal.amendedAt).toLocaleDateString() : ''}</span>
+            <span className="text-amber-600">{deal.amendmentCount}× · {formatDate(deal.amendedAt, '')}</span>
           </div>
         )}
         {['LOCKED','LOGISTICS_PENDING','LOGISTICS_ASSIGNED','PICKUP_SCHEDULED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED'].includes(deal.status) && (
@@ -509,7 +510,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
                     <div key={ev.id} className="text-[10px]">
                       <p className="font-semibold text-navy-900">{STATUS_LABELS[ev.status] || ev.status}</p>
                       <p className="text-gray-500">{ev.description}</p>
-                      <p className="text-gray-400">{ev.timestamp ? new Date(ev.timestamp).toLocaleString() : ''}</p>
+                      <p className="text-gray-400">{formatDateTime(ev.timestamp, '')}</p>
                     </div>
                   ))}
                 </div>
@@ -523,7 +524,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
       {deal.status === 'COMPLETED' && (
         <div className="text-center py-3 bg-emerald-50 rounded-xl border border-emerald-200">
           <p className="text-sm font-bold text-emerald-700">✅ Deal Completed!</p>
-          <p className="text-xs text-emerald-600">Completed {deal.completedAt ? new Date(deal.completedAt).toLocaleDateString() : ''}</p>
+          <p className="text-xs text-emerald-600">Completed {formatDate(deal.completedAt, '')}</p>
           <div className="flex items-center justify-center gap-1 mt-2">
             {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />)}
           </div>

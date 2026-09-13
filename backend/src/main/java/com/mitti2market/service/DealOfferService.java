@@ -89,10 +89,15 @@ public class DealOfferService {
         messageService.sendMessage(senderId, receiverId,
                 buildOfferMessage(offer), produceId);
 
-        notificationService.createNotification(receiverId, Notification.NotificationType.NEW_MESSAGE,
+        String offerMeta = String.format("{\"conversationId\":\"%s\",\"senderId\":%d,\"senderName\":\"%s\"}",
+                conversationId, senderId, sender.getName().replace("\"", "\\\""));
+        notificationService.createNotification(receiverId, Notification.NotificationType.NEW_OFFER,
                 "New Offer from " + sender.getName(),
                 String.format("%s offers ₹%.2f/%s for %d %s of %s",
-                        sender.getName(), price, unit, quantity, unit, cropName));
+                        sender.getName(), price, unit, quantity, unit, cropName),
+                offer.getId(),
+                "OFFER",
+                offerMeta);
 
         // Audit trail (recorded against the active deal if one exists)
         Long activeDealId = dealService.findActiveDealIdByConversation(conversationId);
@@ -149,9 +154,14 @@ public class DealOfferService {
                 "🔄 Counter-offer: ₹" + price + "/" + parent.getUnit() + " for " + quantity + " " + parent.getUnit(),
                 parent.getProduce() != null ? parent.getProduce().getId() : null);
 
-        notificationService.createNotification(parent.getSender().getId(), Notification.NotificationType.NEW_MESSAGE,
+        String counterMeta = String.format("{\"conversationId\":\"%s\",\"senderId\":%d,\"senderName\":\"%s\"}",
+                parent.getConversationId(), userId, sender.getName().replace("\"", "\\\""));
+        notificationService.createNotification(parent.getSender().getId(), Notification.NotificationType.COUNTER_OFFER,
                 "Counter-offer from " + sender.getName(),
-                String.format("New terms: ₹%.2f/%s for %d %s", price, parent.getUnit(), quantity, parent.getUnit()));
+                String.format("New terms: ₹%.2f/%s for %d %s", price, parent.getUnit(), quantity, parent.getUnit()),
+                counter.getId(),
+                "OFFER",
+                counterMeta);
 
         Long activeDealId = dealService.findActiveDealIdByConversation(parent.getConversationId());
         if (activeDealId != null) {

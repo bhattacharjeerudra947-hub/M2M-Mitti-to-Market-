@@ -11,6 +11,7 @@ import {
   ShieldCheck, AlertTriangle, UserCheck, Clock, CheckCircle2,
   XCircle, ChevronDown, ChevronUp, Scale, Camera, FileText, Loader2, ArrowRight
 } from 'lucide-react';
+import { formatDate, formatDateTime } from '../../utils/dateUtils';
 
 const DISPUTE_STATUSES = [
   'ALL', 'OPEN', 'UNDER_REVIEW', 'WAITING_FOR_FARMER', 'WAITING_FOR_BUYER',
@@ -227,7 +228,7 @@ export default function AdminDisputes() {
                       </div>
                     </Td>
                     <Td><span className="text-[12px] font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-100">{(d.reason || '').replace(/_/g, ' ')}</span></Td>
-                    <Td><span className="text-xs text-gray-500 whitespace-nowrap">{d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}</span></Td>
+                    <Td><span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(d.createdAt)}</span></Td>
                     <Td><StatusDot tone={st.tone} label={(d.status || '').replace(/_/g, ' ').toLowerCase()} /></Td>
                     <Td align="right">
                       <button
@@ -336,7 +337,7 @@ export default function AdminDisputes() {
                                       <span className="font-bold text-navy-900">
                                         {r.userRole === 'ADMIN' ? '👑 Admin' : r.userRole === 'OBSERVER' ? '👮 Observer' : r.userRole === 'FARMER' ? '🌾 Farmer' : '🏪 Buyer'}: {r.userName}
                                       </span>
-                                      <span className="text-[10px] text-gray-400">{new Date(r.createdAt).toLocaleString('en-IN')}</span>
+                                      <span className="text-[10px] text-gray-400">{formatDateTime(r.createdAt)}</span>
                                     </div>
                                     <p className="text-gray-700 whitespace-pre-wrap">{r.message}</p>
                                     {r.evidenceUrl && (

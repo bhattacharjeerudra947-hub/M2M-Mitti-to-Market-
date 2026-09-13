@@ -10,6 +10,7 @@ import {
   ConfirmDialog, Drawer, DrawerSection, KV, MetricStrip, Avatar, inputCls, selectCls,
 } from '../../components/admin/ui/adminUi';
 import { onNotification } from '../../utils/messageStream';
+import { formatDate } from '../../utils/dateUtils';
 
 export default function AdminVerifications() {
   const [activeTab, setActiveTab] = useState('PENDING');
@@ -239,7 +240,7 @@ export default function AdminVerifications() {
                   <Td><span className="text-[13px] text-gray-700 capitalize">{(u.role || '').toLowerCase()}</span></Td>
                   <Td><span className="block max-w-[180px] truncate text-[13px] text-gray-600" title={u.location}>{u.location || '—'}</span></Td>
                   <Td><StatusDot tone={ver.tone} label={ver.label} /></Td>
-                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{u.createdAt ? new Date(u.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}</span></Td>
+                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(u.createdAt)}</span></Td>
                   <Td>
                     <div className="flex items-center justify-end gap-1.5">
                       <button

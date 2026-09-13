@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { submitAppeal, getMyAppeals } from '../services/api';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 import {
   AlertTriangle,
   Ban,
@@ -200,7 +201,7 @@ export default function AccountStatusScreen() {
 
               {user?.suspendedAt && (
                 <p className="mt-2 text-xs text-gray-500">
-                  Action taken on: {new Date(user.suspendedAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}
+                  Action taken on: {formatDate(user.suspendedAt)}
                 </p>
               )}
             </div>
@@ -225,13 +226,7 @@ export default function AccountStatusScreen() {
                       <span>Appeal #{appeal.id}</span>
                       <span className="text-xs text-gray-400">•</span>
                       <span className="text-xs text-gray-500 font-normal">
-                        {new Date(appeal.createdAt).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatDateTime(appeal.createdAt)}
                       </span>
                     </div>
                     {getStatusBadge(appeal.status)}

@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import { Avatar, KV } from '../../components/admin/ui/adminUi';
+import { formatDate } from '../../utils/dateUtils';
 
 export default function AdminSettings() {
   const { user } = useAuth();
@@ -27,7 +28,7 @@ export default function AdminSettings() {
           <KV k="Phone" v={user.phone || '—'} />
           <KV k="Role" v="ADMIN" />
           <KV k="Account status" v={(user.status || 'ACTIVE').toLowerCase()} />
-          <KV k="Member since" v={user.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} />
+          <KV k="Member since" v={formatDate(user.createdAt)} />
         </div>
       </div>
     </div>

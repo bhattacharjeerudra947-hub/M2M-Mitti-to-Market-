@@ -6,11 +6,9 @@ import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { getUserLocations } from '../api/userApi';
 import { Loader2, MapPin, Users, Store, RefreshCw } from 'lucide-react';
+import { formatDateTime } from '../utils/dateUtils';
 
-const formatTime = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch { return '—'; }
-};
+const formatTime = (iso) => formatDateTime(iso);
 const ago = (iso) => {
   if (!iso) return null;
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));

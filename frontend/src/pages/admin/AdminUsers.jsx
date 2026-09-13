@@ -10,6 +10,7 @@ import {
   DrawerSection, KV, RowActions, inputCls, selectCls,
 } from '../../components/admin/ui/adminUi';
 import { onNotification } from '../../utils/messageStream';
+import { formatDate, formatDateTime } from '../../utils/dateUtils';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -259,7 +260,7 @@ export default function AdminUsers() {
                   </Td>
                   <Td>
                     <span className="text-xs text-gray-500 whitespace-nowrap">
-                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                      {formatDate(u.createdAt)}
                     </span>
                   </Td>
                   <Td>
@@ -413,9 +414,9 @@ export default function AdminUsers() {
               </DrawerSection>
 
               <DrawerSection title="Security">
-                <KV k="Account created" v={userDetails.user.createdAt ? new Date(userDetails.user.createdAt).toLocaleString() : '—'} />
+                <KV k="Account created" v={formatDateTime(userDetails.user.createdAt)} />
                 <KV k="Account status" v={accountStatusInfo(userDetails.user.status).label} />
-                {userDetails.user.verifiedAt && <KV k="Verified at" v={new Date(userDetails.user.verifiedAt).toLocaleString()} />}
+                {userDetails.user.verifiedAt && <KV k="Verified at" v={formatDateTime(userDetails.user.verifiedAt)} />}
                 {userDetails.user.verifiedBy && <KV k="Verified by" v={`Admin #${userDetails.user.verifiedBy}`} />}
               </DrawerSection>
             </div>

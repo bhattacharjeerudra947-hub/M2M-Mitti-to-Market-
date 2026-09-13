@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { Send, ArrowLeft, MessageCircle, Package, Radio, Handshake, Check, X, CornerUpLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { apiGet, apiPost } from '../api';
 import { onMessage } from '../utils/messageStream';
 import DealLockPanel from '../components/DealLockPanel';
 import { createOffer, getConversationOffers, acceptOffer, counterOffer, rejectOffer } from '../api/dealApi';
+import { formatDate } from '../utils/dateUtils';
 
 const OFFER_STATUS_LABELS = {
   PENDING: '⏳ Pending', ACCEPTED: '✅ Accepted', COUNTERED: '🔄 Countered',
@@ -17,6 +18,8 @@ export default function Chat() {
   const { user, isGuestModeActive, openAuthRequired } = useAuth();
   const navigate = useNavigate();
   const { conversationId, otherUserId } = useParams();
+  const [searchParams] = useSearchParams();
+  const queryProduceId = searchParams.get('produceId');
 
   if (isGuestModeActive) {
     return (
@@ -40,7 +43,6 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [activeConv, setActiveConv] = useState(null);
 
   // Structured negotiation offers
   const [offers, setOffers] = useState([]);
@@ -52,6 +54,18 @@ export default function Chat() {
 
   const role = user?.role?.toLowerCase() || 'farmer';
   const sidebarRole = role === 'farmer' ? 'farmer' : 'business';
+
+  // When coming from ProductDetails with conversationId === 'new'
+  useEffect(() => {
+    if (conversationId === 'new' && otherUserId && user?.id) {
+      const u1 = Number(user.id);
+      const u2 = Number(otherUserId);
+      const min = Math.min(u1, u2);
+      const max = Math.max(u1, u2);
+      const realConvId = queryProduceId ? `conv-${min}-${max}-p${queryProduceId}` : `conv-${min}-${max}`;
+      navigate(`/${sidebarRole}/chat/${realConvId}/${otherUserId}${queryProduceId ? `?produceId=${queryProduceId}` : ''}`, { replace: true });
+    }
+  }, [conversationId, otherUserId, user, queryProduceId, sidebarRole, navigate]);
 
   // Load conversations list
   const loadConversations = async (showLoading = true) => {
@@ -83,7 +97,7 @@ export default function Chat() {
 
   // Load messages when conversation is selected — poll for real-time
   useEffect(() => {
-    if (!conversationId || !user) return;
+    if (!conversationId || conversationId === 'new' || !user) return;
     loadMessages();
     loadOffers();
     const interval = setInterval(() => {
@@ -96,7 +110,7 @@ export default function Chat() {
 
   // Real-time: SSE push — new messages pop up on screen instantly, no poll wait
   useEffect(() => {
-    if (!conversationId || !user) return;
+    if (!conversationId || conversationId === 'new' || !user) return;
     const unsubscribe = onMessage((msg) => {
       if (!msg || msg.conversationId !== conversationId) return;
       if (String(msg.receiverId) !== String(user.id) && String(msg.senderId) !== String(user.id)) return;
@@ -119,41 +133,74 @@ export default function Chat() {
   }, [conversationId, user]);
 
   const loadMessages = async () => {
-    if (!conversationId) return;
+    if (!conversationId || conversationId === 'new') return;
     try {
       const data = await apiGet(`/api/messages/${conversationId}`);
       setMessages(data || []);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err) {
       if (err.message?.includes('Session expired')) {
-        navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat/${conversationId}/${otherUserId}` } } });
+        navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat/${conversationId}${otherUserId ? `/${otherUserId}` : ''}` } } });
       }
     }
   };
 
   const loadOffers = async () => {
-    if (!conversationId) return;
+    if (!conversationId || conversationId === 'new') return;
     try {
       const data = await getConversationOffers(conversationId);
       setOffers(data || []);
     } catch {}
   };
 
+  const selectedConv = conversations.find(c => c.conversationId === conversationId);
+  const activeConv = selectedConv;
+
+  const effectiveOtherUserId = otherUserId
+    || selectedConv?.otherUserId
+    || messages.find(m => String(m.senderId) !== String(user?.id))?.senderId
+    || (() => {
+        if (!conversationId || conversationId === 'new') return null;
+        if (conversationId.startsWith('conv-')) {
+          const parts = conversationId.replace('conv-', '').split('-');
+          if (parts.length >= 2) {
+            return String(parts[0]) === String(user?.id) ? parts[1] : parts[0];
+          }
+        }
+        if (conversationId.includes('_')) {
+          const parts = conversationId.split('_');
+          if (parts.length >= 2) {
+            return String(parts[0]) === String(user?.id) ? parts[1] : parts[0];
+          }
+        }
+        return null;
+      })();
+
+  const otherDisplayName = selectedConv?.otherUserName
+    || messages.find(m => String(m.senderId) !== String(user?.id))?.senderName
+    || (role === 'farmer' ? 'Buyer' : 'Farmer');
+
+  const produceDisplayName = selectedConv?.produceName || null;
+  const effectiveProduceId = selectedConv?.produceId || (queryProduceId ? Number(queryProduceId) : null);
+
   const handleCreateOffer = async (e) => {
     e.preventDefault();
     if (!offerForm.price || !offerForm.quantity) return;
+    const targetReceiverId = Number(effectiveOtherUserId);
+    if (!targetReceiverId || isNaN(targetReceiverId)) {
+      alert('Could not determine recipient for offer.');
+      return;
+    }
     setOfferAction('create');
     try {
-      const produceId = conversations.find(c => c.conversationId === conversationId)?.produceId || null;
-      const produceName = conversations.find(c => c.conversationId === conversationId)?.produceName;
       await createOffer(conversationId, {
-        receiverId: Number(otherUserId),
+        receiverId: targetReceiverId,
         price: Number(offerForm.price),
         quantity: Number(offerForm.quantity),
-        cropName: produceName,
+        cropName: produceDisplayName || 'Agro Produce',
         unit: 'kg',
         note: offerForm.note,
-        produceId,
+        produceId: effectiveProduceId,
       });
       setOfferForm({ price: '', quantity: '', note: '' });
       setShowOfferForm(false);
@@ -219,15 +266,20 @@ export default function Chat() {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
 
+    const targetReceiverId = Number(effectiveOtherUserId);
+    if (!targetReceiverId || isNaN(targetReceiverId)) {
+      alert('Could not determine message recipient. Please select a conversation from your inbox.');
+      return;
+    }
+
     const messageText = newMessage.trim();
     setNewMessage(''); // Clear input immediately for instant feedback
     setSending(true);
     try {
-      const produceId = activeConv?.produceId || null;
       await apiPost('/api/messages', {
-        receiverId: Number(otherUserId),
+        receiverId: targetReceiverId,
         content: messageText,
-        produceId,
+        produceId: effectiveProduceId,
       });
       // Immediately reload messages and conversations
       await loadMessages();
@@ -239,7 +291,7 @@ export default function Chat() {
       }
       // Put the message back in the input if sending failed
       setNewMessage(messageText);
-      alert('Failed to send message');
+      alert('Failed to send message: ' + (err.message || 'Please try again'));
     } finally {
       setSending(false);
     }
@@ -251,7 +303,7 @@ export default function Chat() {
     const now = new Date();
     const diff = now - d;
     if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return formatDate(d);
   };
 
   // Conversation list view
@@ -326,8 +378,6 @@ export default function Chat() {
     );
   }
 
-  const selectedConv = conversations.find(c => c.conversationId === conversationId);
-
   // Chat view
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
@@ -342,22 +392,22 @@ export default function Chat() {
             {selectedConv?.otherUserProfilePhotoUrl ? (
               <img
                 src={selectedConv.otherUserProfilePhotoUrl}
-                alt={selectedConv.otherUserName}
+                alt={otherDisplayName}
                 className="w-10 h-10 rounded-full object-cover border border-navy-200"
               />
             ) : (
               <div className="w-10 h-10 bg-navy-100 rounded-full flex items-center justify-center font-bold text-navy-700">
-                {selectedConv?.otherUserName?.charAt(0) || '?'}
+                {otherDisplayName?.charAt(0) || '?'}
               </div>
             )}
             <div className="flex-1">
               <p className="font-semibold text-navy-900 text-sm">
-                {conversations.find(c => c.conversationId === conversationId)?.otherUserName || 'Chat'}
+                {otherDisplayName}
               </p>
-              {conversations.find(c => c.conversationId === conversationId)?.produceName && (
+              {produceDisplayName && (
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <Package className="w-3 h-3" />
-                  {conversations.find(c => c.conversationId === conversationId)?.produceName}
+                  {produceDisplayName}
                 </p>
               )}
             </div>
@@ -368,21 +418,21 @@ export default function Chat() {
           </div>
 
           {/* Deal Discussion Banner */}
-          {conversations.find(c => c.conversationId === conversationId)?.produceName && (
+          {produceDisplayName && (
             <div className="bg-gradient-to-r from-navy-950 via-navy-900 to-primary-950 text-white px-4 py-3 border-x border-navy-800 flex items-center justify-between shadow-inner">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">🥭</span>
+                <span className="text-2xl">🌾</span>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black uppercase tracking-wider text-mustard-300">
-                      {conversations.find(c => c.conversationId === conversationId)?.produceName} Deal
+                      {produceDisplayName} Deal
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-mustard-300 border border-mustard-400/30 text-[9px] font-extrabold tracking-wider uppercase">
                       Deal Discussion
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-300 mt-0.5">
-                    Farmer ↔ {conversations.find(c => c.conversationId === conversationId)?.otherUserName || 'Buyer'} · Propose and negotiate price using [Make Offer]
+                    Farmer ↔ {otherDisplayName} · Propose and negotiate price using [Make Offer]
                   </p>
                 </div>
               </div>

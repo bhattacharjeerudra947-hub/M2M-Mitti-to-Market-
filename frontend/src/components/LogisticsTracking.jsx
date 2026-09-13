@@ -4,12 +4,9 @@ import {
   RefreshCw, Package, CheckCircle2
 } from 'lucide-react';
 import { getRouteEstimate, getTimeline } from '../api/dealApi';
+import { formatDateTime } from '../utils/dateUtils';
 
 const formatINR = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
-const formatDateTime = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch { return '—'; }
-};
 
 const STATUS_FLOW = ['REQUESTED', 'ASSIGNED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 const STATUS_LABELS = {

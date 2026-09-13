@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { getStats, getAuditLog } from '../../services/adminApi';
 import { MetricStrip, TableSkeleton } from '../../components/admin/ui/adminUi';
+import { formatDateTime } from '../../utils/dateUtils';
 
 function AttentionRow({ to, label, count, urgent = false }) {
   if (!count || count <= 0) return null;
@@ -36,7 +37,7 @@ function ActivityItem({ log }) {
           <span className="font-medium">{log.actorName || 'System'}</span> · {log.details || log.action?.replace(/_/g, ' ').toLowerCase()}
         </p>
         <p className="text-xs text-gray-400 mt-0.5">
-          {d ? d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
+          {d ? formatDateTime(d) : ''}
         </p>
       </div>
     </div>
