@@ -14,6 +14,7 @@ import { apiGet } from '../api';
 import { onMessage, onNotification } from '../utils/messageStream';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
 import DemoPaymentModal from './DemoPaymentModal';
+import InlineLocationPicker from './InlineLocationPicker';
 
 const STATUS_FLOW = ['NEGOTIATING','LOCK_PENDING','LOCKED','LOGISTICS_PENDING','LOGISTICS_ASSIGNED',
   'PICKUP_SCHEDULED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','COMPLETED'];
@@ -34,6 +35,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   const [showLockForm, setShowLockForm] = useState(false);
   const [showLogisticsForm, setShowLogisticsForm] = useState(false);
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
+  const [showInlineMap, setShowInlineMap] = useState(false);
   const [expandedTimeline, setExpandedTimeline] = useState(false);
   const [timeline, setTimeline] = useState([]);
   const [logistics, setLogistics] = useState(null);
@@ -712,14 +714,33 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
                   ? `Delivery: ${deal.deliveryLocation}` 
                   : 'Deal is locked! Please confirm the delivery location where produce should be delivered.')}
           </p>
-          <button
-            onClick={() => navigate(`/deal/${deal.id}`)}
-            className="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-1.5 shadow-sm">
-            <MapPin className="w-3.5 h-3.5" />
-            {isFarmer
-              ? (deal.pickupLocation ? 'Open Route Workspace (Review Pickup)' : '📍 Set Pickup Location on Map')
-              : (deal.deliveryLocation ? 'Open Route Workspace (Review Delivery)' : '📍 Set Delivery Location on Map')}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowInlineMap(!showInlineMap)}
+              className="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-1.5 shadow-sm">
+              <MapPin className="w-3.5 h-3.5" />
+              {showInlineMap
+                ? 'Close Map'
+                : (isFarmer
+                    ? (deal.pickupLocation ? '🗺️ Change / View Pickup Location on Map' : '📍 Set Pickup Location on Map')
+                    : (deal.deliveryLocation ? '🗺️ Change / View Delivery Location on Map' : '📍 Set Delivery Location on Map'))}
+            </button>
+          </div>
+
+          {/* Inline Interactive Map & Location Selector — stays on message section, no popup window */}
+          {showInlineMap && (
+            <div className="pt-2">
+              <InlineLocationPicker
+                deal={deal}
+                type={isFarmer ? 'pickup' : 'delivery'}
+                onSaved={async () => {
+                  setShowInlineMap(false);
+                  await loadDeal();
+                }}
+                onCancel={() => setShowInlineMap(false)}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -964,10 +985,13 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         </div>
       )}
 
-      {/* BUYER DELIVERY CONFIRMATION & PAYMENT RELEASE (NORMAL FLOW: ZERO ADMIN INTERVENTION) */}
+      {/* BUYER DELIVERY CONFIRMATION & PAYMENT RELEASE */}
       {['OUT_FOR_DELIVERY', 'DELIVERED'].includes(deal.status) && isBuyer && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2.5 mb-3">
-          <p className="text-xs font-bold text-navy-900">Buyer Delivery Actions</p>
+          <p className="text-xs font-bold text-navy-900">Buyer Delivery & Payment Release</p>
+          <p className="text-[11px] text-gray-600">
+            Please inspect the delivered produce. If there is no dispute, confirm receipt to release the rest of the money (remaining 50% escrow: ₹{Number(upfrontAmount).toLocaleString('en-IN')}) to the farmer.
+          </p>
           {hasDeliveryPhoto ? (
             <button
               onClick={() => setShowDeliveryForm(true)}
@@ -975,7 +999,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
               className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
-              Confirm Delivery & Release Payment (₹{Number(upfrontAmount).toLocaleString('en-IN')})
+              Confirm No Dispute & Send Rest of Money (₹{Number(upfrontAmount).toLocaleString('en-IN')})
             </button>
           ) : (
             <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
@@ -984,12 +1008,52 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
             </div>
           )}
           <button
-            onClick={() => setShowDisputeModal(true)}
+            onClick={() => {
+              setDisputeForm({ reason: 'QUALITY_MISMATCH', description: '', disputedQuantity: '' });
+              setShowDisputeModal(true);
+            }}
             className="w-full py-2 bg-white hover:bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
           >
             <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
             Produce Damaged or Quality Issue? Raise Dispute
           </button>
+        </div>
+      )}
+
+      {/* FARMER DELIVERY & PAYMENT STATUS: AWAITING REST OF MONEY / REPORT BUYER OPTION */}
+      {['OUT_FOR_DELIVERY', 'DELIVERED'].includes(deal.status) && isFarmer && !isPaymentReleased && (
+        <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-2.5 mb-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-navy-900 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              Awaiting Buyer Inspection & Payment Release
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              ₹{Number(upfrontAmount).toLocaleString('en-IN')} Pending
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-700">
+            Produce has arrived or is out for delivery. Once the buyer confirms that there is no dispute, the rest of the money will be sent to your account.
+          </p>
+          <div className="pt-1 border-t border-amber-200/60">
+            <p className="text-[11px] text-gray-600 mb-1.5">
+              Has produce been delivered but the buyer has not confirmed or sent the remaining money?
+            </p>
+            <button
+              onClick={() => {
+                setDisputeForm({
+                  reason: 'PAYMENT_ISSUE',
+                  description: 'Buyer received the produce but has not confirmed delivery or released the remaining payment.',
+                  disputedQuantity: String(deal.quantity || '')
+                });
+                setShowDisputeModal(true);
+              }}
+              className="w-full py-2 bg-white hover:bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow-xs"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+              🚩 Report Buyer / Payment Not Released
+            </button>
+          </div>
         </div>
       )}
 
@@ -1084,9 +1148,9 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-navy-900/30 backdrop-blur-sm" onClick={() => setShowDeliveryForm(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-sm w-full">
-            <h3 className="text-sm font-bold text-navy-900 mb-3">✅ Confirm Delivery & Release Payment</h3>
-            <p className="text-xs text-gray-500 mb-3">
-              Verifying delivery releases the remaining 50% escrow (₹{Number(upfrontAmount).toLocaleString('en-IN')}) to the farmer.
+            <h3 className="text-sm font-bold text-navy-900 mb-2">✅ Confirm No Dispute & Release Payment</h3>
+            <p className="text-xs text-gray-600 mb-3">
+              By confirming, you verify that produce has been received in good condition with <strong>no dispute</strong>. The rest of the money (₹{Number(upfrontAmount).toLocaleString('en-IN')}) will be sent directly to the farmer.
             </p>
             <div className="space-y-2">
               <label className="text-[11px] font-semibold text-gray-600">Received Quantity ({deal?.unit || 'kg'})</label>
@@ -1111,11 +1175,11 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
               />
               <label className="text-[11px] font-semibold text-gray-600">Inspection & Quality Notes</label>
               <textarea value={deliveryForm.qualityNotes} onChange={e => setDeliveryForm({...deliveryForm, qualityNotes: e.target.value})}
-                placeholder="Produce inspected and verified in good condition" rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs resize-none" />
+                placeholder="Produce inspected, no dispute found, quality approved" rows={2} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs resize-none" />
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setShowDeliveryForm(false)} className="flex-1 py-2 bg-gray-100 rounded-xl text-xs font-semibold">Cancel</button>
                 <button onClick={handleConfirmDelivery} disabled={actionLoading}
-                  className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold disabled:opacity-50">Confirm & Release</button>
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition">Send Rest of Money</button>
               </div>
             </div>
           </div>
@@ -1130,7 +1194,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-red-900 flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-red-600" />
-                Raise Deal Dispute
+                Raise Deal Dispute / Report Issue
               </h3>
               <button onClick={() => setShowDisputeModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-4 h-4" />
@@ -1141,18 +1205,18 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
             </p>
             <form onSubmit={handleOpenDisputeSubmit} className="space-y-2.5">
               <div>
-                <label className="text-[11px] font-bold text-gray-700 block mb-1">Dispute Reason</label>
+                <label className="text-[11px] font-bold text-gray-700 block mb-1">Dispute / Report Reason</label>
                 <select
                   value={disputeForm.reason}
                   onChange={e => setDisputeForm({ ...disputeForm, reason: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
                 >
+                  <option value="PAYMENT_ISSUE">Payment Not Released by Buyer / Escrow Delay</option>
                   <option value="QUALITY_MISMATCH">Produce Quality Mismatch</option>
                   <option value="QUANTITY_MISMATCH">Quantity Shortage / Weight Mismatch</option>
                   <option value="PRODUCE_DAMAGED">Produce Damaged in Transit</option>
                   <option value="WRONG_PRODUCE">Wrong Produce / Variety Delivered</option>
                   <option value="LATE_DELIVERY">Severe Delivery Delay</option>
-                  <option value="PAYMENT_ISSUE">Payment / Billing Discrepancy</option>
                   <option value="DELIVERY_ISSUE">Logistics / Delivery Location Issue</option>
                   <option value="OTHER">Other Dispute Reason</option>
                 </select>
