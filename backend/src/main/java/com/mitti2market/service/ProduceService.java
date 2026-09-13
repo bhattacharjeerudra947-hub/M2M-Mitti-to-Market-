@@ -291,7 +291,7 @@ public class ProduceService {
         int listed = produce.getListedQuantity() != null ? produce.getListedQuantity() : produce.getQuantity();
         int reserved = produce.getReservedQuantity() != null ? produce.getReservedQuantity() : 0;
         int sold = produce.getSoldQuantity() != null ? produce.getSoldQuantity() : 0;
-        int available = Math.max(0, produce.getQuantity());
+        int available = produce.getAvailableQuantity();
 
         User farmer = produce.getFarmer();
         String photoUrl = farmer != null ? farmer.getProfilePhotoUrl() : null;

@@ -752,6 +752,17 @@ public class LogisticsService {
                 "Platform vehicle assigned: " + vehicle.getVehicleLabel() + " (" + vehicle.getVehicleNumber() + ")",
                 null);
 
+        // Update deal entity logistics fields
+        deal.setLogisticsMode("MITTI2MARKET");
+        deal.setLogisticsProviderId("M2M-LP-" + String.format("%06d", vehicle.getId()));
+        deal.setLogisticsProviderName(vehicle.getVehicleLabel() != null ? vehicle.getVehicleLabel() : ("Mitti2Market Fleet (" + vehicle.getVehicleNumber() + ")"));
+        deal.setLogisticsProviderPhone("+91 1800-M2M-FLEET");
+        deal.setLogisticsVehicleNumber(vehicle.getVehicleNumber());
+        if (logistics.getRouteDistanceKm() != null) {
+            deal.setEstimatedLogisticsCost(vehicle.estimateCost(logistics.getRouteDistanceKm()));
+        }
+        dealRepo.save(deal);
+
         // Notify the other party
         Long otherUserId = userId.equals(deal.getFarmer().getId()) ? deal.getBuyer().getId() : deal.getFarmer().getId();
         notificationService.createNotification(otherUserId, Notification.NotificationType.LOGISTICS_UPDATE,
@@ -771,6 +782,81 @@ public class LogisticsService {
         result.put("routeDistanceKm", logistics.getRouteDistanceKm());
         result.put("estimatedCostRupees", logistics.getRouteDistanceKm() != null
                 ? vehicle.estimateCost(logistics.getRouteDistanceKm()) : null);
+        return result;
+    }
+
+    /**
+     * Configure Own Logistics (Farmer, Buyer, or Third Party Transporter)
+     */
+    @Transactional
+    public Map<String, Object> configureOwnLogistics(Long dealId, Long userId, Map<String, Object> details) {
+        Deal deal = dealRepo.findById(dealId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deal", "id", dealId));
+        verifyDealAccess(deal, userId);
+
+        String provider = (String) details.getOrDefault("ownLogisticsProvider", "THIRD_PARTY");
+        String providerName = (String) details.get("logisticsProviderName");
+        String providerPhone = (String) details.get("logisticsProviderPhone");
+        String vehicleNumber = (String) details.get("logisticsVehicleNumber");
+        Double estimatedCost = details.get("estimatedLogisticsCost") != null
+                ? Double.valueOf(details.get("estimatedLogisticsCost").toString())
+                : null;
+
+        long randomSuffix = Math.abs((dealId * 1373L + System.currentTimeMillis()) % 900000L + 100000L);
+        String providerId = "LP-OWN-" + String.format("%06d", randomSuffix);
+
+        deal.setLogisticsMode("OWN");
+        deal.setOwnLogisticsProvider(provider);
+        deal.setLogisticsProviderId(providerId);
+        deal.setLogisticsProviderName(providerName != null && !providerName.isBlank() ? providerName : ("Self-Arranged (" + provider + ")"));
+        deal.setLogisticsProviderPhone(providerPhone);
+        deal.setLogisticsVehicleNumber(vehicleNumber);
+        deal.setEstimatedLogisticsCost(estimatedCost);
+        dealRepo.save(deal);
+
+        Logistics logistics = logisticsRepo.findByDealId(dealId).orElseGet(() -> {
+            String trkId = "M2M-TRK-" + (trkCounter.incrementAndGet());
+            Logistics l = Logistics.builder()
+                    .trackingId(trkId)
+                    .deal(deal)
+                    .type(LogisticsType.OWN)
+                    .pickupLocation(deal.getPickupLocation())
+                    .deliveryLocation(deal.getDeliveryLocation())
+                    .pickupLatitude(deal.getPickupLatitude())
+                    .pickupLongitude(deal.getPickupLongitude())
+                    .deliveryLatitude(deal.getDeliveryLatitude())
+                    .deliveryLongitude(deal.getDeliveryLongitude())
+                    .status(LogisticsStatus.ASSIGNED)
+                    .build();
+            computeAndStoreRoute(l);
+            return logisticsRepo.save(l);
+        });
+
+        logistics.setType(LogisticsType.OWN);
+        logistics.setVehicleNumber(vehicleNumber);
+        logistics.setTransporterName(providerName);
+        logistics.setContactPhone(providerPhone);
+        logistics.setStatus(LogisticsStatus.ASSIGNED);
+        logisticsRepo.save(logistics);
+
+        String actorRole = userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER";
+        stateMachine.transition(deal.getId(), Deal.DealStatus.LOGISTICS_ASSIGNED, userId, actorRole,
+                "Own Logistics configured: " + provider + " (" + providerId + ")", null);
+
+        addEvent(logistics, LogisticsStatus.ASSIGNED,
+                "Self-arranged transport configured (" + provider + "): " + (vehicleNumber != null ? vehicleNumber : "Own vehicle"), null);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("logisticsId", logistics.getId());
+        result.put("trackingId", logistics.getTrackingId());
+        result.put("logisticsMode", "OWN");
+        result.put("ownLogisticsProvider", provider);
+        result.put("logisticsProviderId", providerId);
+        result.put("logisticsProviderName", deal.getLogisticsProviderName());
+        result.put("logisticsProviderPhone", providerPhone);
+        result.put("logisticsVehicleNumber", vehicleNumber);
+        result.put("estimatedLogisticsCost", estimatedCost);
+        result.put("status", logistics.getStatus().name());
         return result;
     }
 

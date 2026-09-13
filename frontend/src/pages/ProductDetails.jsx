@@ -363,20 +363,68 @@ export default function ProductDetails() {
                   );
                 }
 
-                if (user && product.farmerId && Number(product.farmerId) === Number(user.id)) {
+                const isFarmerOwner = Boolean(user && (
+                  (product.farmerId && Number(product.farmerId) === Number(user.id)) ||
+                  (product.farmer?.id && Number(product.farmer?.id) === Number(user.id)) ||
+                  user.role === 'FARMER'
+                ));
+
+                if (isFarmerOwner) {
+                  const listed = product.listedQuantity || product.quantity || 0;
+                  const reserved = product.reservedQuantity || 0;
+                  const sold = product.soldQuantity || 0;
+                  const available = product.availableQuantity != null ? product.availableQuantity : product.quantity || 0;
+
                   return (
-                    <div className="space-y-3">
-                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-1">
-                        <p className="font-bold text-sm text-emerald-900">🌾 Your Listed Produce</p>
-                        <p className="text-xs text-emerald-700">This is your listing on the Mitti2Market platform.</p>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-sm text-emerald-900 flex items-center gap-1.5">
+                            🌾 Your Produce Listing Dashboard
+                          </p>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200/70 text-emerald-900">
+                            {product.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-emerald-700">
+                          Active on Mitti2Market marketplace. Track your partial stock allocations and active buyer negotiations.
+                        </p>
+
+                        <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-emerald-200/60 text-center text-xs">
+                          <div className="bg-white/80 p-1.5 rounded-lg border border-emerald-200">
+                            <span className="text-[9px] text-gray-500 uppercase block">Listed</span>
+                            <span className="font-bold text-navy-900">{listed} {product.unit}</span>
+                          </div>
+                          <div className="bg-white/80 p-1.5 rounded-lg border border-emerald-200">
+                            <span className="text-[9px] text-amber-700 uppercase block">Reserved</span>
+                            <span className="font-bold text-amber-800">{reserved} {product.unit}</span>
+                          </div>
+                          <div className="bg-white/80 p-1.5 rounded-lg border border-emerald-200">
+                            <span className="text-[9px] text-blue-700 uppercase block">Sold</span>
+                            <span className="font-bold text-blue-800">{sold} {product.unit}</span>
+                          </div>
+                          <div className="bg-white/80 p-1.5 rounded-lg border border-emerald-200">
+                            <span className="text-[9px] text-emerald-700 uppercase block">Available</span>
+                            <span className="font-bold text-emerald-800">{available} {product.unit}</span>
+                          </div>
+                        </div>
                       </div>
-                      <Link
-                        to="/farmer/produce"
-                        className="w-full py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <Package className="w-5 h-5" />
-                        Manage in My Produce
-                      </Link>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Link
+                          to="/farmer/produce"
+                          className="py-3 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm flex items-center justify-center gap-2 text-xs"
+                        >
+                          <Package className="w-4 h-4" />
+                          My Produce List
+                        </Link>
+                        <Link
+                          to="/farmer/deal-advisor"
+                          className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition shadow-sm flex items-center justify-center gap-2 text-xs"
+                        >
+                          ⭐ AI Deal Advisor
+                        </Link>
+                      </div>
                     </div>
                   );
                 }
@@ -397,8 +445,12 @@ export default function ProductDetails() {
                 );
               })()}
 
-              {/* Report listing — available to any signed-in viewer (not the owner) */}
-              {user && product.farmerId !== user.id && (
+              {/* Report listing — available to signed-in non-owners */}
+              {user && !Boolean(
+                (product.farmerId && Number(product.farmerId) === Number(user.id)) ||
+                (product.farmer?.id && Number(product.farmer?.id) === Number(user.id)) ||
+                user.role === 'FARMER'
+              ) && (
                 <button
                   onClick={() => setShowReportModal(true)}
                   className="mt-4 w-full py-2 text-xs text-gray-400 hover:text-red-600 transition"

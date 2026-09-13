@@ -33,7 +33,7 @@ public class DealStateMachineService {
     private static final Map<DealStatus, Set<DealStatus>> TRANSITIONS = Map.ofEntries(
             Map.entry(DealStatus.NEGOTIATING, Set.of(DealStatus.LOCK_PENDING)),
             Map.entry(DealStatus.LOCK_PENDING, Set.of(DealStatus.LOCKED, DealStatus.CANCELLED)),
-            Map.entry(DealStatus.LOCKED, Set.of(DealStatus.LOGISTICS_PENDING, DealStatus.CANCELLED, DealStatus.DISPUTED)),
+            Map.entry(DealStatus.LOCKED, Set.of(DealStatus.LOGISTICS_PENDING, DealStatus.LOGISTICS_ASSIGNED, DealStatus.CANCELLED, DealStatus.DISPUTED)),
             Map.entry(DealStatus.LOGISTICS_PENDING, Set.of(DealStatus.LOGISTICS_ASSIGNED, DealStatus.CANCELLED, DealStatus.DISPUTED)),
             Map.entry(DealStatus.LOGISTICS_ASSIGNED, Set.of(DealStatus.PICKUP_SCHEDULED, DealStatus.CANCELLED, DealStatus.DISPUTED)),
             Map.entry(DealStatus.PICKUP_SCHEDULED, Set.of(DealStatus.PICKED_UP, DealStatus.CANCELLED, DealStatus.DISPUTED)),

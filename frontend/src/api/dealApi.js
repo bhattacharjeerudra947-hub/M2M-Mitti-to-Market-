@@ -203,3 +203,39 @@ export async function getObserverCases() {
 export async function getAvailableObservers() {
   return apiGet('/api/admin/observers');
 }
+
+// ──────── Own Logistics & Payments ────────
+
+export async function configureOwnLogistics(dealId, details) {
+  return apiPost(`/api/deals/${dealId}/logistics/own`, details);
+}
+
+export async function createDemoPayment(dealId, body = {}) {
+  return apiPost('/api/payments/create-demo', { dealId, ...body });
+}
+
+export async function confirmDemoPayment(body) {
+  return apiPost('/api/payments/confirm', body);
+}
+
+export async function getDealPayment(dealId) {
+  return apiGet(`/api/payments/deal/${dealId}`);
+}
+
+// ──────── Logistics Incidents & Liability ────────
+
+export async function reportIncident(body) {
+  return apiPost('/api/logistics/incidents', body);
+}
+
+export async function getIncidentsByDeal(dealId) {
+  return apiGet(`/api/logistics/incidents/deal/${dealId}`);
+}
+
+export async function getAllIncidents() {
+  return apiGet('/api/logistics/incidents');
+}
+
+export async function adjudicateLiability(incidentId, body) {
+  return apiPut(`/api/logistics/incidents/${incidentId}/liability`, body);
+}

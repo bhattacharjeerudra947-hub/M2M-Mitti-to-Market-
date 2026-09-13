@@ -102,12 +102,38 @@ public class Produce {
         if (this.listedQuantity == null && this.quantity != null) {
             this.listedQuantity = this.quantity;
         }
+        if (this.reservedQuantity == null) this.reservedQuantity = 0;
+        if (this.soldQuantity == null) this.soldQuantity = 0;
         this.createdAt = LocalDateTime.now();
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public int getAvailableQuantity() {
+        int listed = listedQuantity != null ? listedQuantity : (quantity != null ? quantity : 0);
+        int reserved = reservedQuantity != null ? reservedQuantity : 0;
+        int sold = soldQuantity != null ? soldQuantity : 0;
+        return Math.max(0, listed - reserved - sold);
+    }
+
+    public void recalculateQuantityAndStatus() {
+        if (this.listedQuantity == null && this.quantity != null) {
+            this.listedQuantity = this.quantity;
+        }
+        int avail = getAvailableQuantity();
+        this.quantity = avail;
+        if (avail <= 0) {
+            this.status = ProduceStatus.SOLD_OUT;
+        } else if (this.soldQuantity != null && this.soldQuantity > 0) {
+            this.status = ProduceStatus.PARTIALLY_SOLD;
+        } else if (avail < 20) {
+            this.status = ProduceStatus.LOW_STOCK;
+        } else {
+            this.status = ProduceStatus.AVAILABLE;
+        }
     }
 
     public enum ProduceStatus {

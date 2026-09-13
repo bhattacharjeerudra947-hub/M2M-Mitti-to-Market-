@@ -43,10 +43,18 @@ export default function VehicleCard({
               {vehicle.vehicleLabel || vehicle.vehicleNumber}
             </h4>
             <div className="flex items-center gap-2 text-xs text-navy-500 mt-0.5">
+              <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
+                {vehicle.transporterId || `M2M-LP-${String(vehicle.id || 1).padStart(6, '0')}`}
+              </span>
+              <span>•</span>
               <span className="font-mono font-medium">{vehicle.vehicleNumber}</span>
               <span>•</span>
               <span>{vehicle.vehicleTypeLabel || vehicle.vehicleType}</span>
             </div>
+            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+              Verified Partner Transporter • Contact restricted to deal parties
+            </p>
           </div>
         </div>
 

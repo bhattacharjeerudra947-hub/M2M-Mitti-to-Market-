@@ -188,6 +188,23 @@ public class DealController {
         }
     }
 
+    /** Configure Own Logistics for a deal */
+    @PostMapping("/{dealId}/logistics/own")
+    public ResponseEntity<?> configureOwnLogistics(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long dealId,
+            @RequestBody Map<String, Object> body) {
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        try {
+            Map<String, Object> result = logisticsService.configureOwnLogistics(dealId, userId, body);
+            return ResponseEntity.ok(ApiResponse.ok("Own logistics configured", result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
     /** Update logistics details (transporter info) */
     @PutMapping("/logistics/{logisticsId}/details")
     public ResponseEntity<?> updateLogisticsDetails(

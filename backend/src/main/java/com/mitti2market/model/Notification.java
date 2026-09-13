@@ -104,6 +104,8 @@ public class Notification {
         REVERSE_LOGISTICS_APPROVED,
         RETURN_INSPECTED,
         HUB_CAPACITY_ALERT,
+        PAYMENT_ESCROWED,
+        TRANSIT_INCIDENT_REPORTED,
         SYSTEM_ALERT
     }
 }

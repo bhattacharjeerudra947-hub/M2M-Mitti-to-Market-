@@ -74,9 +74,22 @@ export default function DealAdvisorSummary() {
                   <span className="flex items-center gap-2 text-sm font-bold text-navy-900">
                     <Package className="w-4 h-4 text-navy-400" /> {deal.cropName || 'Produce'}
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
-                    ⭐ BEST DEAL
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {deal.dealRecommendation && (
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        deal.dealRecommendation === 'VALID DEAL'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : deal.dealRecommendation === 'NEGOTIATE'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                      }`}>
+                        {deal.dealRecommendation}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
+                      ⭐ BEST DEAL
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 flex-wrap">
                   <div>

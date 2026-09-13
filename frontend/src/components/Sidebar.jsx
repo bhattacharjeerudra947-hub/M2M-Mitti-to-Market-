@@ -17,6 +17,7 @@ const farmerLinks = [
   { to: '/farmer/deal-advisor', icon: Trophy, label: 'AI Deal Advisor' },
   { to: '/farmer/orders', icon: ClipboardList, label: 'Orders' },
   { to: '/farmer/logistics', icon: Truck, label: 'Logistics' },
+  { to: '/farmer/storage', icon: Warehouse, label: 'Nearby Storage' },
   { to: '/farmer/earnings', icon: Wallet, label: 'Earnings' },
   { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
   { to: '/farmer/deals', icon: Package, label: 'My Deals' },

@@ -4,15 +4,21 @@ import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, CheckCircle2, Circle, Clock, Truck, MapPin, Package,
-  User, Building2, Loader2, AlertTriangle, MessageCircle, FileText, ShieldAlert
+  User, Building2, Loader2, AlertTriangle, MessageCircle, FileText, ShieldAlert,
+  CreditCard, Lock, ShieldCheck
 } from 'lucide-react';
-import { getDeal, getLogistics, cancelDeal, getDealTimeline, getDisputes, openDispute } from '../api/dealApi';
+import {
+  getDeal, getLogistics, cancelDeal, getDealTimeline, getDisputes, openDispute,
+  getIncidentsByDeal, getDealPayment
+} from '../api/dealApi';
 import { getConversationOffers } from '../api/dealApi';
 import LogisticsTracking from '../components/LogisticsTracking';
 import RouteOptimizerPanel from '../components/RouteOptimizerPanel';
 import DealRouteMap from '../components/DealRouteMap';
 import DealRatingModal from '../components/DealRatingModal';
 import ReportModal from '../components/ReportModal';
+import DemoPaymentModal from '../components/DemoPaymentModal';
+import LogisticsIncidentModal from '../components/LogisticsIncidentModal';
 import { getDealRatings } from '../services/ratingApi';
 import { getDealRouteInfo } from '../api/locationApi';
 import DealEvidenceDisputeSection from '../components/DealEvidenceDisputeSection';
@@ -90,6 +96,10 @@ export default function DealWorkspace() {
   const [disputeDesc, setDisputeDesc] = useState('');
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [incidents, setIncidents] = useState([]);
+  const [dealPayment, setDealPayment] = useState(null);
   const [myRatingExists, setMyRatingExists] = useState(false);
   const [myRating, setMyRating] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
@@ -120,7 +130,9 @@ export default function DealWorkspace() {
       getLogistics(dealId),
       getDisputes(dealId),
       getDealRouteInfo(dealId),
-    ]).then(([d, t, l, dis, rInfo]) => {
+      getIncidentsByDeal(dealId),
+      getDealPayment(dealId),
+    ]).then(([d, t, l, dis, rInfo, inc, pay]) => {
       if (d.status === 'fulfilled') {
         setDeal(d.value);
         if (d.value?.conversationId) {
@@ -133,6 +145,15 @@ export default function DealWorkspace() {
       if (l.status === 'fulfilled') setLogistics(l.value);
       if (dis.status === 'fulfilled') setDisputes(dis.value || []);
       if (rInfo.status === 'fulfilled') setRouteInfo(rInfo.value);
+      if (inc.status === 'fulfilled') {
+        const incVal = inc.value;
+        setIncidents(Array.isArray(incVal) ? incVal : (incVal?.data || []));
+      }
+      if (pay.status === 'fulfilled') {
+        const payVal = pay.value;
+        const payArr = Array.isArray(payVal) ? payVal : (payVal?.data || []);
+        setDealPayment(payArr.length > 0 ? payArr[0] : (Array.isArray(payVal) ? null : payVal));
+      }
       setLoading(false);
     });
   };
@@ -248,6 +269,75 @@ export default function DealWorkspace() {
                   </div>
                 </div>
               )}
+
+              {/* ═══ ESCROW PAYMENT STATUS / ACTIONS ═══ */}
+              <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 mb-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                    <h3 className="text-sm font-bold text-navy-900">Escrow Payment Protection</h3>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    deal.paymentStatus === 'PAID_ESCROW'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : deal.paymentStatus === 'RELEASED_TO_FARMER'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {deal.paymentStatus === 'PAID_ESCROW'
+                      ? '🛡️ Secured in Escrow'
+                      : deal.paymentStatus === 'RELEASED_TO_FARMER'
+                        ? '✅ Released to Farmer'
+                        : '⏳ Payment Pending'}
+                  </span>
+                </div>
+
+                {deal.paymentStatus === 'PAID_ESCROW' ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-emerald-700" />
+                        <span className="font-bold text-emerald-900">
+                          {formatINR(dealPayment?.amount || deal.totalAmount)} Deposited & Locked
+                        </span>
+                      </div>
+                      <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-800 font-bold">
+                        {dealPayment?.transactionId || 'M2M-DEMO-TXN-VERIFIED'}
+                      </span>
+                    </div>
+                    <p className="text-emerald-800">
+                      {isFarmer
+                        ? '✓ Buyer payment is safely locked in platform escrow. When produce is delivered and accepted by the buyer, funds will automatically transfer to your bank.'
+                        : '✓ Your funds are protected in platform escrow. Payment will only release to the farmer after you inspect and accept the delivered cargo.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <p className="font-bold text-amber-950">
+                          Total Escrow Amount: <span className="text-base text-emerald-800">{formatINR(deal.totalAmount)}</span>
+                        </p>
+                        <p className="text-amber-800 mt-0.5">
+                          {isFarmer
+                            ? 'Awaiting buyer deposit into Mitti2Market Escrow prior to dispatch.'
+                            : 'To guarantee dispatch and driver allocation, deposit total value into escrow (Sandbox demo).'}
+                        </p>
+                      </div>
+                      {!isFarmer && !['COMPLETED', 'CANCELLED'].includes(deal.status) && (
+                        <button
+                          type="button"
+                          onClick={() => setShowPaymentModal(true)}
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition shrink-0"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          Deposit Escrow (Demo Sandbox)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* ═══ PARTIES & AGREEMENT ═══ */}
               <div className="grid md:grid-cols-2 gap-5 mb-5">
@@ -434,6 +524,69 @@ export default function DealWorkspace() {
                       </div>
                     )}
                   </div>
+
+                  {/* ═══ LOGISTICS INCIDENTS & LIABILITIES ═══ */}
+                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="w-4 h-4 text-red-600" />
+                        <p className="text-xs text-gray-400 uppercase font-medium tracking-wide">Transit Incidents & Liability Adjudication</p>
+                      </div>
+                      {!['COMPLETED', 'CANCELLED'].includes(deal.status) && (
+                        <button
+                          type="button"
+                          onClick={() => setShowIncidentModal(true)}
+                          className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-lg transition flex items-center gap-1"
+                        >
+                          <AlertTriangle className="w-3 h-3" /> Report Incident
+                        </button>
+                      )}
+                    </div>
+
+                    {incidents.length === 0 ? (
+                      <p className="text-xs text-gray-500">No transit incidents reported. Shipment in good standing.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {incidents.map((inc) => (
+                          <div key={inc.id} className="p-3.5 bg-red-50/50 border border-red-200 rounded-xl space-y-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-red-950 flex items-center gap-1.5">
+                                ⚠️ {inc.incidentType} {inc.incidentLocation && `· ${inc.incidentLocation}`}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                (inc.status === 'RESOLVED' || inc.status === 'ADJUDICATED')
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {inc.status === 'RESOLVED' ? 'ADJUDICATED' : inc.status}
+                              </span>
+                            </div>
+                            <p className="text-navy-800">{inc.description}</p>
+                            {inc.estimatedLossAmount && (
+                              <p className="text-[11px] text-gray-600 font-mono">
+                                Estimated Loss: <strong className="text-red-700">{formatINR(inc.estimatedLossAmount)}</strong>
+                              </p>
+                            )}
+                            {(inc.status === 'RESOLVED' || inc.status === 'ADJUDICATED') && (
+                              <div className="mt-2 p-2.5 bg-white rounded-lg border border-red-200 text-[11px] space-y-1">
+                                <p className="font-bold text-navy-900">
+                                  ⚖️ Determined Liability: <span className="text-red-700">{inc.liabilityParty}</span>
+                                </p>
+                                {(inc.resolutionSummary || inc.resolution) && (
+                                  <p className="text-navy-700">{inc.resolutionSummary || inc.resolution}</p>
+                                )}
+                                {(inc.financialAttributionNotes || inc.lossAttributedTo) && (
+                                  <p className="text-gray-500 font-mono">
+                                    Financial Attribution: {inc.financialAttributionNotes || inc.lossAttributedTo}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               {/* ═══ ACTIONS ═══ */}
@@ -446,6 +599,12 @@ export default function DealWorkspace() {
                   <button onClick={handleCancel} disabled={busy}
                     className="px-4 py-2.5 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition inline-flex items-center gap-2 disabled:opacity-50">
                     Cancel Deal
+                  </button>
+                )}
+                {!['COMPLETED', 'CANCELLED'].includes(deal.status) && (
+                  <button onClick={() => setShowIncidentModal(true)}
+                    className="px-4 py-2.5 bg-red-50 text-red-700 text-sm font-semibold rounded-xl hover:bg-red-100 transition inline-flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-red-600" /> Report Transit Damage
                   </button>
                 )}
                 {!['COMPLETED', 'CANCELLED', 'DISPUTED'].includes(deal.status) && (
@@ -516,6 +675,22 @@ export default function DealWorkspace() {
                 user={user}
                 onDealUpdated={load}
                 onOpenRating={() => setShowRatingModal(true)}
+              />
+
+              {/* ═══ DEMO PAYMENT MODAL ═══ */}
+              <DemoPaymentModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                deal={deal}
+                onPaymentSuccess={load}
+              />
+
+              {/* ═══ LOGISTICS INCIDENT MODAL ═══ */}
+              <LogisticsIncidentModal
+                isOpen={showIncidentModal}
+                onClose={() => setShowIncidentModal(false)}
+                deal={deal}
+                onIncidentReported={load}
               />
             </>
           ) : null}
