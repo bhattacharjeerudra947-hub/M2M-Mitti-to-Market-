@@ -184,7 +184,7 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-gray-50 flex text-gray-900">
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 z-40 h-screen w-60 shrink-0 bg-white border-r border-gray-200 flex-col transition-transform duration-200 ${
+        className={`fixed lg:sticky top-0 z-40 h-screen max-h-screen w-60 shrink-0 bg-white border-r border-gray-200 flex-col transition-transform duration-200 overscroll-contain ${
           sidebarOpen ? 'flex translate-x-0' : 'hidden lg:flex -translate-x-full lg:translate-x-0'
         }`}
       >
@@ -202,7 +202,7 @@ export default function AdminLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-4 space-y-5">
           {SECTIONS.map((section) => (
             <div key={section.heading}>
               <p className="px-2.5 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400">{section.heading}</p>
