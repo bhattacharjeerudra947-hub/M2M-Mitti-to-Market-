@@ -224,29 +224,46 @@ public class DisputeService {
             throw new BadRequestException("Cannot accept delivery while deal is " + deal.getStatus().name());
         }
 
+        // Rule 22 & 23: Mandatory Buyer Delivery Photo before normal completion
+        long deliveryPhotos = evidenceRepo.countByDealIdAndStage(dealId, EvidenceStage.DELIVERY);
+        if (deliveryPhotos == 0) {
+            throw new BadRequestException("Delivery verification photo is required before confirming delivery. Please upload a clear photo of the received produce.");
+        }
+
         // Transition deal to COMPLETED
         stateMachine.transitionTo(dealId, Deal.DealStatus.COMPLETED);
-        dealService.finalizeSoldQuantity(deal);
+        
+        deal = dealRepo.findById(dealId).orElse(deal);
+        deal.setPaymentStatus("RELEASED_TO_FARMER");
+        deal.setCompletedAt(LocalDateTime.now());
+        deal = dealRepo.save(deal);
+
+        // Finalize inventory (auto SOLD_OUT if 0) and fulfill buyer requirements
+        dealCompletionService.completeDeal(dealId);
 
         // Record Audit Event
         stateMachine.recordEvent(dealId, "DELIVERY_ACCEPTED", buyerId, "BUYER",
-                "Buyer (" + buyer.getName() + ") accepted delivery satisfactorily. Order completed.", null);
+                "Buyer (" + buyer.getName() + ") confirmed delivery with inspection photo. Remaining escrow payment released to farmer. Deal completed automatically.", null);
+
+        // Release escrow transaction notes if exists
+        stateMachine.recordEvent(dealId, "PAYMENT_RELEASED", buyerId, "SYSTEM",
+                "Remaining payment released to farmer (" + deal.getFarmer().getName() + ") for completed deal #" + deal.getDealId(), null);
 
         // Notify Farmer
         if (deal.getFarmer() != null) {
             notificationService.createNotification(deal.getFarmer().getId(), NotificationType.DEAL_COMPLETED,
-                    "Delivery Accepted — Deal Completed",
-                    buyer.getName() + " accepted delivery for Deal #" + dealId + ". Transaction completed successfully.",
+                    "Delivery Confirmed & Payment Released",
+                    buyer.getName() + " confirmed delivery for Deal #" + deal.getDealId() + ". Total funds have been released to your account. Deal completed!",
                     dealId, "DEAL");
         }
 
         // Notify Buyer
         notificationService.createNotification(buyerId, NotificationType.DEAL_COMPLETED,
-                "Order Completed",
-                "Delivery confirmed for Deal #" + dealId + ". Thank you for trading on Mitti2Market!",
+                "Order Completed Successfully",
+                "Delivery confirmed for Deal #" + deal.getDealId() + ". Payment released to farmer. Please rate your seller.",
                 dealId, "DEAL");
 
-        return dealRepo.findById(dealId).orElse(deal);
+        return deal;
     }
 
     // ─────────────────────────────────────────────────────────────

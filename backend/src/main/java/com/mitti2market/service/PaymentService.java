@@ -34,13 +34,14 @@ public class PaymentService {
         User payer = userRepo.findById(payerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", payerId));
 
-        double expectedAmount = (deal.getQuantity() != null && deal.getAgreedPrice() != null)
-                ? (deal.getQuantity() * deal.getAgreedPrice()) : (deal.getTotalAmount() != null ? deal.getTotalAmount() : 0.0);
+        double expectedAmount = deal.getTotalAmount() != null ? deal.getTotalAmount()
+                : ((deal.getQuantity() != null && deal.getAgreedPrice() != null) ? (deal.getQuantity() * deal.getAgreedPrice()) : 0.0);
+        double upfrontRequired = Math.round((expectedAmount / 2.0) * 100.0) / 100.0;
 
         if (amount == null) {
-            amount = expectedAmount;
-        } else if (Math.abs(amount - expectedAmount) > 0.01) {
-            throw new BadRequestException("Payment amount mismatch. Expected: Rs." + expectedAmount + ", provided: Rs." + amount);
+            amount = upfrontRequired;
+        } else if (Math.abs(amount - expectedAmount) > 1.0 && Math.abs(amount - upfrontRequired) > 1.0) {
+            throw new BadRequestException("Payment amount mismatch. Expected 50% upfront: Rs." + upfrontRequired + " or full: Rs." + expectedAmount + ", provided: Rs." + amount);
         }
 
         String txnId = "M2M-DEMO-TXN-" + String.format("%06d", ThreadLocalRandom.current().nextInt(100000, 999999));

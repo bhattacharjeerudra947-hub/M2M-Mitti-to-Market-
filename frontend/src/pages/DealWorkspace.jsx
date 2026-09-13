@@ -264,73 +264,100 @@ export default function DealWorkspace() {
               )}
 
               {/* ═══ ESCROW PAYMENT STATUS / ACTIONS ═══ */}
-              <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 mb-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                    <h3 className="text-sm font-bold text-navy-900">Escrow Payment Protection</h3>
-                  </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    deal.paymentStatus === 'PAID_ESCROW'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : deal.paymentStatus === 'RELEASED_TO_FARMER'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    {deal.paymentStatus === 'PAID_ESCROW'
-                      ? '🛡️ Secured in Escrow'
-                      : deal.paymentStatus === 'RELEASED_TO_FARMER'
-                        ? '✅ Released to Farmer'
-                        : '⏳ Payment Pending'}
-                  </span>
-                </div>
+              {(() => {
+                const isEscrowSecured = deal.paymentStatus === 'PAID_ESCROW' || dealPayment?.status === 'SUCCESS';
+                const isPaymentReleased = deal.paymentStatus === 'RELEASED_TO_FARMER' || dealPayment?.status === 'RELEASED';
+                const isPaymentCompleted = isEscrowSecured || isPaymentReleased || deal.paymentStatus === 'PAID' || deal.paymentStatus === 'COMPLETED';
 
-                {deal.paymentStatus === 'PAID_ESCROW' ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                return (
+                  <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5 mb-5 space-y-3">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-emerald-700" />
-                        <span className="font-bold text-emerald-900">
-                          {formatINR(dealPayment?.amount || deal.totalAmount)} Deposited & Locked
-                        </span>
+                        <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                        <h3 className="text-sm font-bold text-navy-900">Escrow Payment Protection</h3>
                       </div>
-                      <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-800 font-bold">
-                        {dealPayment?.transactionId || 'M2M-DEMO-TXN-VERIFIED'}
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        isPaymentReleased
+                          ? 'bg-blue-100 text-blue-800'
+                          : isEscrowSecured
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {isPaymentReleased
+                          ? '✅ Released to Farmer'
+                          : isEscrowSecured
+                            ? '🛡️ Secured in Escrow'
+                            : '⏳ Payment Pending'}
                       </span>
                     </div>
-                    <p className="text-emerald-800">
-                      {isFarmer
-                        ? '✓ Buyer payment is safely locked in platform escrow. When produce is delivered and accepted by the buyer, funds will automatically transfer to your bank.'
-                        : '✓ Your funds are protected in platform escrow. Payment will only release to the farmer after you inspect and accept the delivered cargo.'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <p className="font-bold text-amber-950">
-                          Total Escrow Amount: <span className="text-base text-emerald-800">{formatINR(deal.totalAmount)}</span>
-                        </p>
-                        <p className="text-amber-800 mt-0.5">
+
+                    {isPaymentReleased ? (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-blue-700" />
+                            <span className="font-bold text-blue-900">
+                              {formatINR(dealPayment?.amount || deal.totalAmount)} Released to Farmer
+                            </span>
+                          </div>
+                          <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-blue-300 text-blue-800 font-bold">
+                            {dealPayment?.transactionId || 'M2M-PAYMENT-SETTLED'}
+                          </span>
+                        </div>
+                        <p className="text-blue-800">
                           {isFarmer
-                            ? 'Awaiting buyer deposit into Mitti2Market Escrow prior to dispatch.'
-                            : 'To guarantee dispatch and driver allocation, deposit total value into escrow (Sandbox demo).'}
+                            ? '✓ Escrow funds have been successfully disbursed to your linked bank account.'
+                            : '✓ Delivery verified. Escrow funds have been released to the farmer.'}
                         </p>
                       </div>
-                      {!isFarmer && !['COMPLETED', 'CANCELLED'].includes(deal.status) && (
-                        <button
-                          type="button"
-                          onClick={() => setShowPaymentModal(true)}
-                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition shrink-0"
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          Deposit Escrow (Demo Sandbox)
-                        </button>
-                      )}
-                    </div>
+                    ) : isEscrowSecured ? (
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Lock className="w-4 h-4 text-emerald-700" />
+                            <span className="font-bold text-emerald-900">
+                              {formatINR(dealPayment?.amount || deal.totalAmount)} Deposited & Locked
+                            </span>
+                          </div>
+                          <span className="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-800 font-bold">
+                            {dealPayment?.transactionId || 'M2M-DEMO-TXN-VERIFIED'}
+                          </span>
+                        </div>
+                        <p className="text-emerald-800">
+                          {isFarmer
+                            ? '✓ Buyer payment is safely locked in platform escrow. When produce is delivered and accepted by the buyer, funds will automatically transfer to your bank.'
+                            : '✓ Your funds are protected in platform escrow. Payment will only release to the farmer after you inspect and accept the delivered cargo.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <p className="font-bold text-amber-950">
+                              Total Escrow Amount: <span className="text-base text-emerald-800">{formatINR(deal.totalAmount)}</span>
+                            </p>
+                            <p className="text-amber-800 mt-0.5">
+                              {isFarmer
+                                ? 'Awaiting buyer deposit into Mitti2Market Escrow prior to dispatch.'
+                                : 'To guarantee dispatch and driver allocation, deposit total value into escrow (Sandbox demo).'}
+                            </p>
+                          </div>
+                          {!isFarmer && !['COMPLETED', 'CANCELLED'].includes(deal.status) && !isPaymentCompleted && (
+                            <button
+                              type="button"
+                              onClick={() => setShowPaymentModal(true)}
+                              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition shrink-0"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              Deposit Escrow (Demo Sandbox)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* ═══ PARTIES & AGREEMENT ═══ */}
               <div className="grid md:grid-cols-2 gap-5 mb-5">
@@ -673,9 +700,18 @@ export default function DealWorkspace() {
               {/* ═══ DEMO PAYMENT MODAL ═══ */}
               <DemoPaymentModal
                 isOpen={showPaymentModal}
-                onClose={() => setShowPaymentModal(false)}
+                onClose={() => {
+                  setShowPaymentModal(false);
+                  load();
+                }}
                 deal={deal}
-                onPaymentSuccess={load}
+                onPaymentSuccess={(confirmedTxn) => {
+                  if (confirmedTxn) {
+                    setDealPayment(confirmedTxn);
+                    setDeal((prev) => prev ? { ...prev, paymentStatus: 'PAID_ESCROW' } : prev);
+                  }
+                  load();
+                }}
               />
 
               {/* ═══ LOGISTICS INCIDENT MODAL ═══ */}

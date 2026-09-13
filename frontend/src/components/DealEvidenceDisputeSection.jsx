@@ -219,11 +219,11 @@ export default function DealEvidenceDisputeSection({ deal, user, onDealUpdated, 
                 Origin Verification (Logistics Start)
                 {originEvidence.some(e => e.verificationStatus === 'VERIFIED') ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Observer Verified
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Dispatch Verified
                   </span>
                 ) : originEvidence.length > 0 ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                    <Clock className="w-3.5 h-3.5 text-amber-600" /> Uploaded (Pending Review)
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Dispatch Photos Uploaded
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
@@ -742,13 +742,13 @@ export default function DealEvidenceDisputeSection({ deal, user, onDealUpdated, 
                   onChange={(e) => setDisputeReason(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium"
                 >
-                  <option value="QUANTITY_MISMATCH">Quantity Mismatch (Weight/count difference)</option>
-                  <option value="PRODUCE_DAMAGED">Produce Damaged (Rot, transit damage, broken crates)</option>
-                  <option value="QUALITY_MISMATCH">Quality Mismatch (Does not match agreed sample)</option>
-                  <option value="WRONG_PRODUCE">Wrong Produce (Different variety delivered)</option>
-                  <option value="PACKAGING_DAMAGED">Packaging Damaged (Torn bags / spillage)</option>
-                  <option value="MISSING_ITEMS">Missing Items (Partial consignment)</option>
-                  <option value="DELIVERY_ISSUE">Delivery Issue (Delay / incorrect drop point)</option>
+                  <option value="QUALITY_MISMATCH">Quality Issue (Produce does not match grade / specifications)</option>
+                  <option value="QUANTITY_MISMATCH">Quantity Issue (Weight / crate count discrepancy)</option>
+                  <option value="PRODUCE_DAMAGED">Damaged Produce (Transit spoil, rot, crushing, temperature damage)</option>
+                  <option value="WRONG_PRODUCE">Wrong Produce (Different variety or substandard crop delivered)</option>
+                  <option value="LATE_DELIVERY">Late Delivery (Excessive delay beyond agreed schedule)</option>
+                  <option value="PAYMENT_ISSUE">Payment Issue (Escrow or payout dispute)</option>
+                  <option value="DELIVERY_ISSUE">Logistics / Delivery Issue (Vehicle, handling, or drop point issue)</option>
                   <option value="OTHER">Other specific grievance</option>
                 </select>
               </div>

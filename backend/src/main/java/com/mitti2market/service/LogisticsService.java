@@ -33,9 +33,9 @@ public class LogisticsService {
     private final DealCompletionService dealCompletionService;
     private final RouteOptimizationService routeOptimizer;
     private final GoogleMapsService googleMapsService;
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final VehicleService vehicleService;
     private final com.mitti2market.repository.TransportVehicleRepository vehicleRepo;
+    private final EvidenceRepository evidenceRepo;
 
     private final AtomicLong trkCounter = new AtomicLong(100000);
 
@@ -168,6 +168,17 @@ public class LogisticsService {
         // Role-based rule: Only the business recipient (buyer) or Admin can mark shipment as DELIVERED
         if (newStatus == LogisticsStatus.DELIVERED && !isBuyer && !isAdmin) {
             throw new BadRequestException("Only the business recipient (buyer) can confirm and mark the shipment as Delivered.");
+        }
+
+        // Rule 10, 15, 17, 20: Mandatory Escrow Payment & Farmer Dispatch Photo before transport progression
+        if (newStatus == LogisticsStatus.PICKED_UP || newStatus == LogisticsStatus.IN_TRANSIT) {
+            if (!"PAID_ESCROW".equals(deal.getPaymentStatus()) && !"RELEASED_TO_FARMER".equals(deal.getPaymentStatus()) && !"PAID".equals(deal.getPaymentStatus())) {
+                throw new BadRequestException("Mandatory escrow payment is required before dispatch can begin.");
+            }
+            long originEvidenceCount = evidenceRepo.countByDealIdAndStage(deal.getId(), Evidence.EvidenceStage.ORIGIN);
+            if (originEvidenceCount == 0) {
+                throw new BadRequestException("Dispatch verification photo is required before transport can begin. Farmer must upload produce dispatch proof.");
+            }
         }
 
         logistics.setStatus(newStatus);
@@ -957,11 +968,22 @@ private Logistics findAndVerify(Long logisticsId, Long userId) {
 
         User buyer = users.findById(userId).orElseThrow();
 
+        Integer receivedQuantity = details.get("receivedQuantity") != null ? Integer.valueOf(details.get("receivedQuantity").toString()) : null;
+        if (receivedQuantity != null && receivedQuantity <= 0) {
+            throw new BadRequestException("Received quantity must be a positive number greater than zero");
+        }
+
+        // Rule 22 & 23: Mandatory Buyer Delivery Photo before confirmation
+        long deliveryEvidenceCount = evidenceRepo.countByDealIdAndStage(dealId, Evidence.EvidenceStage.DELIVERY);
+        if (deliveryEvidenceCount == 0) {
+            throw new BadRequestException("Delivery verification photo is required before confirming delivery. Please upload photo of the received produce.");
+        }
+
         DeliveryConfirmation confirmation = DeliveryConfirmation.builder()
                 .deal(deal)
                 .confirmedBy(buyer)
                 .confirmed(true)
-                .receivedQuantity(details.get("receivedQuantity") != null ? Integer.valueOf(details.get("receivedQuantity").toString()) : null)
+                .receivedQuantity(receivedQuantity)
                 .qualityNotes((String) details.get("qualityNotes"))
                 .confirmedAt(LocalDateTime.now())
                 .build();
@@ -971,7 +993,12 @@ private Logistics findAndVerify(Long logisticsId, Long userId) {
         // Complete the deal via the state machine — the completion service
         // finalizes produce + requirement lifecycle in the same transaction.
         deal = stateMachine.transition(dealId, DealStatus.COMPLETED, userId, "BUYER",
-                "Buyer confirmed delivery — deal completed", null);
+                "Buyer confirmed delivery with inspection photo — deal completed", null);
+
+        deal.setPaymentStatus("RELEASED_TO_FARMER");
+        deal.setCompletedAt(LocalDateTime.now());
+        dealRepo.save(deal);
+
         dealCompletionService.completeDeal(dealId);
 
         // Update logistics
