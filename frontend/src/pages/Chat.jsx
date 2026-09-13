@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Send, ArrowLeft, MessageCircle, Package, Radio, Handshake, Check, X, CornerUpLeft, Loader2 } from 'lucide-react';
+import { Send, ArrowLeft, MessageCircle, Package, Radio, Handshake, Check, X, CornerUpLeft, Loader2, Camera, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPost } from '../api';
+import { apiGet, apiPost, apiUpload } from '../api';
 import { onMessage } from '../utils/messageStream';
 import DealLockPanel from '../components/DealLockPanel';
 import { createOffer, getConversationOffers, acceptOffer, counterOffer, rejectOffer } from '../api/dealApi';
@@ -43,6 +43,8 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const chatFileInputRef = useRef(null);
+  const [uploadingChatImage, setUploadingChatImage] = useState(false);
 
   // Structured negotiation offers
   const [offers, setOffers] = useState([]);
@@ -185,7 +187,16 @@ export default function Chat() {
 
   const handleCreateOffer = async (e) => {
     e.preventDefault();
-    if (!offerForm.price || !offerForm.quantity) return;
+    const p = Number(offerForm.price);
+    const q = Number(offerForm.quantity);
+    if (!offerForm.price || isNaN(p) || p <= 0) {
+      alert('Offer price must be a positive number greater than 0.');
+      return;
+    }
+    if (!offerForm.quantity || isNaN(q) || q <= 0) {
+      alert('Offer quantity (weight) must be a positive number greater than 0.');
+      return;
+    }
     const targetReceiverId = Number(effectiveOtherUserId);
     if (!targetReceiverId || isNaN(targetReceiverId)) {
       alert('Could not determine recipient for offer.');
@@ -195,8 +206,8 @@ export default function Chat() {
     try {
       await createOffer(conversationId, {
         receiverId: targetReceiverId,
-        price: Number(offerForm.price),
-        quantity: Number(offerForm.quantity),
+        price: p,
+        quantity: q,
         cropName: produceDisplayName || 'Agro Produce',
         unit: 'kg',
         note: offerForm.note,
@@ -231,10 +242,19 @@ export default function Chat() {
   };
 
   const handleCounterOffer = async (offerId) => {
-    if (!counterForm.price || !counterForm.quantity) return;
+    const p = Number(counterForm.price);
+    const q = Number(counterForm.quantity);
+    if (!counterForm.price || isNaN(p) || p <= 0) {
+      alert('Counter-offer price must be a positive number greater than 0.');
+      return;
+    }
+    if (!counterForm.quantity || isNaN(q) || q <= 0) {
+      alert('Counter-offer quantity (weight) must be a positive number greater than 0.');
+      return;
+    }
     setOfferAction('counter-' + offerId);
     try {
-      await counterOffer(offerId, { price: Number(counterForm.price), quantity: Number(counterForm.quantity) });
+      await counterOffer(offerId, { price: p, quantity: q });
       setCounterFor(null);
       setCounterForm({ price: '', quantity: '' });
       await loadOffers();
@@ -294,6 +314,35 @@ export default function Chat() {
       alert('Failed to send message: ' + (err.message || 'Please try again'));
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleChatImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const targetReceiverId = Number(effectiveOtherUserId);
+    if (!targetReceiverId || isNaN(targetReceiverId)) {
+      alert('Could not determine message recipient. Please select a conversation first.');
+      return;
+    }
+    setUploadingChatImage(true);
+    try {
+      const res = await apiUpload('/api/upload/image', file);
+      const imgUrl = res?.url;
+      if (imgUrl) {
+        await apiPost('/api/messages', {
+          receiverId: targetReceiverId,
+          content: imgUrl,
+          produceId: effectiveProduceId,
+        });
+        await loadMessages();
+        await loadConversations(false);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to send image');
+    } finally {
+      setUploadingChatImage(false);
+      if (chatFileInputRef.current) chatFileInputRef.current.value = '';
     }
   };
 
@@ -457,7 +506,19 @@ export default function Chat() {
                           ? 'bg-navy-900 text-white rounded-br-md'
                           : 'bg-gray-100 text-gray-900 rounded-bl-md'
                       }`}>
-                        <p className="text-sm whitespace-pre-line">{msg.content}</p>
+                        {msg.content?.startsWith('http') && (msg.content.includes('cloudinary') || msg.content.match(/\.(jpeg|jpg|gif|png|webp)/i)) ? (
+                          <div>
+                            <img
+                              src={msg.content}
+                              alt="Photo attachment"
+                              onClick={() => window.open(msg.content, '_blank')}
+                              className="max-w-xs max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-95 transition border border-white/20"
+                            />
+                            <span className="text-[10px] opacity-70 block mt-1">📷 Click photo to enlarge</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-line">{msg.content}</p>
+                        )}
                         <p className={`text-[10px] mt-1 ${isMine ? 'text-gray-300' : 'text-gray-400'}`}>
                           {formatTime(msg.createdAt)}
                         </p>
@@ -524,10 +585,44 @@ export default function Chat() {
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2 mt-1">
                               <p className="text-xs font-bold text-amber-800">Counter-offer terms:</p>
                               <div className="flex gap-2">
-                                <input type="number" value={counterForm.price} onChange={e => setCounterForm({...counterForm, price: e.target.value})}
-                                  placeholder="Price ₹/kg" className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs" />
-                                <input type="number" value={counterForm.quantity} onChange={e => setCounterForm({...counterForm, quantity: e.target.value})}
-                                  placeholder="Qty kg" className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs" />
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  step="any"
+                                  value={counterForm.price}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || (!val.includes('-') && Number(val) >= 0)) {
+                                      setCounterForm({ ...counterForm, price: val });
+                                    }
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                      e.preventDefault();
+                                    }
+                                  }}
+                                  placeholder="Price ₹/kg"
+                                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs"
+                                />
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  step="any"
+                                  value={counterForm.quantity}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || (!val.includes('-') && Number(val) >= 0)) {
+                                      setCounterForm({ ...counterForm, quantity: val });
+                                    }
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                      e.preventDefault();
+                                    }
+                                  }}
+                                  placeholder="Qty kg"
+                                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs"
+                                />
                               </div>
                               <div className="flex gap-2">
                                 <button onClick={() => setCounterFor(null)} className="flex-1 py-2 bg-gray-100 rounded-lg text-xs font-semibold">Cancel</button>
@@ -567,10 +662,46 @@ export default function Chat() {
             {showOfferForm && (
               <form onSubmit={handleCreateOffer} className="mt-2 space-y-2 pb-3">
                 <div className="flex gap-2">
-                  <input type="number" value={offerForm.price} onChange={e => setOfferForm({...offerForm, price: e.target.value})}
-                    placeholder="Price ₹/kg" required className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
-                  <input type="number" value={offerForm.quantity} onChange={e => setOfferForm({...offerForm, quantity: e.target.value})}
-                    placeholder="Quantity kg" required className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    value={offerForm.price}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '' || (!val.includes('-') && Number(val) >= 0)) {
+                        setOfferForm({ ...offerForm, price: val });
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder="Price ₹/kg"
+                    required
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    value={offerForm.quantity}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '' || (!val.includes('-') && Number(val) >= 0)) {
+                        setOfferForm({ ...offerForm, quantity: val });
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder="Quantity kg"
+                    required
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  />
                 </div>
                 <input value={offerForm.note} onChange={e => setOfferForm({...offerForm, note: e.target.value})}
                   placeholder="Note (optional)" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
@@ -584,6 +715,22 @@ export default function Chat() {
 
           {/* Message input */}
           <form onSubmit={handleSend} className="bg-white rounded-b-2xl border border-navy-100 p-3 flex items-center gap-2">
+            <input
+              type="file"
+              ref={chatFileInputRef}
+              onChange={handleChatImageUpload}
+              accept="image/*"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => chatFileInputRef.current?.click()}
+              disabled={uploadingChatImage || sending}
+              title="Attach produce or delivery photo in chat"
+              className="p-2.5 text-gray-500 hover:text-navy-900 hover:bg-gray-100 rounded-xl transition disabled:opacity-40"
+            >
+              {uploadingChatImage ? <Loader2 className="w-5 h-5 animate-spin text-navy-900" /> : <Camera className="w-5 h-5" />}
+            </button>
             <input
               type="text"
               value={newMessage}

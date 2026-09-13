@@ -19,7 +19,8 @@ export default function DemoPaymentModal({
   const [error, setError] = useState('');
   const [txnResult, setTxnResult] = useState(null);
 
-  const amount = deal.totalAmount || (deal.quantity * deal.agreedPrice) || 0;
+  const totalAmount = deal.totalAmount || (deal.quantity * deal.agreedPrice) || 0;
+  const upfrontAmount = Math.round((totalAmount / 2.0) * 100) / 100;
   const formatINR = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
   const handlePay = async () => {
@@ -28,10 +29,11 @@ export default function DemoPaymentModal({
     setStep('PROCESSING');
 
     try {
-      // Step 1: Initialize demo transaction with backend validation
+      // Step 1: Initialize demo transaction with backend validation (50% upfront escrow)
       const initRes = await createDemoPayment(deal.id || deal.dealId, {
+        amount: upfrontAmount,
         paymentMethod,
-        notes: `Simulated ${paymentMethod} sandbox payment for Deal #${deal.dealId || deal.id}`,
+        notes: `Simulated 50% upfront ${paymentMethod} sandbox escrow payment for Deal #${deal.dealId || deal.id}`,
       });
 
       const txnId = initRes.transactionId;
@@ -58,6 +60,12 @@ export default function DemoPaymentModal({
     }
   };
 
+  const handleClose = () => {
+    setStep('SELECT');
+    setError('');
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
       <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-navy-100 flex flex-col">
@@ -79,7 +87,7 @@ export default function DemoPaymentModal({
           </div>
           {step !== 'PROCESSING' && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-navy-200 hover:text-white transition"
             >
               <X className="w-5 h-5" />
@@ -98,147 +106,170 @@ export default function DemoPaymentModal({
         {/* Modal Body */}
         <div className="p-6 space-y-5">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
               {error}
             </div>
           )}
 
           {step === 'SELECT' && (
             <>
-              {/* Amount Breakdown */}
-              <div className="bg-navy-50/60 rounded-2xl p-4 border border-navy-100 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-navy-500">Escrow Payable Amount</p>
-                  <p className="text-2xl font-black text-navy-900">{formatINR(amount)}</p>
+              {/* Amount Breakdown Card */}
+              <div className="bg-gradient-to-br from-navy-50 to-emerald-50/40 p-4 rounded-2xl border border-navy-100 space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-semibold text-navy-600 block">Mandatory 50% Upfront Escrow</span>
+                    <span className="text-[10px] text-emerald-700 font-medium">Milestone 1 · Required before dispatch</span>
+                  </div>
+                  <span className="text-xl font-extrabold text-navy-900">{formatINR(upfrontAmount)}</span>
                 </div>
-                <div className="text-right text-[11px] text-navy-600">
-                  <p>{deal.quantity} {deal.unit} @ {formatINR(deal.agreedPrice)}/{deal.unit}</p>
-                  <p className="text-emerald-700 font-semibold mt-0.5 flex items-center gap-1 justify-end">
-                    <ShieldCheck className="w-3.5 h-3.5" /> 100% Escrow Protected
-                  </p>
+                <div className="border-t border-navy-200/50 pt-2 grid grid-cols-2 gap-2 text-[11px] text-navy-600">
+                  <div>Total Deal Value: <span className="font-bold text-navy-900">{formatINR(totalAmount)}</span></div>
+                  <div className="text-right">Remaining on Delivery: <span className="font-bold text-navy-900">{formatINR(upfrontAmount)}</span></div>
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-500 pt-0.5">
+                  <span>Quantity: {deal.quantity} {deal.unit || 'kg'}</span>
+                  <span>Agreed Price: {formatINR(deal.agreedPrice)}/{deal.unit || 'kg'}</span>
                 </div>
               </div>
 
               {/* Payment Method Selector */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <label className="text-xs font-bold text-navy-800">Select Sandbox Payment Channel</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('UPI')}
-                    className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1.5 ${
+                    className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition ${
                       paymentMethod === 'UPI'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-500'
-                        : 'border-gray-200 bg-white hover:bg-gray-50 text-navy-700'
+                        ? 'border-emerald-600 bg-emerald-50/80 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100 text-gray-700'
                     }`}
                   >
-                    <Smartphone className="w-5 h-5 text-emerald-600" />
-                    <span className="text-xs">UPI / QR</span>
+                    <Smartphone className="w-5 h-5" />
+                    <span>UPI / QR</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('CARD')}
-                    className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1.5 ${
+                    className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition ${
                       paymentMethod === 'CARD'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-500'
-                        : 'border-gray-200 bg-white hover:bg-gray-50 text-navy-700'
+                        ? 'border-emerald-600 bg-emerald-50/80 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100 text-gray-700'
                     }`}
                   >
-                    <CreditCard className="w-5 h-5 text-blue-600" />
-                    <span className="text-xs">Card (Test)</span>
+                    <CreditCard className="w-5 h-5" />
+                    <span>Card</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('NET_BANKING')}
-                    className={`p-3 rounded-xl border text-center transition flex flex-col items-center gap-1.5 ${
+                    className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition ${
                       paymentMethod === 'NET_BANKING'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-500'
-                        : 'border-gray-200 bg-white hover:bg-gray-50 text-navy-700'
+                        ? 'border-emerald-600 bg-emerald-50/80 text-emerald-800 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100 text-gray-700'
                     }`}
                   >
-                    <Building className="w-5 h-5 text-purple-600" />
-                    <span className="text-xs">NetBanking</span>
+                    <Building className="w-5 h-5" />
+                    <span>Net Banking</span>
                   </button>
                 </div>
               </div>
 
-              {/* Method Specific Mock Details */}
+              {/* Channel-Specific Input Fields */}
               {paymentMethod === 'UPI' && (
-                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-2 text-xs">
+                <div className="space-y-1.5 text-xs">
                   <label className="font-semibold text-navy-700">Virtual Payment Address (VPA)</label>
                   <input
                     type="text"
                     value={upiId}
                     onChange={(e) => setUpiId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-navy-900 font-mono"
-                    placeholder="buyer@upi"
+                    placeholder="name@okaxis"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
-                  <p className="text-[10px] text-gray-500">
-                    Simulates instant approval from Google Pay, PhonePe, or BHIM.
-                  </p>
+                  <div className="flex gap-1.5 pt-1">
+                    {['buyer@okhdfcbank', 'krishi.buyer@paytm', 'demo@okicici'].map((vpa) => (
+                      <button
+                        key={vpa}
+                        type="button"
+                        onClick={() => setUpiId(vpa)}
+                        className="text-[10px] px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-600 font-mono transition"
+                      >
+                        {vpa}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {paymentMethod === 'CARD' && (
-                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-2 text-xs">
-                  <label className="font-semibold text-navy-700">Test Card Number</label>
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    readOnly
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-navy-900 font-mono"
-                  />
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="space-y-2.5 text-xs">
+                  <div>
+                    <label className="font-semibold text-navy-700">Simulated Card Number</label>
+                    <input
+                      type="text"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-gray-500">Expiry: </span>
-                      <strong className="text-navy-800">12/29</strong>
+                      <label className="font-semibold text-navy-700">Expiry</label>
+                      <input
+                        type="text"
+                        defaultValue="12/28"
+                        className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
                     </div>
                     <div>
-                      <span className="text-gray-500">CVV: </span>
-                      <strong className="text-navy-800">123</strong>
+                      <label className="font-semibold text-navy-700">CVV</label>
+                      <input
+                        type="password"
+                        defaultValue="123"
+                        maxLength="3"
+                        className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
                     </div>
                   </div>
                 </div>
               )}
 
               {paymentMethod === 'NET_BANKING' && (
-                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-2 text-xs">
-                  <label className="font-semibold text-navy-700">Select Sandbox Bank</label>
+                <div className="space-y-1.5 text-xs">
+                  <label className="font-semibold text-navy-700">Select Bank</label>
                   <select
                     value={selectedBank}
                     onChange={(e) => setSelectedBank(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-navy-900"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
                     <option>State Bank of India</option>
                     <option>HDFC Bank</option>
                     <option>ICICI Bank</option>
-                    <option>Punjab National Bank</option>
                     <option>Axis Bank</option>
+                    <option>Punjab National Bank</option>
                   </select>
                 </div>
               )}
 
-              {/* Escrow Guarantee Statement */}
-              <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
-                <p className="font-bold flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  M2M Escrow Safety Protocol:
-                </p>
-                <p className="text-emerald-800">
-                  Payment is held safely in Mitti2Market Escrow. Funds will NOT be released to the farmer until delivery is inspected and confirmed by the buyer.
+              {/* Escrow Guarantee Notice */}
+              <div className="flex items-start gap-2 p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-[11px] text-emerald-900">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong>100% Escrow Guarantee:</strong> Payment is held safely in Mitti2Market Escrow. Funds will NOT be released to the farmer until delivery is inspected and confirmed by the buyer.
                 </p>
               </div>
 
-              {/* Submit Button */}
+              {/* Pay / Deposit Button */}
               <button
                 type="button"
                 onClick={handlePay}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition flex items-center justify-center gap-2 shadow-sm text-sm"
+                disabled={loading}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition disabled:opacity-50"
               >
                 <Lock className="w-4 h-4" />
-                Deposit {formatINR(amount)} to Escrow (Sandbox)
+                Deposit 50% Escrow ({formatINR(upfrontAmount)}) [Sandbox]
               </button>
             </>
           )}
@@ -291,7 +322,7 @@ export default function DemoPaymentModal({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-full py-2.5 bg-navy-900 hover:bg-navy-800 text-white font-bold rounded-xl text-xs transition"
               >
                 Return to Deal Workspace

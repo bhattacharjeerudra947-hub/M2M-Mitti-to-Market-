@@ -81,6 +81,12 @@ public class DealService {
         Long produceId = details.get("produceId") != null ? Long.valueOf(details.get("produceId").toString()) : null;
         Integer quantity = Integer.valueOf(details.get("quantity").toString());
         Double agreedPrice = Double.valueOf(details.get("agreedPrice").toString());
+        if (quantity == null || quantity <= 0) {
+            throw new BadRequestException("Quantity (weight) must be a positive number greater than zero");
+        }
+        if (agreedPrice == null || agreedPrice <= 0) {
+            throw new BadRequestException("Agreed price must be a positive number greater than zero");
+        }
         String pickupLocation = (String) details.getOrDefault("pickupLocation", "");
         String deliveryLocation = (String) details.getOrDefault("deliveryLocation", "");
         String conditions = (String) details.getOrDefault("conditions", "");
@@ -381,6 +387,13 @@ public class DealService {
 
         if (deal.getStatus() == DealStatus.COMPLETED || deal.getStatus() == DealStatus.CANCELLED) {
             throw new BadRequestException("Cannot amend a " + deal.getStatus().name().toLowerCase() + " deal");
+        }
+
+        if (quantity != null && quantity <= 0) {
+            throw new BadRequestException("Quantity (weight) must be a positive number greater than zero");
+        }
+        if (agreedPrice != null && agreedPrice <= 0) {
+            throw new BadRequestException("Agreed price must be a positive number greater than zero");
         }
 
         // Reject amendment if produce is expired

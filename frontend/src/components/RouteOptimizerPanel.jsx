@@ -3,7 +3,6 @@ import { Truck, Calculator, Check, AlertTriangle, Loader2, ArrowRight, Info, Map
 import LocationPicker from './LocationPicker';
 import DealRouteMap from './DealRouteMap';
 import VehicleCard from './VehicleCard';
-import HubStagingSelector from './HubStagingSelector';
 import { calculateRoute, setDealLocations, getDealRouteInfo } from '../api/locationApi';
 import { getAvailableVehicles, assignVehicle, configureOwnLogistics } from '../api/dealApi';
 import { useAuth } from '../context/AuthContext';
@@ -51,7 +50,6 @@ export default function RouteOptimizerPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [selectedHub, setSelectedHub] = useState(deal?.stagedHub || null);
 
   // Logistics & Vehicle selection state
   const [logisticsMode, setLogisticsMode] = useState(deal?.logisticsMode || 'MITTI2MARKET'); // 'MITTI2MARKET' | 'OWN'
@@ -323,22 +321,6 @@ export default function RouteOptimizerPanel({
           />
         </div>
       </div>
-
-      {/* Optional Partner Hub Staging / Direct Delivery Selector */}
-      <HubStagingSelector
-        cropName={deal?.cropName || deal?.produce?.name || ''}
-        quantityKg={deal?.quantityKg || deal?.quantity || 0}
-        pickupLat={pickupLocation?.latitude}
-        pickupLng={pickupLocation?.longitude}
-        deliveryLat={deliveryLocation?.latitude}
-        deliveryLng={deliveryLocation?.longitude}
-        selectedHub={selectedHub}
-        onHubChange={(hub) => {
-          setSelectedHub(hub);
-          setDirty(true);
-        }}
-        readOnly={readOnly}
-      />
 
       {/* Action Bar to compute route */}
       {!readOnly && (
