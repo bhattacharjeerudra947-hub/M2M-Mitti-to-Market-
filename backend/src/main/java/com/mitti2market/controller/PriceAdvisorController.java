@@ -44,23 +44,25 @@ public class PriceAdvisorController {
     }
 
     /**
-     * GET /api/price-advisor/{cropName}?location=Pune&desiredPrice=30
-     * Get detailed market analysis and AI suggestion for a specific crop.
+     * GET /api/price-advisor/{cropName}?location=Pune&desiredPrice=30&distanceKm=80
+     * Get detailed market analysis and AI suggestion for a specific crop, including logistics freight.
      */
     @GetMapping("/{cropName}")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCropAnalysis(
             @PathVariable String cropName,
             @RequestParam(required = false) String location,
-            @RequestParam(required = false, defaultValue = "0") double desiredPrice) {
+            @RequestParam(required = false, defaultValue = "0") double desiredPrice,
+            @RequestParam(required = false) Double distanceKm,
+            @RequestParam(required = false) String destination) {
 
-        Map<String, Object> analysis = marketDataService.getMarketAnalysis(cropName, location, desiredPrice);
+        Map<String, Object> analysis = marketDataService.getMarketAnalysis(cropName, location, desiredPrice, distanceKm, destination);
         return ResponseEntity.ok(ApiResponse.ok(analysis));
     }
 
     /**
      * POST /api/price-advisor/suggest
      * Get AI price suggestion for a specific produce listing.
-     * Used by AddProduce page to show real-time price suggestions.
+     * Used by AddProduce page to show real-time price suggestions including logistics.
      */
     @PostMapping("/suggest")
     public ResponseEntity<ApiResponse<Map<String, Object>>> suggestPrice(
@@ -70,8 +72,11 @@ public class PriceAdvisorController {
         String location = (String) body.get("location");
         double desiredPrice = body.containsKey("desiredPrice")
                 ? Double.parseDouble(body.get("desiredPrice").toString()) : 0;
+        Double distanceKm = body.get("distanceKm") != null
+                ? Double.parseDouble(body.get("distanceKm").toString()) : null;
+        String destination = (String) body.get("destination");
 
-        Map<String, Object> analysis = marketDataService.getMarketAnalysis(cropName, location, desiredPrice);
+        Map<String, Object> analysis = marketDataService.getMarketAnalysis(cropName, location, desiredPrice, distanceKm, destination);
         return ResponseEntity.ok(ApiResponse.ok(analysis));
     }
 }

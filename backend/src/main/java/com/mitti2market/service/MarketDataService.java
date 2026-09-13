@@ -180,6 +180,13 @@ public class MarketDataService {
      * @return market analysis with AI suggested price range
      */
     public Map<String, Object> getMarketAnalysis(String cropName, String location, double farmerDesiredPrice) {
+        return getMarketAnalysis(cropName, location, farmerDesiredPrice, null, null);
+    }
+
+    /**
+     * Get market analysis factoring in logistics distance and freight costs.
+     */
+    public Map<String, Object> getMarketAnalysis(String cropName, String location, double farmerDesiredPrice, Double distanceKm, String destination) {
         CropMarketData data = findCropData(cropName);
         if (data == null) {
             return getDefaultAnalysis(cropName, farmerDesiredPrice);
@@ -206,6 +213,30 @@ public class MarketDataService {
         double aiOptimalPrice = computeOptimalPrice(data, regionalPrice, seasonalFactor);
         double aiMinPrice = Math.round(aiOptimalPrice * 0.92 * 100.0) / 100.0;
         double aiMaxPrice = Math.round(aiOptimalPrice * 1.08 * 100.0) / 100.0;
+
+        // ── Logistics & Freight Estimation ──
+        // Transportation increases the delivered price based on distance and cargo handling
+        double dist = (distanceKm != null && distanceKm > 0) ? distanceKm : 75.0; // default 75km regional transit
+        double rawLogisticsCost = (dist * 0.035) + 0.30;
+        double estimatedLogisticsPerKg = Math.max(1.50, Math.round(rawLogisticsCost * 100.0) / 100.0);
+
+        double landedOptimalPrice = Math.round((aiOptimalPrice + estimatedLogisticsPerKg) * 100.0) / 100.0;
+        double landedMinPrice = Math.round((aiMinPrice + estimatedLogisticsPerKg) * 100.0) / 100.0;
+        double landedMaxPrice = Math.round((aiMaxPrice + estimatedLogisticsPerKg) * 100.0) / 100.0;
+
+        Map<String, Object> logisticsTiers = Map.of(
+            "local", Map.of("label", "Local Haul (0–50 km)", "distanceKm", 25.0, "costPerKg", 1.50),
+            "regional", Map.of("label", "Regional Mandi (50–150 km)", "distanceKm", 80.0, "costPerKg", 3.10),
+            "longHaul", Map.of("label", "Inter-State / Long Haul (150+ km)", "distanceKm", 250.0, "costPerKg", 9.05)
+        );
+
+        Map<String, Object> logisticsBreakdown = new LinkedHashMap<>();
+        logisticsBreakdown.put("distanceKm", dist);
+        logisticsBreakdown.put("costPerKg", estimatedLogisticsPerKg);
+        logisticsBreakdown.put("fuelAndFreightPerKg", Math.round(dist * 0.035 * 100.0) / 100.0);
+        logisticsBreakdown.put("handlingPerKg", 0.30);
+        logisticsBreakdown.put("tiers", logisticsTiers);
+        logisticsBreakdown.put("note", "Transit adds ~₹" + estimatedLogisticsPerKg + "/kg. Delivered price covers logistics expenses.");
 
         // If farmer has a desired price, show how it compares to AI suggestion
         String priceAdvice = "";
@@ -247,6 +278,12 @@ public class MarketDataService {
             reasons.add(Map.of("text", "Off-season — prices are ~" + Math.round((1 - seasonalFactor) * 100) + "% below peak", "impact", "negative"));
         }
 
+        // Explicit Logistics impact reason
+        reasons.add(Map.of(
+            "text", "🚚 Logistics & Freight Impact: Transportation adds ~₹" + estimatedLogisticsPerKg + "/kg for a " + Math.round(dist) + "km transit. Landed delivered price is ₹" + landedOptimalPrice + "/kg to cover freight.",
+            "impact", "neutral"
+        ));
+
         reasons.addAll(data.reasons.stream()
             .map(r -> Map.of("text", r, "impact", "neutral"))
             .toList());
@@ -267,6 +304,18 @@ public class MarketDataService {
         result.put("aiSuggestedMinPrice", aiMinPrice);
         result.put("aiSuggestedMaxPrice", aiMaxPrice);
         result.put("aiOptimalPrice", aiOptimalPrice);
+
+        // Logistics-augmented prices
+        result.put("farmgateMinPrice", aiMinPrice);
+        result.put("farmgateMaxPrice", aiMaxPrice);
+        result.put("farmgateOptimalPrice", aiOptimalPrice);
+        result.put("estimatedLogisticsPerKg", estimatedLogisticsPerKg);
+        result.put("estimatedDistanceKm", dist);
+        result.put("landedOptimalPrice", landedOptimalPrice);
+        result.put("landedSuggestedMinPrice", landedMinPrice);
+        result.put("landedSuggestedMaxPrice", landedMaxPrice);
+        result.put("logisticsBreakdown", logisticsBreakdown);
+
         result.put("reasons", reasons);
         result.put("regionalPrices", data.regionalPrices);
         if (!priceAdvice.isEmpty()) {
@@ -332,9 +381,16 @@ public class MarketDataService {
             crop.put("demandLevel", data.demandLevel);
             crop.put("supplyLevel", data.supplyLevel);
             crop.put("trend", data.trend);
+            double baseOptimal = Math.round(aiPrice * 100.0) / 100.0;
+            double logPerKg = 2.93; // standard regional 75km transit cost
+            double landedOptimal = Math.round((baseOptimal + logPerKg) * 100.0) / 100.0;
+
             crop.put("aiSuggestedMinPrice", Math.round(aiPrice * 0.92 * 100.0) / 100.0);
             crop.put("aiSuggestedMaxPrice", Math.round(aiPrice * 1.08 * 100.0) / 100.0);
-            crop.put("aiOptimalPrice", Math.round(aiPrice * 100.0) / 100.0);
+            crop.put("aiOptimalPrice", baseOptimal);
+            crop.put("farmgateOptimalPrice", baseOptimal);
+            crop.put("estimatedLogisticsPerKg", logPerKg);
+            crop.put("landedOptimalPrice", landedOptimal);
             crops.add(crop);
         }
 

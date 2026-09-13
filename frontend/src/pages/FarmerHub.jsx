@@ -7,7 +7,7 @@ import {
   PlusCircle, Brain, ShoppingCart, Trophy, MapPin, Package,
   X, Camera, Image, FileImage, Loader2, TrendingUp, TrendingDown, Minus,
   Info, WifiOff, Save, CloudUpload, RefreshCw, ShieldCheck, ChevronDown,
-  ChevronUp, Wallet, MessageCircle, CheckCircle2, ClipboardList, AlertTriangle
+  ChevronUp, Wallet, MessageCircle, CheckCircle2, ClipboardList, AlertTriangle, Truck
 } from 'lucide-react';
 import { saveDraft, queueDraft, deleteDraft, getDraft, useSyncStatus } from '../utils/syncQueue';
 import { idbSupported } from '../utils/idb';
@@ -420,6 +420,7 @@ function PriceAdvisorSection() {
   const [crops, setCrops] = useState([]);
   const [selected, setSelected] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [distanceKm, setDistanceKm] = useState(80);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -431,8 +432,8 @@ function PriceAdvisorSection() {
   useEffect(() => {
     if (isGuestModeActive || !selected) return;
     setAnalyzing(true);
-    apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}`).then(setAnalysis).catch(() => {}).finally(() => setAnalyzing(false));
-  }, [selected]);
+    apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}?distanceKm=${distanceKm}`).then(setAnalysis).catch(() => {}).finally(() => setAnalyzing(false));
+  }, [selected, distanceKm]);
 
   const trendIcon = (t) => t === 'Increasing' ? <TrendingUp className="w-4 h-4" /> : t === 'Decreasing' ? <TrendingDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />;
   const trendColor = (t) => t === 'Increasing' ? 'text-emerald-600' : t === 'Decreasing' ? 'text-rose-600' : 'text-gray-700';
@@ -499,6 +500,78 @@ function PriceAdvisorSection() {
                     <div className="p-3 bg-gray-50 rounded-xl text-center"><p className="text-[10px] text-gray-500 mb-1">Supply</p><p className={`text-sm font-bold ${analysis.supplyLevel === 'LOW' ? 'text-emerald-600' : analysis.supplyLevel === 'HIGH' ? 'text-rose-600' : 'text-amber-600'}`}>{analysis.supplyLevel}</p></div>
                     <div className="p-3 bg-gray-50 rounded-xl text-center"><p className="text-[10px] text-gray-500 mb-1">Regional</p><p className="text-sm font-bold text-navy-700">₹{analysis.regionalPrice}</p><p className="text-[9px] text-gray-400">{analysis.matchedRegion}</p></div>
                   </div>
+                </div>
+
+                {/* ═══ LOGISTICS & DELIVERED PRICE IMPACT CARD ═══ */}
+                <div className="bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 rounded-2xl p-5 text-white shadow-sm space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-white">Logistics & Delivered Price Impact</h3>
+                        <p className="text-[11px] text-gray-300">Transportation distance directly increases final delivered produce price</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      +₹{analysis.estimatedLogisticsPerKg || (Math.round((distanceKm * 0.035 + 0.30) * 100) / 100)}/kg Freight Surcharge
+                    </span>
+                  </div>
+
+                  {/* Distance Tiers Selector */}
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-gray-300 font-medium">Select Transit Distance:</span>
+                      <span className="text-emerald-400 font-bold">{distanceKm} km haul</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: '🛵 Local Haul', dist: 25, sub: '0–50 km (~₹1.50/kg)' },
+                        { label: '🚚 Regional Mandi', dist: 80, sub: '50–150 km (~₹3.10/kg)' },
+                        { label: '🚛 Inter-State', dist: 250, sub: '150+ km (~₹9.05/kg)' },
+                      ].map((t) => (
+                        <button
+                          key={t.dist}
+                          type="button"
+                          onClick={() => setDistanceKm(t.dist)}
+                          className={`p-2.5 rounded-xl text-left border transition ${
+                            distanceKm === t.dist
+                              ? 'bg-emerald-600/30 border-emerald-400 text-white shadow-sm ring-1 ring-emerald-400/40'
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="text-xs font-bold block">{t.label}</span>
+                          <span className="text-[10px] text-gray-400 block mt-0.5">{t.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3-Part Price Formula Breakdown */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="bg-white/10 rounded-xl p-3 border border-white/10">
+                      <span className="text-[10px] text-gray-300 uppercase font-semibold block">1. Farmgate (Ex-Farm)</span>
+                      <p className="text-lg font-bold text-white mt-1">₹{analysis.farmgateOptimalPrice || analysis.aiOptimalPrice} <span className="text-xs font-normal text-gray-300">/kg</span></p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Net amount at farm gate</p>
+                    </div>
+
+                    <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/30">
+                      <span className="text-[10px] text-emerald-300 uppercase font-semibold block">2. + Logistics & Freight</span>
+                      <p className="text-lg font-bold text-emerald-400 mt-1">+₹{analysis.estimatedLogisticsPerKg || (Math.round((distanceKm * 0.035 + 0.30) * 100) / 100)} <span className="text-xs font-normal text-emerald-300">/kg</span></p>
+                      <p className="text-[10px] text-emerald-300/80 mt-0.5">Fuel, driver & handling ({distanceKm} km)</p>
+                    </div>
+
+                    <div className="bg-amber-400/20 rounded-xl p-3 border border-amber-400/40">
+                      <span className="text-[10px] text-mustard-300 uppercase font-bold block">3. = Landed Delivered Price</span>
+                      <p className="text-lg font-extrabold text-white mt-1">₹{analysis.landedOptimalPrice || (Math.round(((analysis.aiOptimalPrice || 0) + (distanceKm * 0.035 + 0.30)) * 100) / 100)} <span className="text-xs font-normal text-gray-300">/kg</span></p>
+                      <p className="text-[10px] text-mustard-300 mt-0.5">Recommended delivered price</p>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-gray-300 bg-white/5 p-2.5 rounded-xl border border-white/10 leading-relaxed">
+                    💡 <strong>Why does logistics increase the price?</strong> Transporting produce involves fuel, vehicle wear, driver wages, and loading fees. When negotiating with distant buyers or offering doorstep delivery, quote the <strong>Landed Delivered Price (₹{analysis.landedOptimalPrice || (Math.round(((analysis.aiOptimalPrice || 0) + (distanceKm * 0.035 + 0.30)) * 100) / 100)}/kg)</strong> so transportation expenses do not reduce your farm profits.
+                  </p>
                 </div>
                 <div className="bg-gradient-to-br from-mustard-50 to-white rounded-2xl border border-mustard-200 p-6">
                   <div className="flex items-center gap-2 mb-4"><Info className="w-5 h-5 text-navy-700" /><h3 className="text-sm font-bold text-navy-800">Market Intelligence</h3></div>
