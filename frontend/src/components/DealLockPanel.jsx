@@ -76,9 +76,18 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
   const [uploadingDeliveryPhoto, setUploadingDeliveryPhoto] = useState(false);
   const [deliveryPhotoNote, setDeliveryPhotoNote] = useState('');
   const deliveryFileInputRef = useRef(null);
+  const mapSectionRef = useRef(null);
 
   // Photo viewer lightbox
   const [activePhotoModal, setActivePhotoModal] = useState(null);
+
+  useEffect(() => {
+    if (showInlineMap) {
+      setTimeout(() => {
+        mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 150);
+    }
+  }, [showInlineMap]);
 
   // Dispute modal state
   const [showDisputeModal, setShowDisputeModal] = useState(false);
@@ -729,7 +738,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
 
           {/* Inline Interactive Map & Location Selector — stays on message section, no popup window */}
           {showInlineMap && (
-            <div className="pt-2">
+            <div ref={mapSectionRef} className="pt-2">
               <InlineLocationPicker
                 deal={deal}
                 type={isFarmer ? 'pickup' : 'delivery'}

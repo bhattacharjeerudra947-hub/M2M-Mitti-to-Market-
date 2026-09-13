@@ -37,6 +37,8 @@ export default function Chat() {
     );
   }
   const messagesEndRef = useRef(null);
+  const isInitialScrollRef = useRef(true);
+  const prevMsgCountRef = useRef(0);
 
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -97,13 +99,19 @@ export default function Chat() {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Reset scroll and message count tracker on conversation change
+  useEffect(() => {
+    isInitialScrollRef.current = true;
+    prevMsgCountRef.current = 0;
+  }, [conversationId]);
+
   // Load messages when conversation is selected — poll for real-time
   useEffect(() => {
     if (!conversationId || conversationId === 'new' || !user) return;
-    loadMessages();
+    loadMessages(true);
     loadOffers();
     const interval = setInterval(() => {
-      loadMessages();
+      loadMessages(false); // Polling does NOT force-scroll and disrupt user reading/scrolling
       loadOffers();
       loadConversations(false); // Also refresh conversation list for unread badges
     }, 2000);
@@ -118,6 +126,7 @@ export default function Chat() {
       if (String(msg.receiverId) !== String(user.id) && String(msg.senderId) !== String(user.id)) return;
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
+        prevMsgCountRef.current = prev.length + 1;
         return [...prev, {
           id: msg.id,
           senderId: msg.senderId,
@@ -127,19 +136,27 @@ export default function Chat() {
           read: false,
         }];
       });
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
       loadConversations(false);
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, user]);
 
-  const loadMessages = async () => {
+  const loadMessages = async (forceScroll = false) => {
     if (!conversationId || conversationId === 'new') return;
     try {
       const data = await apiGet(`/api/messages/${conversationId}`);
-      setMessages(data || []);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      const list = data || [];
+      const hasNew = list.length > prevMsgCountRef.current;
+      prevMsgCountRef.current = list.length;
+      setMessages(list);
+
+      // Only scroll into view if forced, or initial load, or if brand new messages arrived
+      if (forceScroll || isInitialScrollRef.current || hasNew) {
+        isInitialScrollRef.current = false;
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+      }
     } catch (err) {
       if (err.message?.includes('Session expired')) {
         navigate('/login', { state: { from: { pathname: `/${sidebarRole}/chat/${conversationId}${otherUserId ? `/${otherUserId}` : ''}` } } });
@@ -301,8 +318,8 @@ export default function Chat() {
         content: messageText,
         produceId: effectiveProduceId,
       });
-      // Immediately reload messages and conversations
-      await loadMessages();
+      // Immediately reload messages and conversations with forced scroll
+      await loadMessages(true);
       await loadConversations(false);
     } catch (err) {
       if (err.message?.includes('Session expired')) {
@@ -335,7 +352,7 @@ export default function Chat() {
           content: imgUrl,
           produceId: effectiveProduceId,
         });
-        await loadMessages();
+        await loadMessages(true);
         await loadConversations(false);
       }
     } catch (err) {
@@ -431,10 +448,10 @@ export default function Chat() {
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
       <Sidebar role={sidebarRole} />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 lg:pl-0">
-        <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-4rem)]">
+      <main className="flex-1 p-3 sm:p-6 lg:p-8 lg:pl-0 min-h-screen">
+        <div className="max-w-3xl mx-auto flex flex-col min-h-[calc(100vh-4rem)] pb-12">
           {/* Chat header */}
-          <div className="bg-white rounded-t-2xl border border-navy-100 p-4 flex items-center gap-3 mb-0">
+          <div className="bg-white rounded-t-2xl border border-navy-100 p-4 flex items-center gap-3 mb-0 sticky top-0 z-20 shadow-xs">
             <button onClick={() => navigate(`/${sidebarRole}/chat`)} className="p-1 hover:bg-gray-100 rounded-lg transition">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
@@ -489,7 +506,7 @@ export default function Chat() {
           )}
 
           {/* Messages */}
-          <div className="flex-1 bg-white border-x border-navy-100 p-4 overflow-y-auto">
+          <div className="flex-1 bg-white border-x border-navy-100 p-4 overflow-y-auto max-h-[420px] min-h-[160px]">
             {messages.length === 0 ? (
               <div className="text-center py-12 text-gray-400 text-sm">
                 <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
