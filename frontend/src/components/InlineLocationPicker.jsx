@@ -83,6 +83,7 @@ export default function InlineLocationPicker({
       zoom: zoomLevel,
       zoomControl: true,
       attributionControl: false,
+      scrollWheelZoom: false, // Don't trap mouse wheel scrolling inside map
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
