@@ -3,6 +3,7 @@ import { AlertCircle, Clock, CheckCircle2, Upload, FileText, Loader2, RefreshCw,
 import { useAuth } from '../context/AuthContext';
 import { getMyDocuments, uploadDocument, resubmitVerification, getProfile } from '../services/api';
 import DocumentModalPreview from './DocumentModalPreview';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function VerificationStatusBanner() {
   const { user, refreshUser } = useAuth();
@@ -127,7 +128,7 @@ export default function VerificationStatusBanner() {
                 </div>
                 {user.statusUpdatedAt && (
                   <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                    <strong>Action Timestamp:</strong> {new Date(user.statusUpdatedAt).toLocaleString()}
+                    <strong>Action Timestamp:</strong> {formatDateTime(user.statusUpdatedAt)}
                   </div>
                 )}
               </div>
@@ -179,7 +180,7 @@ export default function VerificationStatusBanner() {
                 </div>
                 {user.statusUpdatedAt && (
                   <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                    <strong>Action Timestamp:</strong> {new Date(user.statusUpdatedAt).toLocaleString()}
+                    <strong>Action Timestamp:</strong> {formatDateTime(user.statusUpdatedAt)}
                   </div>
                 )}
               </div>
@@ -404,7 +405,7 @@ export default function VerificationStatusBanner() {
                   <div><strong>Rejection Reason:</strong> {user.verificationNotes || user.statusReason}</div>
                   {user.statusUpdatedAt && (
                     <div className="text-[11px] text-red-700 font-medium">
-                      <strong>Date:</strong> {new Date(user.statusUpdatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      <strong>Date:</strong> {formatDateTime(user.statusUpdatedAt)}
                     </div>
                   )}
                 </div>

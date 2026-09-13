@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { Plus, MapPin, Package, RefreshCw, Calendar, Clock, AlertTriangle, CheckCircle2, Archive } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
+import { formatDate } from '../utils/dateUtils';
 
 const categoryEmoji = {
   Fruits: '🍎',
@@ -336,9 +337,7 @@ export default function FarmerProducts() {
                             <Calendar className="w-3 h-3" /> Harvest Date:
                           </span>
                           <span className="font-medium text-navy-800 text-[11px]">
-                            {item.harvestDate
-                              ? new Date(item.harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                              : 'Not specified'}
+                            {formatDate(item.harvestDate, 'Not specified')}
                           </span>
                         </div>
 

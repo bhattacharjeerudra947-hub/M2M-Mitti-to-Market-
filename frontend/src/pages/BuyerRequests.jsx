@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { ShoppingCart, Filter, MessageCircle, Check, X, RefreshCw, Clock, Star, ShieldCheck, Calendar, Package } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPost, apiPut } from '../api';
+import { apiGet, apiPut } from '../api';
+import { formatDate } from '../utils/dateUtils';
 
 export default function BuyerRequests() {
   const { user } = useAuth();
@@ -263,7 +264,7 @@ export default function BuyerRequests() {
                   {/* Timestamp */}
                   <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {interest.createdAt ? new Date(interest.createdAt).toLocaleDateString() : ''}
+                    {formatDate(interest.createdAt, '')}
                   </p>
                 </div>
               ))}

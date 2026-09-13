@@ -46,7 +46,7 @@ function timeAgo(dateStr) {
   return days + 'd ago';
 }
 
-export default function NotificationPanel({ compact = false }) {
+export default function NotificationPanel({ compact = false, onClose }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
@@ -55,15 +55,45 @@ export default function NotificationPanel({ compact = false }) {
 
   const handleNotificationClick = (n) => {
     markAsRead(n.id);
+    if (onClose) onClose();
+
     const isFarmer = user?.role === 'FARMER';
-    if (n.type === 'NEW_MATCH' || n.type === 'MATCH_UPDATED' || n.type === 'BUYER_REQUIREMENT_MATCHED') {
-      navigate('/farmer/matches');
-    } else if (n.type === 'DEAL_STARTED') {
-      navigate(isFarmer ? '/farmer/chat' : '/business/chat');
-    } else if (n.type === 'DEAL_LOCKED' || n.type === 'DEAL_COMPLETED') {
-      navigate(isFarmer ? '/farmer/deals' : '/business/deals');
+    const rolePrefix = isFarmer ? 'farmer' : 'business';
+
+    let meta = {};
+    try {
+      if (typeof n.metadata === 'string') {
+        meta = JSON.parse(n.metadata);
+      } else if (typeof n.metadata === 'object' && n.metadata !== null) {
+        meta = n.metadata;
+      }
+    } catch {}
+
+    const convId = meta.conversationId || (n.referenceType === 'MESSAGE' || n.referenceType === 'CONVERSATION' || n.referenceType === 'OFFER' ? n.referenceId : null);
+    const otherId = meta.senderId || meta.otherUserId || (isFarmer ? meta.buyerId : meta.farmerId);
+
+    if (n.type === 'NEW_MESSAGE' || n.type === 'NEW_OFFER' || n.type === 'COUNTER_OFFER' || n.type === 'OFFER_ACCEPTED' || n.type === 'DEAL_STARTED') {
+      if (convId) {
+        navigate(`/${rolePrefix}/chat/${convId}${otherId ? `/${otherId}` : ''}`);
+      } else {
+        navigate(`/${rolePrefix}/chat`);
+      }
+    } else if (n.type === 'NEW_MATCH' || n.type === 'MATCH_UPDATED' || n.type === 'BUYER_REQUIREMENT_MATCHED') {
+      navigate(isFarmer ? '/farmer/matches' : '/business/requirements');
+    } else if (n.type === 'DEAL_LOCKED' || n.type === 'DEAL_COMPLETED' || n.type === 'DEAL_LOCK_REQUESTED' || n.type === 'DEAL_CANCELLED') {
+      if (meta.dealId || (n.referenceType === 'DEAL' && n.referenceId)) {
+        navigate(`/deal/${meta.dealId || n.referenceId}`);
+      } else {
+        navigate(`/${rolePrefix}/deals`);
+      }
     } else if (n.type === 'RATING_RECEIVED') {
       navigate('/profile');
+    } else {
+      if (convId) {
+        navigate(`/${rolePrefix}/chat/${convId}${otherId ? `/${otherId}` : ''}`);
+      } else {
+        navigate(isFarmer ? '/farmer' : '/business');
+      }
     }
   };
   const fetchNotifications = useCallback(async () => {

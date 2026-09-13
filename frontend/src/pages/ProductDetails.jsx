@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { MapPin, ShieldCheck, Package, ArrowLeft, Clock, ShoppingBag, MessageCircle, Loader2, Heart, Check, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { optimizeImage } from '../utils/image';
+import { formatDate } from '../utils/dateUtils';
 import { apiGet, apiPost } from '../api';
 import ReportModal from '../components/ReportModal';
 import VerificationBadge from '../components/VerificationBadge';
@@ -147,7 +148,7 @@ export default function ProductDetails() {
                     <Clock className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="text-xs text-gray-500">Listed</p>
-                      <p className="text-sm font-semibold text-gray-900">{product.createdAt ? new Date(product.createdAt).toLocaleDateString() : 'Recently'}</p>
+                      <p className="text-sm font-semibold text-gray-900">{formatDate(product.createdAt, 'Recently')}</p>
                     </div>
                   </div>
 
@@ -157,7 +158,7 @@ export default function ProductDetails() {
                       <div>
                         <p className="text-xs text-gray-500">Harvest Date</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {new Date(product.harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {formatDate(product.harvestDate)}
                         </p>
                       </div>
                     </div>
@@ -175,7 +176,7 @@ export default function ProductDetails() {
                       <div className="flex-1">
                         <p className="text-xs font-medium">Shelf Life / Expiry</p>
                         <p className="text-sm font-bold">
-                          Valid until {new Date(product.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          Valid until {formatDate(product.expiryDate)}
                           {product.daysUntilExpiry != null && (
                             <span className="ml-1.5 text-xs font-normal">
                               ({product.daysUntilExpiry < 0 ? 'Expired' : product.daysUntilExpiry === 0 ? 'Expires today' : `${product.daysUntilExpiry} days left`})

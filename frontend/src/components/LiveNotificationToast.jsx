@@ -33,12 +33,17 @@ export default function LiveNotificationToast() {
       const isAdmin = user.role === 'ADMIN';
       let targetUrl = isFarmer ? '/farmer/matches' : isAdmin ? '/admin' : '/business/requirements';
 
-      if (notif.type === 'NEW_MATCH' || notif.type === 'BUYER_REQUIREMENT_MATCHED') {
-        targetUrl = isFarmer ? '/farmer/matches' : '/business/requirements';
-      } else if (notif.type === 'DEAL_STARTED' && meta.conversationId) {
-        const otherId = isFarmer ? meta.buyerId : meta.farmerId;
+      if (notif.type === 'NEW_MESSAGE' || notif.type === 'NEW_OFFER' || notif.type === 'COUNTER_OFFER' || notif.type === 'OFFER_ACCEPTED' || notif.type === 'DEAL_STARTED') {
+        const convId = meta.conversationId || (notif.referenceType === 'MESSAGE' || notif.referenceType === 'OFFER' ? notif.referenceId : null);
+        const otherId = meta.senderId || meta.otherUserId || (isFarmer ? meta.buyerId : meta.farmerId);
         const rolePrefix = isFarmer ? 'farmer' : 'business';
-        targetUrl = `/${rolePrefix}/chat/${meta.conversationId}/${otherId || ''}`;
+        if (convId) {
+          targetUrl = `/${rolePrefix}/chat/${convId}${otherId ? `/${otherId}` : ''}`;
+        } else {
+          targetUrl = `/${rolePrefix}/chat`;
+        }
+      } else if (notif.type === 'NEW_MATCH' || notif.type === 'BUYER_REQUIREMENT_MATCHED') {
+        targetUrl = isFarmer ? '/farmer/matches' : '/business/requirements';
       } else if (notif.type === 'DEAL_LOCKED' || notif.type === 'DEAL_COMPLETED') {
         targetUrl = isFarmer ? '/farmer/deals' : '/business/deals';
       } else if (notif.type === 'RATING_RECEIVED') {

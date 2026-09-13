@@ -7,6 +7,7 @@ import {
   MapPin, Package, ArrowRight, Loader2
 } from 'lucide-react';
 import { getObserverCases, verifyEvidence } from '../api/dealApi';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function ObserverPortal() {
   const { user } = useAuth();
@@ -95,7 +96,7 @@ export default function ObserverPortal() {
                           )}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          Assigned on {new Date(c.assignedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                          Assigned on {formatDateTime(c.assignedAt)}
                         </p>
                       </div>
 

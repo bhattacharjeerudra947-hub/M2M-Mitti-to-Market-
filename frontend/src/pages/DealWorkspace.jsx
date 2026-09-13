@@ -22,6 +22,7 @@ import LogisticsIncidentModal from '../components/LogisticsIncidentModal';
 import { getDealRatings } from '../services/ratingApi';
 import { getDealRouteInfo } from '../api/locationApi';
 import DealEvidenceDisputeSection from '../components/DealEvidenceDisputeSection';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 
 const STATUS_LABELS = {
   NEGOTIATING: '💬 Bargaining', LOCK_PENDING: '⏳ Confirming', LOCKED: '🔒 Deal Locked',
@@ -51,14 +52,6 @@ const EVENT_EMOJI = {
 };
 
 const formatINR = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
-const formatDate = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return '—'; }
-};
-const formatDateTime = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch { return '—'; }
-};
 
 const WORKFLOW_STEPS = ['LOCK_PENDING', 'LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED', 'PICKUP_SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'];
 

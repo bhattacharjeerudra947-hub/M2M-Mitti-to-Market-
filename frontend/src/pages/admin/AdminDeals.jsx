@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDeals } from '../../services/adminApi';
 import { Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, genericStatusInfo, selectCls } from '../../components/admin/ui/adminUi';
+import { formatDate } from '../../utils/dateUtils';
 
 const DEAL_STATUSES = [
   'ALL', 'NEGOTIATING', 'LOCK_PENDING', 'LOCKED', 'LOGISTICS_PENDING', 'LOGISTICS_ASSIGNED',
@@ -78,7 +79,7 @@ export default function AdminDeals() {
                 <Td><span className="tabular-nums whitespace-nowrap">{d.agreedPrice != null ? `₹${Number(d.agreedPrice).toLocaleString()}` : '—'}</span></Td>
                 <Td><span className="tabular-nums font-medium text-gray-900 whitespace-nowrap">{d.totalAmount != null ? `₹${Number(d.totalAmount).toLocaleString()}` : '—'}</span></Td>
                 <Td><StatusDot tone={st(d).tone} label={(d.status || '').replace(/_/g, ' ').toLowerCase()} /></Td>
-                <Td><span className="text-xs text-gray-500 whitespace-nowrap">{d.createdAt ? new Date(d.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</span></Td>
+                <Td><span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(d.createdAt)}</span></Td>
               </tr>
             ))
           )}

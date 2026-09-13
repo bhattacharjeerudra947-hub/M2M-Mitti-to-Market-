@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate, useParams, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider, LanguageRouteSync } from './context/LanguageContext';
 import { FarmerProvider } from './context/FarmerContext';
@@ -70,6 +70,7 @@ import AdminAuditLog from './pages/admin/AdminAuditLog';
 import ObserverPortal from './pages/ObserverPortal';
 import AdminSettings from './pages/admin/AdminSettings';
 import AccountStatusScreen from './pages/AccountStatusScreen';
+import { formatDateTime } from './utils/dateUtils';
 
 // Scroll to the top whenever the route changes, so navigating between pages never opens mid-page
 function ScrollToTop() {
@@ -149,6 +150,20 @@ function RouteFade({ children }) {
   );
 }
 
+function ChatRedirect() {
+  const { user } = useAuth();
+  const { conversationId, otherUserId } = useParams();
+  const rolePrefix = user?.role === 'FARMER' ? 'farmer' : 'business';
+  let dest = `/${rolePrefix}/chat`;
+  if (conversationId) {
+    dest += `/${conversationId}`;
+    if (otherUserId) {
+      dest += `/${otherUserId}`;
+    }
+  }
+  return <Navigate to={dest} replace />;
+}
+
 function FarmerLayout() {
   return (
     <ProtectedRoute role="farmer">
@@ -179,7 +194,7 @@ function GlobalAccountStatusBanner() {
           </span>
           {user.statusUpdatedAt && (
             <span className="opacity-75 ml-2 text-[11px] hidden md:inline">
-              ({new Date(user.statusUpdatedAt).toLocaleString()})
+              ({formatDateTime(user.statusUpdatedAt)})
             </span>
           )}
         </div>
@@ -252,6 +267,7 @@ export default function App() {
             <Route path="storage" element={<FarmerNearbyStorage />} />
             <Route path="earnings" element={<FarmerEarnings />} />
             <Route path="chat" element={<Chat />} />
+            <Route path="chat/:conversationId" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
             <Route path="deals" element={<MyDeals />} />
             <Route path="offline-drafts" element={<OfflineDrafts />} />
@@ -309,9 +325,15 @@ export default function App() {
             <Route path="suppliers" element={<SavedSuppliers />} />
             <Route path="analytics" element={<BusinessAnalytics />} />
             <Route path="chat" element={<Chat />} />
+            <Route path="chat/:conversationId" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
             <Route path="deals" element={<MyDeals />} />
           </Route>
+
+          {/* Universal Chat Routing */}
+          <Route path="/chat" element={<ProtectedRoute><ChatRedirect /></ProtectedRoute>} />
+          <Route path="/chat/:conversationId" element={<ProtectedRoute><ChatRedirect /></ProtectedRoute>} />
+          <Route path="/chat/:conversationId/:otherUserId" element={<ProtectedRoute><ChatRedirect /></ProtectedRoute>} />
 
           {/* Catch-all → landing */}
           <Route path="*" element={<Landing />} />

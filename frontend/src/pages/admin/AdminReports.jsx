@@ -4,6 +4,7 @@ import {
   Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, genericStatusInfo,
   ConfirmDialog, MetricStrip, Avatar, inputCls, selectCls,
 } from '../../components/admin/ui/adminUi';
+import { formatDate, formatDateTime } from '../../utils/dateUtils';
 
 export default function AdminReports() {
   const [reports, setReports] = useState([]);
@@ -161,7 +162,7 @@ export default function AdminReports() {
                     <span className="block text-xs text-gray-500">{(r.reporterRole || '').toLowerCase()}</span>
                   </Td>
                   <Td><span className="block max-w-[220px] truncate text-[13px] text-gray-600" title={r.description}>{r.description || '—'}</span></Td>
-                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{r.createdAt ? new Date(r.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}</span></Td>
+                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(r.createdAt)}</span></Td>
                   <Td><StatusDot tone={st.tone} label={st.label.replace(/_/g, ' ').toLowerCase()} /></Td>
                   <Td>
                     <div className="flex items-center justify-end gap-1.5">
@@ -225,7 +226,7 @@ export default function AdminReports() {
 
               {selectedReport.resolvedBy && (
                 <p className="text-[13px] text-emerald-700">
-                  Previously actioned by {selectedReport.resolvedBy} on {selectedReport.resolvedAt && new Date(selectedReport.resolvedAt).toLocaleString()}
+                  Previously actioned by {selectedReport.resolvedBy} on {formatDateTime(selectedReport.resolvedAt)}
                 </p>
               )}
 

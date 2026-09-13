@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { getMyLogistics, updateLogisticsStatus } from '../api/dealApi';
+import { formatDate } from '../utils/dateUtils';
 import {
   Truck, MapPin, Package, IndianRupee, Loader2, RefreshCw,
   AlertTriangle, Inbox, ChevronDown, ExternalLink, Route as RouteIcon,
@@ -20,10 +21,7 @@ const STATUS_LABELS = {
   DELIVERED: 'Delivered',
 };
 const fmtINR = (n) => (n != null ? '₹' + Number(n).toLocaleString('en-IN') : '—');
-const fmtDate = (iso) => {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return '—'; }
-};
+const fmtDate = (iso) => formatDate(iso);
 
 export default function FarmerLogistics() {
   const { user } = useAuth();

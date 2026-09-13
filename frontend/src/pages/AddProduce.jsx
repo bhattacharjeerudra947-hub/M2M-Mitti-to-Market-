@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiPost, apiUpload, apiGet } from '../api';
 import { saveDraft, queueDraft, deleteDraft, getDraft, useSyncStatus } from '../utils/syncQueue';
 import { idbSupported } from '../utils/idb';
+import { formatDate } from '../utils/dateUtils';
 
 export default function AddProduce() {
   const navigate = useNavigate();
@@ -822,14 +823,14 @@ export default function AddProduce() {
                   <span className="font-medium">Estimated Expiry:</span>
                   <span className="font-bold font-mono">
                     {form.shelfLife === 'CUSTOM'
-                      ? form.customExpiryDate || 'Select Date'
+                      ? (form.customExpiryDate ? formatDate(form.customExpiryDate) : 'Select Date')
                       : (() => {
                           const base = form.harvestDate ? new Date(form.harvestDate) : new Date();
                           const daysMap = { '3_DAYS': 3, '7_DAYS': 7, '15_DAYS': 15, '1_MONTH': 30, '3_MONTHS': 90, '6_MONTHS': 180 };
                           const addDays = daysMap[form.shelfLife] || 15;
                           const d = new Date(base);
                           d.setDate(d.getDate() + addDays);
-                          return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                          return formatDate(d);
                         })()}
                   </span>
                 </div>

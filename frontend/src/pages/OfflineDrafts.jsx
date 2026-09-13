@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { getDraftsForUser, deleteDraft, retryDraft, useSyncStatus } from '../utils/syncQueue';
+import { formatDateTime } from '../utils/dateUtils';
 import { Package, Pencil, RefreshCw, Trash2, WifiOff, CheckCircle2, AlertTriangle, LogIn, CloudUpload } from 'lucide-react';
 
 const STATUS_BADGE = {
@@ -137,7 +138,7 @@ export default function OfflineDrafts() {
                         {d.location ? ` · ${d.location}` : ''}
                       </p>
                       <p className="text-[10px] text-gray-400 mt-1">
-                        Saved {d.lastSavedAt ? new Date(d.lastSavedAt).toLocaleString() : ''}
+                        Saved {formatDateTime(d.lastSavedAt, '')}
                         {d.syncStatus === 'SYNCED' && d.serverProduceId ? ` · Server ID #${d.serverProduceId}` : ''}
                       </p>
                       {d.image?.name && d.imageStatus === 'PENDING_UPLOAD' && (

@@ -11,6 +11,7 @@ import {
 } from '../api/dealApi';
 import { getReverseLogisticsByDeal } from '../api/hubApi';
 import ReverseLogisticsModal from './ReverseLogisticsModal';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function DealEvidenceDisputeSection({ deal, user, onDealUpdated, onOpenRating }) {
   const dealId = deal?.id;
@@ -559,7 +560,7 @@ export default function DealEvidenceDisputeSection({ deal, user, onDealUpdated, 
                         )}
                       </span>
                       <span className="text-[10px] text-gray-400">
-                        {new Date(r.createdAt).toLocaleString('en-IN', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })}
+                        {formatDateTime(r.createdAt)}
                       </span>
                     </div>
                     <p className="text-gray-800 text-xs whitespace-pre-wrap">{r.message}</p>
@@ -863,7 +864,7 @@ function EvidenceCard({ evidence, canVerify, verifyingId, onVerify }) {
           {evidence.lotQuantity && <span className="font-bold text-gray-700">{evidence.lotQuantity} kg</span>}
         </div>
         <p className="text-[9px] text-gray-400">
-          {new Date(evidence.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+          {formatDateTime(evidence.createdAt)}
         </p>
 
         {isVerified && evidence.verifiedByName && (

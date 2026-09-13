@@ -5,6 +5,7 @@ import {
   Table, Td, TableSkeleton, EmptyState, ErrorState, StatusDot, genericStatusInfo,
   Drawer, DrawerSection, KV, MetricStrip, Avatar, inputCls, selectCls,
 } from '../../components/admin/ui/adminUi';
+import { formatDate, formatDateTime } from '../../utils/dateUtils';
 
 export default function AdminFeedback() {
   const [feedbackList, setFeedbackList] = useState([]);
@@ -164,7 +165,7 @@ export default function AdminFeedback() {
                     )}
                   </Td>
                   <Td><span className="block max-w-[260px] truncate text-[13px] text-gray-600" title={f.message}>{f.message}</span></Td>
-                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{f.createdAt ? new Date(f.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}</span></Td>
+                  <Td><span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(f.createdAt)}</span></Td>
                   <Td><StatusDot tone={st.tone} label={st.label.replace(/_/g, ' ').toLowerCase()} /></Td>
                   <Td>
                     <button
@@ -223,7 +224,7 @@ export default function AdminFeedback() {
               <DrawerSection title="Submission">
                 <KV k="Category" v={(selected.category || '').replace(/_/g, ' ').toLowerCase()} />
                 <KV k="Status" v={(selected.status || '').replace(/_/g, ' ').toLowerCase()} />
-                <KV k="Submitted" v={selected.createdAt ? new Date(selected.createdAt).toLocaleString() : '—'} />
+                <KV k="Submitted" v={formatDateTime(selected.createdAt)} />
                 {selected.relatedDeal && <KV k="Related deal" v={`#${selected.relatedDeal.dealId || selected.relatedDeal}`} />}
               </DrawerSection>
 

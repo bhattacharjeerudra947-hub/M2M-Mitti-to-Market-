@@ -161,7 +161,7 @@ export default function Navbar({ dark = false }) {
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-navy-900/30 backdrop-blur-sm" onClick={() => setShowNotifications(false)} />
           <div className="absolute right-4 sm:right-8 top-16 w-96 max-w-[calc(100vw-2rem)] z-50 animate-in fade-in zoom-in-95">
-            <NotificationPanel />
+            <NotificationPanel onClose={() => setShowNotifications(false)} />
           </div>
         </div>
       )}

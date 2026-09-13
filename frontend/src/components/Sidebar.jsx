@@ -235,7 +235,7 @@ export default function Sidebar({ role = 'farmer' }) {
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-navy-900/20" onClick={() => setShowNotifications(false)} />
           <div className="absolute right-4 top-16 w-96 max-w-[calc(100vw-2rem)] z-50">
-            <NotificationPanel />
+            <NotificationPanel onClose={() => setShowNotifications(false)} />
           </div>
         </div>
       )}

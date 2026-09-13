@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGoogleMaps } from '../utils/googleMapsLoader';
+import { formatDate } from '../utils/dateUtils';
 import {
   Navigation, CheckCircle2, Clock, Route as RouteIcon,
   ShieldCheck, AlertTriangle, ExternalLink, Sparkles,
@@ -434,11 +435,7 @@ export default function DealRouteMap({
 
     const eta = new Date();
     eta.setDate(eta.getDate() + Math.ceil(days));
-    const dateStr = eta.toLocaleDateString('en-IN', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
+    const dateStr = formatDate(eta);
 
     let text = '';
     if (days === 0.5) {

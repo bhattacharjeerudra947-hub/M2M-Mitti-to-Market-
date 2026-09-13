@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, MapPin, Sprout, Award, Star, Package, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { getFarmerPublicProfile } from '../services/api';
 import VerificationBadge from './VerificationBadge';
+import { formatDate } from '../utils/dateUtils';
 
 export default function FarmerPublicProfileModal({ farmerId, isOpen, onClose }) {
   const [profile, setProfile] = useState(null);
@@ -256,7 +257,7 @@ export default function FarmerPublicProfileModal({ farmerId, isOpen, onClose }) 
                             ))}
                             {rev.createdAt && (
                               <span className="text-[10px] text-gray-400 ml-1.5">
-                                {new Date(rev.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {formatDate(rev.createdAt)}
                               </span>
                             )}
                           </div>

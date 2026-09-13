@@ -6,6 +6,7 @@ import {
 } from '../../components/admin/ui/adminUi';
 import { CheckCircle, XCircle, Eye, Loader2, ExternalLink } from 'lucide-react';
 import { onNotification } from '../../utils/messageStream';
+import { formatDateTime } from '../../utils/dateUtils';
 
 export default function AdminAppeals() {
   const [appeals, setAppeals] = useState([]);
@@ -193,13 +194,7 @@ export default function AdminAppeals() {
 
                 <Td>
                   <span className="text-xs text-gray-500">
-                    {new Date(a.createdAt).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {formatDateTime(a.createdAt)}
                   </span>
                 </Td>
 
