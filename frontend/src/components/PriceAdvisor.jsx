@@ -1,4 +1,4 @@
-import { Brain, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Brain, TrendingUp, ArrowUpRight, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function PriceAdvisor() {
@@ -24,13 +24,20 @@ export default function PriceAdvisor() {
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="p-3 bg-mustard-50 rounded-xl border border-mustard-200">
-            <p className="text-xs text-navy-600 mb-1">Market Price</p>
+            <p className="text-xs text-navy-600 mb-1">Farmgate Price</p>
             <p className="text-lg font-bold text-navy-900">₹25 – ₹29 <span className="text-xs font-normal text-navy-500">/ kg</span></p>
           </div>
           <div className="p-3 bg-primary-50 rounded-xl border border-primary-200">
             <p className="text-xs text-primary-600 mb-1">AI Recommended</p>
             <p className="text-lg font-bold text-primary-700">₹28 – ₹30 <span className="text-xs font-normal text-primary-500">/ kg</span></p>
           </div>
+        </div>
+
+        <div className="p-2.5 bg-sky-50 border border-sky-100 rounded-xl mb-3 flex items-center justify-between text-xs">
+          <span className="flex items-center gap-1.5 text-sky-800 font-medium">
+            <Truck className="w-3.5 h-3.5 text-sky-600" /> Landed (with freight)
+          </span>
+          <span className="font-bold text-sky-900">₹31 – ₹33 / kg <span className="text-[10px] font-normal text-sky-600">(+₹3/kg avg)</span></span>
         </div>
 
         <div className="flex items-center justify-between text-xs">

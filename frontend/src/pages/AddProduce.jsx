@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import {
   MapPin, Package, X, Camera, Image, FileImage, Loader2, Brain,
   TrendingUp, TrendingDown, Minus, Info, WifiOff, Save, CloudUpload,
-  Navigation, LocateFixed, Check,
+  Navigation, LocateFixed, Check, Truck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiPost, apiUpload, apiGet } from '../api';
@@ -522,13 +522,38 @@ export default function AddProduce() {
                 </div>
               </div>
 
-              {/* AI Suggested Price */}
-              <div className="p-3 bg-navy-900 rounded-xl mb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] text-gray-300 font-medium">AI Recommended Price Range</p>
+              {/* AI Suggested Price & Logistics */}
+              <div className="p-3 bg-navy-900 rounded-xl mb-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-gray-300 font-medium">Farmgate Recommendation (Ex-Farm)</p>
                   <span className="text-[10px] text-mustard-300 font-bold">₹{aiAnalysis.aiSuggestedMinPrice} – ₹{aiAnalysis.aiSuggestedMaxPrice}/kg</span>
                 </div>
-                <p className="text-lg font-bold text-white">₹{aiAnalysis.aiOptimalPrice}/kg <span className="text-[10px] font-normal text-gray-400">optimal</span></p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-lg font-bold text-white">₹{aiAnalysis.aiOptimalPrice}/kg <span className="text-[10px] font-normal text-gray-400">optimal</span></p>
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, pricePerUnit: String(aiAnalysis.aiOptimalPrice) }))}
+                    className="text-[10px] bg-mustard-400/20 hover:bg-mustard-400/30 text-mustard-300 px-2 py-0.5 rounded font-medium transition"
+                  >
+                    Apply Farmgate
+                  </button>
+                </div>
+
+                {/* Logistics & Delivered Landed Impact */}
+                {aiAnalysis.estimatedLogisticsPerKg && (
+                  <div className="pt-2 border-t border-navy-800 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-gray-300 text-[11px]">
+                      <Truck className="w-3.5 h-3.5 text-sky-400" />
+                      <span>+ Freight: ~₹{aiAnalysis.estimatedLogisticsPerKg}/kg</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[11px] font-bold text-sky-300">
+                        ₹{aiAnalysis.landedOptimalPrice || (aiAnalysis.aiOptimalPrice + aiAnalysis.estimatedLogisticsPerKg)}/kg
+                      </span>
+                      <span className="text-[9px] text-gray-400 block">deliv. price</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Price Adjustment */}

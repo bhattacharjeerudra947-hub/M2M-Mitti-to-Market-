@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import GuestSignInGate from '../components/GuestSignInGate';
 import { useAuth } from '../context/AuthContext';
-import { Brain, TrendingUp, TrendingDown, Minus, Info, Loader2, RefreshCw, Database, ShieldCheck } from 'lucide-react';
+import { Brain, TrendingUp, TrendingDown, Minus, Info, Loader2, RefreshCw, Database, ShieldCheck, Truck } from 'lucide-react';
 import { apiGet } from '../api';
 
 const SOURCE_LABELS = {
@@ -28,39 +28,35 @@ function DatasetEstimateCard({ cropName }) {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-navy-100 p-5 flex items-center gap-3">
-        <Loader2 className="w-4 h-4 animate-spin text-navy-500" />
-        <p className="text-sm text-gray-500">Checking historical dataset & live mandi prices…</p>
+        <Loader2 className="w-4 h-4 animate-spin text-navy-900" />
+        <span className="text-xs text-navy-500">Checking dataset / live mandi sources...</span>
       </div>
     );
   }
-  if (!estimate || estimate.source === 'UNAVAILABLE' || !SOURCE_LABELS[estimate.source]) return null;
+  if (!estimate) return null;
 
-  const src = SOURCE_LABELS[estimate.source];
+  const meta = SOURCE_LABELS[estimate.source] || {
+    text: estimate.source || 'Estimate',
+    cls: 'bg-gray-50 text-gray-700 border-gray-200',
+    icon: Database,
+  };
+  const Icon = meta.icon;
+
   return (
-    <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className={`rounded-2xl border p-4 mb-4 flex items-center justify-between gap-3 ${meta.cls}`}>
+      <div className="flex items-center gap-2.5">
+        <Icon className="w-4 h-4 shrink-0" />
         <div>
-          <h3 className="text-sm font-bold text-navy-900">Data-Backed Estimate</h3>
-          <p className="text-[11px] text-navy-500 mt-0.5">{estimate.explanation}</p>
-        </div>
-        <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border shrink-0 inline-flex items-center gap-1 ${src.cls}`}>
-          <src.icon className="w-3 h-3" /> {src.text}
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="p-3 bg-gray-50 rounded-xl">
-          <p className="text-lg font-bold text-navy-900">₹{estimate.medianPrice}</p>
-          <p className="text-[10px] text-gray-500">Median ₹/{estimate.unit || 'kg'}</p>
-        </div>
-        <div className="p-3 bg-gray-50 rounded-xl">
-          <p className="text-lg font-bold text-navy-900">₹{estimate.rangeLow}–₹{estimate.rangeHigh}</p>
-          <p className="text-[10px] text-gray-500">Expected range</p>
-        </div>
-        <div className="p-3 bg-gray-50 rounded-xl">
-          <p className="text-lg font-bold text-navy-900">{estimate.samples}</p>
-          <p className="text-[10px] text-gray-500">Data points</p>
+          <p className="text-xs font-semibold">{meta.text}</p>
+          <p className="text-[11px] opacity-80">{estimate.disclaimer}</p>
         </div>
       </div>
+      {estimate.estimatedPrice && (
+        <div className="text-right shrink-0">
+          <span className="text-[10px] uppercase font-bold tracking-wide opacity-75">Estimated</span>
+          <p className="text-base font-bold">₹{estimate.estimatedPrice} <span className="text-xs font-normal">/{estimate.unit || 'kg'}</span></p>
+        </div>
+      )}
     </div>
   );
 }
@@ -70,6 +66,7 @@ export default function PriceAdvisorPage() {
   const [crops, setCrops] = useState([]);
   const [selected, setSelected] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [distanceKm, setDistanceKm] = useState(80);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -85,15 +82,15 @@ export default function PriceAdvisorPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load detailed analysis when crop is selected
+  // Load detailed analysis when crop is selected or distance changes
   useEffect(() => {
     if (isGuestModeActive || !selected) return;
     setAnalyzing(true);
-    apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}`)
+    apiGet(`/api/price-advisor/${encodeURIComponent(selected.name)}?distanceKm=${distanceKm}`)
       .then(data => setAnalysis(data))
       .catch(() => {})
       .finally(() => setAnalyzing(false));
-  }, [selected]);
+  }, [selected, distanceKm]);
 
   const trendIcon = (trend) => {
     if (trend === 'Increasing') return <TrendingUp className="w-4 h-4" />;
@@ -254,6 +251,79 @@ export default function PriceAdvisorPage() {
                           <p className="text-[9px] text-gray-400">{analysis.matchedRegion}</p>
                         </div>
                       </div>
+                    </div>
+
+                    {/* ═══ LOGISTICS & DELIVERED PRICE IMPACT CARD ═══ */}
+                    <div className="bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 rounded-2xl p-5 text-white shadow-sm space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                            <Truck className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm text-white">Logistics & Delivered Price Impact</h3>
+                            <p className="text-[11px] text-gray-300">Transportation distance directly increases final delivered produce price</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          +₹{analysis.estimatedLogisticsPerKg || (Math.round((distanceKm * 0.035 + 0.30) * 100) / 100)}/kg Logistics Surcharge
+                        </span>
+                      </div>
+
+                      {/* Distance Tiers Selector */}
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-gray-300 font-medium">Select Transit Distance:</span>
+                          <span className="text-emerald-400 font-bold">{distanceKm} km haul</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: '🛵 Local Haul', dist: 25, sub: '0–50 km (~₹1.50/kg)' },
+                            { label: '🚚 Regional Mandi', dist: 80, sub: '50–150 km (~₹3.10/kg)' },
+                            { label: '🚛 Inter-State', dist: 250, sub: '150+ km (~₹9.05/kg)' },
+                          ].map((t) => (
+                            <button
+                              key={t.dist}
+                              type="button"
+                              onClick={() => setDistanceKm(t.dist)}
+                              className={`p-2.5 rounded-xl text-left border transition ${
+                                distanceKm === t.dist
+                                  ? 'bg-emerald-600/30 border-emerald-400 text-white shadow-sm ring-1 ring-emerald-400/40'
+                                  : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                              }`}
+                            >
+                              <span className="text-xs font-bold block">{t.label}</span>
+                              <span className="text-[10px] text-gray-400 block mt-0.5">{t.sub}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 3-Part Price Formula Breakdown */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                        <div className="bg-white/10 rounded-xl p-3 border border-white/10">
+                          <span className="text-[10px] text-gray-300 uppercase font-semibold block">1. Farmgate (Ex-Farm)</span>
+                          <p className="text-lg font-bold text-white mt-1">₹{analysis.farmgateOptimalPrice || analysis.aiOptimalPrice} <span className="text-xs font-normal text-gray-300">/kg</span></p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">Net amount at farm gate</p>
+                        </div>
+
+                        <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/30">
+                          <span className="text-[10px] text-emerald-300 uppercase font-semibold block">2. + Logistics & Freight</span>
+                          <p className="text-lg font-bold text-emerald-400 mt-1">+₹{analysis.estimatedLogisticsPerKg || (Math.round((distanceKm * 0.035 + 0.30) * 100) / 100)} <span className="text-xs font-normal text-emerald-300">/kg</span></p>
+                          <p className="text-[10px] text-emerald-300/80 mt-0.5">Fuel, driver & handling ({distanceKm} km)</p>
+                        </div>
+
+                        <div className="bg-amber-400/20 rounded-xl p-3 border border-amber-400/40">
+                          <span className="text-[10px] text-mustard-300 uppercase font-bold block">3. = Landed Delivered Price</span>
+                          <p className="text-lg font-extrabold text-white mt-1">₹{analysis.landedOptimalPrice || (Math.round(((analysis.aiOptimalPrice || 0) + (distanceKm * 0.035 + 0.30)) * 100) / 100)} <span className="text-xs font-normal text-gray-300">/kg</span></p>
+                          <p className="text-[10px] text-mustard-300 mt-0.5">Recommended delivered price</p>
+                        </div>
+                      </div>
+
+                      {/* Guidance note */}
+                      <p className="text-[11px] text-gray-300 bg-white/5 p-2.5 rounded-xl border border-white/10 leading-relaxed">
+                        💡 <strong>Why does logistics increase the price?</strong> Transporting produce involves fuel, vehicle wear, driver wages, and loading fees. When negotiating with distant buyers or offering doorstep delivery, quote the <strong>Landed Delivered Price (₹{analysis.landedOptimalPrice || (Math.round(((analysis.aiOptimalPrice || 0) + (distanceKm * 0.035 + 0.30)) * 100) / 100)}/kg)</strong> so transportation expenses do not reduce your farm profits.
+                      </p>
                     </div>
 
                     {/* AI Reasons */}
