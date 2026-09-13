@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -36,6 +37,7 @@ public class LogisticsService {
     private final VehicleService vehicleService;
     private final com.mitti2market.repository.TransportVehicleRepository vehicleRepo;
     private final EvidenceRepository evidenceRepo;
+    private final ObjectMapper objectMapper;
 
     private final AtomicLong trkCounter = new AtomicLong(100000);
 
@@ -53,7 +55,8 @@ public class LogisticsService {
     }
 
     /**
-     * Select logistics type for a locked deal.
+     * Select logistics type for a locked or logistics-pending deal.
+     * Supports selecting either Mitti2Market or Own Logistics, and seamlessly updating between them.
      */
     @Transactional
     public Logistics selectLogistics(Long dealId, Long userId, LogisticsType type) {
@@ -62,19 +65,29 @@ public class LogisticsService {
 
         verifyDealAccess(deal, userId);
 
-        if (deal.getStatus() != DealStatus.LOCKED) {
-            throw new BadRequestException("Deal must be locked before selecting logistics");
+        if (deal.getStatus() != DealStatus.LOCKED && deal.getStatus() != DealStatus.LOGISTICS_PENDING && deal.getStatus() != DealStatus.LOGISTICS_ASSIGNED) {
+            throw new BadRequestException("Deal must be locked or pending logistics before choosing logistics mode");
         }
 
-        // Check if logistics already exists
+        deal.setLogisticsMode(type.name());
+
+        // Check if logistics already exists — if so, update type smoothly
         Optional<Logistics> existing = logisticsRepo.findByDealId(dealId);
+        Logistics logistics;
         if (existing.isPresent()) {
-            throw new BadRequestException("Logistics already selected for this deal");
+            logistics = existing.get();
+            logistics.setType(type);
+            deal.setLogisticsMode(type.name());
+            computeAndStoreRoute(logistics);
+            logistics = logisticsRepo.save(logistics);
+            dealRepo.save(deal);
+            addEvent(logistics, logistics.getStatus(), "Logistics mode updated to: " + type, null);
+            return logistics;
         }
 
         String trackingId = "M2M-TRK-" + (trkCounter.incrementAndGet());
 
-        Logistics logistics = Logistics.builder()
+        logistics = Logistics.builder()
                 .trackingId(trackingId)
                 .deal(deal)
                 .type(type)
@@ -87,15 +100,15 @@ public class LogisticsService {
                 .status(LogisticsStatus.REQUESTED)
                 .build();
 
-        // Compute the route + cost estimate once at selection time so the
-        // workspace can show distance / ETA / cost without extra lookups.
         computeAndStoreRoute(logistics);
-
         logistics = logisticsRepo.save(logistics);
+        dealRepo.save(deal);
 
-        deal = stateMachine.transition(deal.getId(), DealStatus.LOGISTICS_PENDING, userId,
-                userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER",
-                "Logistics selected: " + (type == LogisticsType.OWN ? "Own Logistics" : "Mitti2Market Logistics"), null);
+        if (deal.getStatus() == DealStatus.LOCKED) {
+            deal = stateMachine.transition(deal.getId(), DealStatus.LOGISTICS_PENDING, userId,
+                    userId.equals(deal.getFarmer().getId()) ? "FARMER" : "BUYER",
+                    "Logistics selected: " + (type == LogisticsType.OWN ? "Own Logistics" : "Mitti2Market Logistics"), null);
+        }
 
         addEvent(logistics, LogisticsStatus.REQUESTED, "Logistics type selected: " + type, null);
 
@@ -106,9 +119,11 @@ public class LogisticsService {
                 deal.getProduce() != null ? deal.getProduce().getId() : null);
 
         Long otherUserId = userId.equals(deal.getFarmer().getId()) ? deal.getBuyer().getId() : deal.getFarmer().getId();
-        User user = users.findById(userId).orElseThrow();
-        notificationService.createNotification(otherUserId, Notification.NotificationType.LOGISTICS_SELECTED,
-                "Logistics Selected", user.getName() + " selected " + typeName + " for deal " + deal.getDealId());
+        User user = users.findById(userId).orElse(null);
+        if (user != null) {
+            notificationService.createNotification(otherUserId, Notification.NotificationType.LOGISTICS_SELECTED,
+                    "Logistics Selected", user.getName() + " selected " + typeName + " for deal " + deal.getDealId());
+        }
 
         return logistics;
     }
@@ -560,18 +575,19 @@ public class LogisticsService {
             result.put("computedAt", l.getRouteComputedAt());
 
             // Farmer & Buyer registered profiles for UI display
-            result.put("farmerRegistered", Map.of(
-                    "name", deal.getFarmer().getName(),
-                    "location", deal.getFarmer().getLocation() != null ? deal.getFarmer().getLocation() : "",
-                    "latitude", deal.getFarmer().getLatitude() != null ? deal.getFarmer().getLatitude() : 0.0,
-                    "longitude", deal.getFarmer().getLongitude() != null ? deal.getFarmer().getLongitude() : 0.0
-            ));
-            result.put("buyerRegistered", Map.of(
-                    "name", deal.getBuyer().getName(),
-                    "location", deal.getBuyer().getLocation() != null ? deal.getBuyer().getLocation() : "",
-                    "latitude", deal.getBuyer().getLatitude() != null ? deal.getBuyer().getLatitude() : 0.0,
-                    "longitude", deal.getBuyer().getLongitude() != null ? deal.getBuyer().getLongitude() : 0.0
-            ));
+            Map<String, Object> farmerMap = new LinkedHashMap<>();
+            farmerMap.put("name", deal.getFarmer() != null && deal.getFarmer().getName() != null ? deal.getFarmer().getName() : "Farmer");
+            farmerMap.put("location", deal.getFarmer() != null && deal.getFarmer().getLocation() != null ? deal.getFarmer().getLocation() : "");
+            farmerMap.put("latitude", deal.getFarmer() != null && deal.getFarmer().getLatitude() != null ? deal.getFarmer().getLatitude() : 0.0);
+            farmerMap.put("longitude", deal.getFarmer() != null && deal.getFarmer().getLongitude() != null ? deal.getFarmer().getLongitude() : 0.0);
+            result.put("farmerRegistered", farmerMap);
+
+            Map<String, Object> buyerMap = new LinkedHashMap<>();
+            buyerMap.put("name", deal.getBuyer() != null && deal.getBuyer().getName() != null ? deal.getBuyer().getName() : "Buyer");
+            buyerMap.put("location", deal.getBuyer() != null && deal.getBuyer().getLocation() != null ? deal.getBuyer().getLocation() : "");
+            buyerMap.put("latitude", deal.getBuyer() != null && deal.getBuyer().getLatitude() != null ? deal.getBuyer().getLatitude() : 0.0);
+            buyerMap.put("longitude", deal.getBuyer() != null && deal.getBuyer().getLongitude() != null ? deal.getBuyer().getLongitude() : 0.0);
+            result.put("buyerRegistered", buyerMap);
 
             if (l.getAlternativeRoutesJson() != null) {
                 try {
@@ -582,10 +598,10 @@ public class LogisticsService {
         }
 
         // If no logistics record yet, fall back to deal / user profiles
-        fromLat = deal.getPickupLatitude() != null ? deal.getPickupLatitude() : deal.getFarmer().getLatitude();
-        fromLng = deal.getPickupLongitude() != null ? deal.getPickupLongitude() : deal.getFarmer().getLongitude();
-        toLat = deal.getDeliveryLatitude() != null ? deal.getDeliveryLatitude() : deal.getBuyer().getLatitude();
-        toLng = deal.getDeliveryLongitude() != null ? deal.getDeliveryLongitude() : deal.getBuyer().getLongitude();
+        fromLat = deal.getPickupLatitude() != null ? deal.getPickupLatitude() : (deal.getFarmer() != null ? deal.getFarmer().getLatitude() : null);
+        fromLng = deal.getPickupLongitude() != null ? deal.getPickupLongitude() : (deal.getFarmer() != null ? deal.getFarmer().getLongitude() : null);
+        toLat = deal.getDeliveryLatitude() != null ? deal.getDeliveryLatitude() : (deal.getBuyer() != null ? deal.getBuyer().getLatitude() : null);
+        toLng = deal.getDeliveryLongitude() != null ? deal.getDeliveryLongitude() : (deal.getBuyer() != null ? deal.getBuyer().getLongitude() : null);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("dealId", deal.getId());
@@ -598,18 +614,20 @@ public class LogisticsService {
         result.put("deliveryLongitude", toLng);
         result.put("pickupLocationSource", "REGISTERED");
         result.put("deliveryLocationSource", "REGISTERED");
-        result.put("farmerRegistered", Map.of(
-                "name", deal.getFarmer().getName(),
-                "location", deal.getFarmer().getLocation() != null ? deal.getFarmer().getLocation() : "",
-                "latitude", deal.getFarmer().getLatitude() != null ? deal.getFarmer().getLatitude() : 0.0,
-                "longitude", deal.getFarmer().getLongitude() != null ? deal.getFarmer().getLongitude() : 0.0
-        ));
-        result.put("buyerRegistered", Map.of(
-                "name", deal.getBuyer().getName(),
-                "location", deal.getBuyer().getLocation() != null ? deal.getBuyer().getLocation() : "",
-                "latitude", deal.getBuyer().getLatitude() != null ? deal.getBuyer().getLatitude() : 0.0,
-                "longitude", deal.getBuyer().getLongitude() != null ? deal.getBuyer().getLongitude() : 0.0
-        ));
+
+        Map<String, Object> farmerMap = new LinkedHashMap<>();
+        farmerMap.put("name", deal.getFarmer() != null && deal.getFarmer().getName() != null ? deal.getFarmer().getName() : "Farmer");
+        farmerMap.put("location", deal.getFarmer() != null && deal.getFarmer().getLocation() != null ? deal.getFarmer().getLocation() : "");
+        farmerMap.put("latitude", deal.getFarmer() != null && deal.getFarmer().getLatitude() != null ? deal.getFarmer().getLatitude() : 0.0);
+        farmerMap.put("longitude", deal.getFarmer() != null && deal.getFarmer().getLongitude() != null ? deal.getFarmer().getLongitude() : 0.0);
+        result.put("farmerRegistered", farmerMap);
+
+        Map<String, Object> buyerMap = new LinkedHashMap<>();
+        buyerMap.put("name", deal.getBuyer() != null && deal.getBuyer().getName() != null ? deal.getBuyer().getName() : "Buyer");
+        buyerMap.put("location", deal.getBuyer() != null && deal.getBuyer().getLocation() != null ? deal.getBuyer().getLocation() : "");
+        buyerMap.put("latitude", deal.getBuyer() != null && deal.getBuyer().getLatitude() != null ? deal.getBuyer().getLatitude() : 0.0);
+        buyerMap.put("longitude", deal.getBuyer() != null && deal.getBuyer().getLongitude() != null ? deal.getBuyer().getLongitude() : 0.0);
+        result.put("buyerRegistered", buyerMap);
         return result;
     }
 
