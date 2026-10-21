@@ -73,10 +73,13 @@ export default function FarmerMatches() {
         fetchMatches(false);
       }
     });
-    const interval = setInterval(() => fetchMatches(false), 8000);
+    const interval = setInterval(() => { if (document.visibilityState === 'visible') fetchMatches(false); }, 8000);
+    const handleFocus = () => { if (document.visibilityState === 'visible') fetchMatches(false); };
+    window.addEventListener('focus', handleFocus);
     return () => {
       unsubscribe();
       clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [fetchMatches]);
 

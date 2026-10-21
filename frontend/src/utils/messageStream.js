@@ -6,7 +6,8 @@
  * are pushed by the backend and delivered to listeners instantly.
  */
 
-const STREAM_URL = 'http://localhost:8080/api/messages/events';
+const API_BASE = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE || import.meta.env?.VITE_API_URL)) || 'http://localhost:8080';
+const STREAM_URL = `${API_BASE}/api/messages/events`;
 const RECONNECT_MS = 5000;
 
 let es = null;

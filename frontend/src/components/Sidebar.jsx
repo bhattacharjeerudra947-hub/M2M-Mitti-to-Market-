@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin, Sparkles, Warehouse } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, Brain, ShoppingCart, ClipboardList, Truck, Wallet, User, Bell, Settings, LogOut, Search, FileText, Heart, BarChart3, X, Menu, TrendingUp, MessageCircle, Trophy, ClipboardCheck, Save, MapPin, Sparkles, Warehouse, Handshake } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import M2MLogo from './M2MLogo';
 import NotificationPanel from './NotificationPanel';

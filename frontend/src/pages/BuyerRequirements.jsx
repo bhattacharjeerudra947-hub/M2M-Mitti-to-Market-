@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PlusCircle, Package, MapPin, Truck, CheckCircle2, XCircle, AlertCircle, Loader2, Calendar, Search, History, Clock } from 'lucide-react';
 import { apiGet, apiPost, apiPut } from '../api';
+import useAutoSync from '../hooks/useAutoSync';
 
 const STATUS_BADGES = {
   OPEN: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -52,8 +53,9 @@ export default function BuyerRequirements() {
     }
   }, [location.state]);
 
-  const loadRequirements = async () => {
+  const loadRequirements = async ({ isBackground = false } = {}) => {
     if (!user) return;
+    if (!isBackground) setLoading(true);
     try {
       const data = await apiGet('/api/requirements/my');
       setRequirements(data || []);
@@ -61,11 +63,11 @@ export default function BuyerRequirements() {
       if (err.message?.includes('Session expired')) { navigate('/login'); return; }
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
-  useEffect(() => { loadRequirements(); }, [user]);
+  useAutoSync(loadRequirements, { enabled: !!user, intervalMs: 10000 });
 
   const handleSubmit = async (e) => {
     e.preventDefault();

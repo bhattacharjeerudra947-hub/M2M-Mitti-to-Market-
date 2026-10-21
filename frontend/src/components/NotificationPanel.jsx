@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle, Sparkles, Handshake, Star } from 'lucide-react';
+import { Bell, CheckCheck, MessageCircle, ShoppingCart, Package, Truck, Lock, AlertCircle, Sparkles, Handshake, Star, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPut } from '../api';
+import { apiGet, apiPut, apiDelete } from '../api';
 
 const NOTIF_ICONS = {
   NEW_MATCH: { icon: Sparkles, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -58,8 +58,21 @@ export default function NotificationPanel({ compact = false, onClose }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Automatically erase a single notification when seen or dismissed
+  const eraseNotification = useCallback(async (id, e) => {
+    if (e) e.stopPropagation();
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    try {
+      await apiDelete(`/api/notifications/${id}`).catch(() => apiPut(`/api/notifications/${id}/read`));
+    } catch {
+      // Offline fallback
+    }
+  }, []);
+
   const handleNotificationClick = (n) => {
-    markAsRead(n.id);
+    // Automatically erase from notification menu when clicked / seen
+    eraseNotification(n.id);
     if (onClose) onClose();
 
     const isFarmer = user?.role === 'FARMER';
@@ -101,6 +114,7 @@ export default function NotificationPanel({ compact = false, onClose }) {
       }
     }
   };
+
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
     try {
@@ -108,8 +122,10 @@ export default function NotificationPanel({ compact = false, onClose }) {
         apiGet('/api/notifications'),
         apiGet('/api/notifications/unread-count')
       ]);
-      setNotifications(notifs || []);
-      setUnreadCount(countData?.unreadCount || 0);
+      // Only keep active, unseen notifications; seen notifications are erased automatically
+      const active = (notifs || []).filter(n => !n.read);
+      setNotifications(active);
+      setUnreadCount(countData?.unreadCount ?? active.length);
     } catch {
       // Session expired or backend unavailable
     } finally {
@@ -123,19 +139,11 @@ export default function NotificationPanel({ compact = false, onClose }) {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  const markAsRead = useCallback(async (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    setUnreadCount(prev => Math.max(0, prev - 1));
-    try {
-      await apiPut(`/api/notifications/${id}/read`);
-    } catch {}
-  }, []);
-
-  const markAllRead = useCallback(async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const clearAllNotifications = useCallback(async () => {
+    setNotifications([]);
     setUnreadCount(0);
     try {
-      await apiPut('/api/notifications/mark-read');
+      await apiDelete('/api/notifications/seen').catch(() => apiPut('/api/notifications/mark-read'));
     } catch {}
   }, []);
 
@@ -153,24 +161,31 @@ export default function NotificationPanel({ compact = false, onClose }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-navy-100 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-navy-100 shadow-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Bell className="w-5 h-5 text-navy-700" />
           <h3 className="text-sm font-bold text-navy-900">Notifications</h3>
-          {unreadCount > 0 && (
+          {unreadCount > 0 ? (
             <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded-full">{unreadCount}</span>
+          ) : (
+            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-semibold rounded-full">All clear</span>
           )}
         </div>
-        {unreadCount > 0 && (
+        {notifications.length > 0 && (
           <button
-            onClick={markAllRead}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-navy-600 hover:text-navy-900 hover:bg-navy-50 transition min-h-[32px]"
+            onClick={clearAllNotifications}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-navy-600 hover:text-red-600 hover:bg-red-50 transition min-h-[32px]"
+            title="Erase all notifications"
           >
             <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Mark all read</span>
+            <span>Clear all</span>
           </button>
         )}
+      </div>
+
+      <div className="mb-2 text-[11px] text-navy-400 flex items-center justify-between px-1">
+        <span>Seen notifications are erased automatically</span>
       </div>
 
       {loading ? (
@@ -181,7 +196,8 @@ export default function NotificationPanel({ compact = false, onClose }) {
       ) : notifications.length === 0 ? (
         <div className="text-center py-8">
           <Bell className="w-8 h-8 text-navy-200 mx-auto mb-2" />
-          <p className="text-sm text-navy-400">No notifications yet</p>
+          <p className="text-sm font-medium text-navy-700">No new notifications</p>
+          <p className="text-xs text-navy-400 mt-1">Notifications you have seen are automatically erased.</p>
         </div>
       ) : (
         <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
@@ -189,29 +205,36 @@ export default function NotificationPanel({ compact = false, onClose }) {
             const style = getNotifStyle(n.type);
             const Icon = style.icon;
             return (
-              <button
+              <div
                 key={n.id}
                 onClick={() => handleNotificationClick(n)}
-                className={`w-full text-left p-3 hover:bg-mustard-50/50 transition rounded-xl flex gap-3 ${
-                  !n.read ? 'bg-mustard-50/30 border border-mustard-100' : ''
-                }`}
+                role="button"
+                tabIndex={0}
+                className="group relative w-full text-left p-3 hover:bg-mustard-50/70 transition rounded-xl flex items-start gap-3 bg-mustard-50/30 border border-mustard-100 cursor-pointer"
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${style.bg}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${style.bg} mt-0.5`}>
                   <Icon className={`w-4 h-4 ${style.color}`} />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pr-6">
                   <div className="flex items-start justify-between gap-2">
-                    <p className={`text-xs font-semibold ${!n.read ? 'text-navy-900' : 'text-navy-700'}`}>{n.title}</p>
+                    <p className="text-xs font-semibold text-navy-900">{n.title}</p>
                     <span className="text-[11px] text-navy-400 shrink-0 font-normal">
                       {timeAgo(n.createdAt || n.timestamp || n.date)}
                     </span>
                   </div>
-                  <p className="text-xs text-navy-500 mt-0.5 line-clamp-2">{formatNotifBody(n.body)}</p>
+                  <p className="text-xs text-navy-600 mt-0.5 line-clamp-2">{formatNotifBody(n.body)}</p>
                 </div>
-                {!n.read && (
-                  <div className="w-2 h-2 bg-primary-500 rounded-full mt-1.5 flex-shrink-0" />
-                )}
-              </button>
+
+                {/* Direct erase / dismiss button */}
+                <button
+                  type="button"
+                  onClick={(e) => eraseNotification(n.id, e)}
+                  className="absolute right-2.5 top-2.5 p-1 text-navy-400 hover:text-red-500 rounded-md hover:bg-red-50 transition opacity-70 group-hover:opacity-100"
+                  title="Erase notification"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             );
           })}
         </div>

@@ -51,7 +51,7 @@ public class NotificationController {
         if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
 
         notificationService.markAllRead(userId);
-        return ResponseEntity.ok(ApiResponse.ok("Notifications marked as read", null));
+        return ResponseEntity.ok(ApiResponse.ok("Notifications marked as read and erased", null));
     }
 
     @PutMapping("/{id}/read")
@@ -63,7 +63,41 @@ public class NotificationController {
         if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
 
         notificationService.markAsRead(id);
-        return ResponseEntity.ok(ApiResponse.ok("Notification marked as read", null));
+        return ResponseEntity.ok(ApiResponse.ok("Notification seen and erased automatically", null));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteNotification(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable Long id) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        notificationService.deleteNotification(id, userId);
+        return ResponseEntity.ok(ApiResponse.ok("Notification erased successfully", null));
+    }
+
+    @DeleteMapping("/seen")
+    public ResponseEntity<?> deleteSeenNotifications(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        notificationService.deleteSeenNotifications(userId);
+        return ResponseEntity.ok(ApiResponse.ok("Seen notifications erased successfully", null));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<?> clearAllNotifications(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+
+        notificationService.markAllRead(userId);
+        return ResponseEntity.ok(ApiResponse.ok("All notifications erased successfully", null));
     }
 
     private Long extractUserId(String authHeader) {

@@ -6,6 +6,7 @@ import {
 import { apiPost } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useFarmerLanguage } from '../context/FarmerContext';
+import { cleanTextForTTS } from '../utils/agriSpeechHelper';
 
 const QUICK_QUESTIONS = {
   bn: [
@@ -63,6 +64,21 @@ export default function AnalyticsVoiceAssistant({ onFocusMetric, userRole = 'FAR
   const recognitionRef = useRef(null);
   const speechUtteranceRef = useRef(null);
 
+  // Preload TTS voices for instant and natural voice selection
+  useEffect(() => {
+    if (!isTTSSupported()) return;
+    const populateVoices = () => {
+      try { window.speechSynthesis.getVoices(); } catch {}
+    };
+    populateVoices();
+    window.speechSynthesis.onvoiceschanged = populateVoices;
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
   // Stop speech when component unmounts
   useEffect(() => {
     return () => {
@@ -75,20 +91,38 @@ export default function AnalyticsVoiceAssistant({ onFocusMetric, userRole = 'FAR
     };
   }, []);
 
-  // Text-to-Speech playback handler
+  // Text-to-Speech playback handler with natural phrasing and fluent tone
   const speakText = useCallback((text, langCode) => {
     if (!isTTSSupported() || !text) return;
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = BCP47_LANG[langCode] || 'en-IN';
-    utterance.rate = 0.95;
+    // Clean text and currency symbols into natural spoken language
+    const speechReady = cleanTextForTTS(text, langCode || activeLang);
 
-    // Pick appropriate voice if available
+    const utterance = new SpeechSynthesisUtterance(speechReady);
+    const targetLang = BCP47_LANG[langCode] || 'en-IN';
+    utterance.lang = targetLang;
+    utterance.rate = 0.98; // Natural, conversational pace
+    utterance.pitch = 1.0; // Warm, natural pitch
+
+    // Select the highest quality natural/neural voice available in browser
     const voices = window.speechSynthesis.getVoices();
-    const matchedVoice = voices.find(v => v.lang.startsWith(langCode) || v.lang.includes(langCode.toUpperCase()));
-    if (matchedVoice) {
-      utterance.voice = matchedVoice;
+    const langPrefix = (langCode || 'en').toLowerCase();
+    const langBCP = targetLang.toLowerCase();
+
+    const matchingVoices = voices.filter(v => {
+      const vLang = (v.lang || '').toLowerCase().replace('_', '-');
+      return vLang.startsWith(langPrefix) || vLang.startsWith(langBCP) || vLang.includes(langPrefix);
+    });
+
+    const naturalVoice = matchingVoices.find(v =>
+      /natural|google|neural|online|premium|deepmind/i.test(v.name)
+    ) || matchingVoices.find(v =>
+      /female|priya|swara|neerja|kalpana|veena/i.test(v.name)
+    ) || matchingVoices[0];
+
+    if (naturalVoice) {
+      utterance.voice = naturalVoice;
     }
 
     utterance.onstart = () => {
@@ -106,7 +140,7 @@ export default function AnalyticsVoiceAssistant({ onFocusMetric, userRole = 'FAR
 
     speechUtteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [activeLang]);
 
   const handlePauseResumeTTS = () => {
     if (!isTTSSupported()) return;

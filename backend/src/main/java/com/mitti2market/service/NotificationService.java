@@ -5,10 +5,12 @@ import com.mitti2market.model.User;
 import com.mitti2market.repository.NotificationRepository;
 import com.mitti2market.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -55,8 +57,18 @@ public class NotificationService {
         return notif;
     }
 
+    /**
+     * Get active notifications for user.
+     * Automatically erases previously seen/read notifications so they do not linger.
+     */
     public List<Map<String, Object>> getForUser(Long userId) {
-        return notifications.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        try {
+            notifications.deleteAllSeenByUserId(userId);
+        } catch (Exception e) {
+            log.warn("Could not auto-erase seen notifications: {}", e.getMessage());
+        }
+
+        return notifications.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId).stream()
                 .map(n -> {
                     Map<String, Object> map = new LinkedHashMap<>();
                     map.put("id", n.getId());
@@ -66,7 +78,7 @@ public class NotificationService {
                     map.put("referenceId", n.getReferenceId());
                     map.put("referenceType", n.getReferenceType());
                     map.put("metadata", n.getMetadata());
-                    map.put("read", n.getIsRead());
+                    map.put("read", Boolean.TRUE.equals(n.getIsRead()));
                     map.put("createdAt", n.getCreatedAt());
                     return map;
                 }).toList();
@@ -76,14 +88,51 @@ public class NotificationService {
         return notifications.countByUserIdAndIsReadFalse(userId);
     }
 
+    /**
+     * Mark all notifications as read / clear them from user menu.
+     * Automatically erases all notifications for the user.
+     */
     public void markAllRead(Long userId) {
-        notifications.markAllAsRead(userId);
+        try {
+            notifications.deleteAllByUserId(userId);
+        } catch (Exception e) {
+            log.warn("Could not erase all notifications: {}", e.getMessage());
+        }
     }
 
+    /**
+     * When a single notification is seen/read, automatically erase it from database.
+     */
     public void markAsRead(Long notificationId) {
         notifications.findById(notificationId).ifPresent(n -> {
-            n.setIsRead(true);
-            notifications.save(n);
+            try {
+                notifications.delete(n);
+            } catch (Exception e) {
+                n.setIsRead(true);
+                notifications.save(n);
+            }
         });
+    }
+
+    /**
+     * Explicit delete of a specific notification belonging to the user.
+     */
+    public void deleteNotification(Long id, Long userId) {
+        try {
+            notifications.deleteByIdAndUserId(id, userId);
+        } catch (Exception e) {
+            log.warn("Could not delete notification {}: {}", id, e.getMessage());
+        }
+    }
+
+    /**
+     * Explicit cleanup of all seen notifications for the user.
+     */
+    public void deleteSeenNotifications(Long userId) {
+        try {
+            notifications.deleteAllSeenByUserId(userId);
+        } catch (Exception e) {
+            log.warn("Could not delete seen notifications: {}", e.getMessage());
+        }
     }
 }

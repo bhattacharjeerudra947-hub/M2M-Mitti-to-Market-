@@ -28,17 +28,23 @@ backend/firebase-service-account.json
 backend/.env
 backend/.env.local
 backend/.env.*
+!**/.env.example
+!backend/.env.example
 
 # Frontend secrets
 frontend/.env
 frontend/.env.local
 frontend/.env.*
+!**/.env.example
+!frontend/.env.example
 
 # Root (in case someone puts it here)
 .env
 .env.local
-.env.*.local
 .env.*
+!**/.env.example.local
+.env.*
+!**/.env.example
 
 # Firebase service account
 *-service-account.json
@@ -50,3 +56,7 @@ frontend/.env.*
 backend/uploads/
 backend/storage/
 storage/
+
+# Database backups - never commit
+*.sql
+*.sql.gz

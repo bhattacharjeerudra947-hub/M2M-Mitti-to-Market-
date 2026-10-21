@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { ShoppingCart, Filter, MessageCircle, Check, X, RefreshCw, Clock, Star, ShieldCheck, Calendar, Package } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet, apiPut } from '../api';
+import useAutoSync from '../hooks/useAutoSync';
 import { formatDate } from '../utils/dateUtils';
 
 export default function BuyerRequests() {
@@ -15,9 +16,9 @@ export default function BuyerRequests() {
   const [filter, setFilter] = useState('all'); // all, pending, accepted, rejected
   const [actionLoading, setActionLoading] = useState(null);
 
-  const fetchInterests = async () => {
+  const fetchInterests = async ({ isBackground = false } = {}) => {
     if (!user) return;
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     setError('');
     try {
       const data = await apiGet(`/api/interests/farmer/${user.id}`);
@@ -29,13 +30,13 @@ export default function BuyerRequests() {
       }
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchInterests();
-  }, [user]);
+  useAutoSync(fetchInterests, { enabled: !!user, intervalMs: 10000 });
+
+
 
   const handleAccept = async (interestId) => {
     setActionLoading(interestId);

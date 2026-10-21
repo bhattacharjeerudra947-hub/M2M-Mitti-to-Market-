@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { Plus, MapPin, Package, RefreshCw, Calendar, Clock, AlertTriangle, CheckCircle2, Archive } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
+import useAutoSync from '../hooks/useAutoSync';
 import { formatDate } from '../utils/dateUtils';
 
 const categoryEmoji = {
@@ -23,9 +24,9 @@ export default function FarmerProducts() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('ACTIVE'); // 'ACTIVE' | 'HISTORY'
 
-  const fetchProduce = async () => {
+  const fetchProduce = async ({ isBackground = false } = {}) => {
     if (!user) return;
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     setError('');
     try {
       const data = await apiGet(`/api/produce/farmer/${user.id}`);
@@ -33,13 +34,13 @@ export default function FarmerProducts() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchProduce();
-  }, [user]);
+  useAutoSync(fetchProduce, { enabled: !!user, intervalMs: 10000 });
+
+
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

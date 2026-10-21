@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import { Search, SlidersHorizontal, X, Package } from 'lucide-react';
 import { apiGet } from '../api';
 import { optimizeImage } from '../utils/image';
+import useAutoSync from '../hooks/useAutoSync';
 
 const categoryEmoji = {
   Fruits: '🍎',
@@ -38,16 +39,18 @@ export default function Marketplace() {
       .catch((err) => setError(err.message));
   };
 
-  useEffect(() => {
-    fetchPage(0)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useAutoSync(async ({ isBackground = false } = {}) => {
+    try { await fetchPage(0, false); } finally { if (!isBackground) setLoading(false); }
+  }, { intervalMs: 10000 });
+
+
+
+
 
   const loadMore = () => {
     setLoadingMore(true);
     fetchPage(page + 1, true)
+
       .catch(() => {})
       .finally(() => setLoadingMore(false));
   };

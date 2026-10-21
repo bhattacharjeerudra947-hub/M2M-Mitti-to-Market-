@@ -6,6 +6,7 @@ import { Package, Truck, Clock, Check, ChevronRight, Filter, Star } from 'lucide
 import { getFarmerDeals, getBuyerDeals } from '../api/dealApi';
 import { formatDate } from '../utils/dateUtils';
 import DealRatingModal from '../components/DealRatingModal';
+import useAutoSync from '../hooks/useAutoSync';
 
 const STATUS_LABELS = {
   NEGOTIATING: '💬 Bargaining', LOCK_PENDING: '⏳ Confirming', LOCKED: '🔒 Deal Locked',
@@ -52,19 +53,19 @@ export default function MyDeals() {
   const [filter, setFilter] = useState('all');
   const [ratingModalDeal, setRatingModalDeal] = useState(null);
 
-  const fetchDealsList = () => {
+  const fetchDealsList = ({ isBackground = false } = {}) => {
     if (!user) return;
     const isFarmer = user.role === 'FARMER';
     const fetchDeals = isFarmer ? getFarmerDeals : getBuyerDeals;
     fetchDeals(user.id)
       .then(data => setDeals(data || []))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!isBackground) setLoading(false); });
   };
 
-  useEffect(() => {
-    fetchDealsList();
-  }, [user]);
+  useAutoSync(fetchDealsList, { enabled: !!user, intervalMs: 10000 });
+
+
 
   const isFarmer = user?.role === 'FARMER';
   const sidebarRole = isFarmer ? 'farmer' : 'business';
@@ -196,7 +197,7 @@ export default function MyDeals() {
               dealId={ratingModalDeal.id}
               otherPartyName={isFarmer ? (ratingModalDeal.buyerName || ratingModalDeal.buyer?.name) : (ratingModalDeal.farmerName || ratingModalDeal.farmer?.name)}
               onRatingSubmitted={() => {
-                fetchDealsList();
+
               }}
             />
           )}

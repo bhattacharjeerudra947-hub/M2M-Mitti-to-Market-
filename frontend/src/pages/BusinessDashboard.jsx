@@ -9,6 +9,7 @@ import MarketPricesLive from '../components/MarketPricesLive';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
 import VerificationStatusBanner from '../components/VerificationStatusBanner';
+import useAutoSync from '../hooks/useAutoSync';
 
 export default function BusinessDashboard() {
   const { user, isGuestModeActive } = useAuth();
@@ -18,9 +19,9 @@ export default function BusinessDashboard() {
   const [loading, setLoading] = useState(true);
   const [priceChartData, setPriceChartData] = useState([]);
 
-  useEffect(() => {
+  const loadDashboard = async ({ isBackground = false } = {}) => {
     if (!user) {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
       return;
     }
     Promise.all([
@@ -50,8 +51,10 @@ export default function BusinessDashboard() {
             }));
         }
       })
-      .finally(() => setLoading(false));
-  }, [user]);
+      .finally(() => { if (!isBackground) setLoading(false); });
+  };
+
+  useAutoSync(loadDashboard, { enabled: !!user, intervalMs: 15000 });
 
   const activeOrders = orders.filter(o => !['DELIVERED','CANCELLED'].includes(o.status));
   const pendingDeliveries = orders.filter(o => ['CONFIRMED','PACKED','IN_TRANSIT'].includes(o.status));

@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import { ClipboardList, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiGet } from '../api';
+import useAutoSync from '../hooks/useAutoSync';
 import { formatDate } from '../utils/dateUtils';
 
 const statusStages = {
@@ -83,22 +84,22 @@ export default function BusinessOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchOrders = async () => {
+  const fetchOrders = async ({ isBackground = false } = {}) => {
     if (!user) return;
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     try {
       const data = await apiGet(`/api/orders/buyer/${user.id}`);
       setOrders(data);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, [user]);
+  useAutoSync(fetchOrders, { enabled: !!user, intervalMs: 10000 });
+
+
 
   return (
     <div className="flex min-h-screen bg-gray-50/50">

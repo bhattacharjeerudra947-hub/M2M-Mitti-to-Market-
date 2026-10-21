@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080';
+const API_BASE = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE || import.meta.env?.VITE_API_URL)) || 'http://localhost:8080';
 
 function getStoredToken() {
   try {
@@ -140,4 +140,24 @@ async function apiUpload(path, file, extraFields = {}) {
   return data.data;
 }
 
-export { API_BASE, apiGet, apiPost, apiPatch, apiPut, apiUpload };
+async function apiDelete(path) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+  } catch {
+    throw apiError('Network error — you may be offline', 0);
+  }
+  if (res.status === 401) {
+    localStorage.removeItem('m2m_auth');
+    throw apiError('Session expired. Please log in again.', 401);
+  }
+  let data;
+  try { data = await res.json(); } catch { throw apiError('Invalid server response', res.status); }
+  if (!data.success) throw apiError(data.message || 'API error', res.status);
+  return data.data;
+}
+
+export { API_BASE, apiGet, apiPost, apiPatch, apiPut, apiDelete, apiUpload };

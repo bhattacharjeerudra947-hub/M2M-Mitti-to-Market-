@@ -13,6 +13,7 @@ import GuestSignInGate from '../components/GuestSignInGate';
 import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
 import DealAdvisorSummary from '../components/DealAdvisorSummary';
+import useAutoSync from '../hooks/useAutoSync';
 import { Package, ShoppingCart, Wallet, FileText, Mic, BarChart3, Navigation } from 'lucide-react';
 import MarketPricesLive from '../components/MarketPricesLive';
 import { useAuth } from '../context/AuthContext';
@@ -47,12 +48,12 @@ export default function FarmerDashboard() {
   const [priceChartData, setPriceChartData] = useState([]);
   const [pipelineStages, setPipelineStages] = useState([]);
 
-  useEffect(() => {
+  const loadDashboard = async () => {
     if (!user) {
       setRecentOrders([]);
       return;
     }
-    (async () => {
+
       try {
         const [produceData, orderData, interestData, analyticsData] = await Promise.all([
           apiGet(`/api/produce/farmer/${user.id}`).catch(() => []),
@@ -95,8 +96,8 @@ export default function FarmerDashboard() {
             }));
         }
       } catch {}
-    })();
-  }, [user]);
+  };
+  useAutoSync(loadDashboard, { enabled: !!user, intervalMs: 15000 });
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">
