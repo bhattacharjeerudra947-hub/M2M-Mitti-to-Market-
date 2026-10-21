@@ -46,6 +46,11 @@ function timeAgo(dateStr) {
   return days + 'd ago';
 }
 
+function formatNotifBody(text) {
+  if (!text) return '';
+  return text.replace(/:\s*([A-Z_]{3,})/g, (_, st) => `: ${st.charAt(0) + st.slice(1).toLowerCase().replace(/_/g, ' ')}`);
+}
+
 export default function NotificationPanel({ compact = false, onClose }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -158,8 +163,12 @@ export default function NotificationPanel({ compact = false, onClose }) {
           )}
         </div>
         {unreadCount > 0 && (
-          <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-navy-500 font-medium hover:text-navy-700 transition">
-            <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+          <button
+            onClick={markAllRead}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-navy-600 hover:text-navy-900 hover:bg-navy-50 transition min-h-[32px]"
+          >
+            <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Mark all read</span>
           </button>
         )}
       </div>
@@ -175,7 +184,7 @@ export default function NotificationPanel({ compact = false, onClose }) {
           <p className="text-sm text-navy-400">No notifications yet</p>
         </div>
       ) : (
-        <div className="space-y-1 max-h-[400px] overflow-y-auto">
+        <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
           {notifications.map((n) => {
             const style = getNotifStyle(n.type);
             const Icon = style.icon;
@@ -191,9 +200,13 @@ export default function NotificationPanel({ compact = false, onClose }) {
                   <Icon className={`w-4 h-4 ${style.color}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-semibold ${!n.read ? 'text-navy-900' : 'text-navy-700'}`}>{n.title}</p>
-                  <p className="text-xs text-navy-500 mt-0.5 line-clamp-2">{n.body}</p>
-                  <p className="text-[10px] text-navy-400 mt-1">{timeAgo(n.createdAt)}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`text-xs font-semibold ${!n.read ? 'text-navy-900' : 'text-navy-700'}`}>{n.title}</p>
+                    <span className="text-[11px] text-navy-400 shrink-0 font-normal">
+                      {timeAgo(n.createdAt || n.timestamp || n.date)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-navy-500 mt-0.5 line-clamp-2">{formatNotifBody(n.body)}</p>
                 </div>
                 {!n.read && (
                   <div className="w-2 h-2 bg-primary-500 rounded-full mt-1.5 flex-shrink-0" />

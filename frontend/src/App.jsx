@@ -37,6 +37,8 @@ import BusinessOrders from './pages/BusinessOrders';
 import FindFarmers from './pages/FindFarmers';
 import SavedSuppliers from './pages/SavedSuppliers';
 import BusinessAnalytics from './pages/BusinessAnalytics';
+import FarmerAnalytics from './pages/FarmerAnalytics';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 import FarmerRegistration from './pages/FarmerRegistration';
 import BusinessRegistration from './pages/BusinessRegistration';
 import Chat from './pages/Chat';
@@ -266,6 +268,7 @@ export default function App() {
             <Route path="logistics" element={<FarmerLogistics />} />
             <Route path="storage" element={<FarmerNearbyStorage />} />
             <Route path="earnings" element={<FarmerEarnings />} />
+            <Route path="analytics" element={<FarmerAnalytics />} />
             <Route path="chat" element={<Chat />} />
             <Route path="chat/:conversationId" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
@@ -292,6 +295,7 @@ export default function App() {
           {/* Admin Routes — protected by ADMIN role (frontend guard + Spring Security hasRole('ADMIN')) */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="verifications" element={<AdminVerifications />} />
             <Route path="appeals" element={<AdminAppeals />} />
@@ -328,6 +332,7 @@ export default function App() {
             <Route path="chat/:conversationId" element={<Chat />} />
             <Route path="chat/:conversationId/:otherUserId" element={<Chat />} />
             <Route path="deals" element={<MyDeals />} />
+            <Route path="offline-drafts" element={<OfflineDrafts />} />
           </Route>
 
           {/* Universal Chat Routing */}

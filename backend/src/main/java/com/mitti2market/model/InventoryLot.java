@@ -23,7 +23,7 @@ public class InventoryLot {
     private String lotId; // e.g. LOT-M2M-20260913-001
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "hub_id", nullable = false)
+    @JoinColumn(name = "hub_id", nullable = true)
     private WarehouseHub hub;
 
     private Long dealId;
@@ -85,12 +85,94 @@ public class InventoryLot {
     @Column(length = 1000)
     private String inboundNotes;
 
+    // Storage Management & Configurable Pricing Fields
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "produce_id")
+    private Produce produce;
+
+    private String variety;
+
+    private java.time.LocalDate harvestDate;
+
+    private LocalDateTime plannedReleaseDate;
+
+    private LocalDateTime actualReleaseDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    @Builder.Default
+    private BillingModel billingModel = BillingModel.PER_KG_PER_DAY;
+
+    @Builder.Default
+    private Double dailyRatePerUnit = 0.50; // ₹ / kg / day or ₹ / unit / day
+
+    private Double monthlyRatePerUnit;
+
+    @Builder.Default
+    private Double fixedBookingFee = 0.0;
+
+    @Builder.Default
+    private Double loadingUnloadingFee = 0.0;
+
+    @Builder.Default
+    private Double handlingPackagingFee = 0.0;
+
+    @Builder.Default
+    private Double transportationFee = 0.0;
+
+    @Builder.Default
+    private Double taxAndOtherFee = 0.0;
+
+    @Builder.Default
+    private Double estimatedStorageCost = 0.0;
+
+    @Builder.Default
+    private Double actualStorageCost = 0.0;
+
+    private String storageInvoiceNumber;
+
+    private LocalDateTime storageInvoiceDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    @Builder.Default
+    private StorageInvoiceStatus storageInvoiceStatus = StorageInvoiceStatus.ESTIMATED;
+
+    @Builder.Default
+    private Double estimatedQualityLossPct = 2.0;
+
+    @Builder.Default
+    private Double actualDamagedQuantityKg = 0.0;
+
+    private String facilityName;
+
+    private String facilityLocation;
+
+    @Column(length = 64)
+    private String facilityType; // COLD_STORAGE, DRY_STORAGE, WAREHOUSE, SILO, OTHER
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public enum BillingModel {
+        PER_KG_PER_DAY,
+        PER_TONNE_PER_DAY,
+        PER_CRATE_PER_DAY,
+        PER_KG_PER_MONTH,
+        PER_PALLET_PER_DAY,
+        FIXED_BOOKING_FEE,
+        COMBINED
+    }
+
+    public enum StorageInvoiceStatus {
+        ESTIMATED,
+        FINALIZED,
+        PAID
+    }
 
     public enum LotCondition {
         EXCELLENT,

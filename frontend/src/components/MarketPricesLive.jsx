@@ -29,7 +29,7 @@ export default function MarketPricesLive({ limit = 8, dark = false }) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {Array.from({ length: Math.min(limit, 6) }).map((_, i) => (
-          <div key={i} className={`rounded-xl p-4 animate-pulse ${dark ? 'bg-white/10' : 'bg-mustard-50'}`} />
+          <div key={i} className={`rounded-xl p-4 min-h-[90px] animate-pulse ${dark ? 'bg-white/10' : 'bg-mustard-50'}`} />
         ))}
       </div>
     );
@@ -75,7 +75,7 @@ export default function MarketPricesLive({ limit = 8, dark = false }) {
         })}
       </div>
       {lastUpdated && (
-        <p className={`mt-2 text-[10px] ${dark ? 'text-white/40' : 'text-gray-400'}`}>
+        <p className={`mt-2 text-xs ${dark ? 'text-white/60' : 'text-navy-400'}`}>
           Market data · updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </p>
       )}

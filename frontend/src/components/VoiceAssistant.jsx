@@ -637,18 +637,13 @@ export default function VoiceAssistant() {
               )}
 
               {phase === 'idle' && (
-                <div>
-                  <h4 className="text-lg font-extrabold text-navy-900">
-                    {t_key(language, 'speakToUs')}
-                  </h4>
-                  <p className="text-xs text-navy-500 mt-1 max-w-xs mx-auto">
-                    {language === 'hi'
-                      ? 'माइक दबाकर अपनी भाषा में फसल, भाव या खेती के बारे में पूछें'
-                      : language === 'bn'
-                      ? 'মাইক চেপে আপনার নিজের ভাষায় ফসল, মান্ডি দর বা চাষ নিয়ে জিজ্ঞাসা করুন'
-                      : 'Tap mic and ask anything about crops, mandi prices, or farming in your language'}
-                  </p>
-                </div>
+                <p className="text-xs text-navy-500 max-w-xs mx-auto text-center">
+                  {language === 'hi'
+                    ? 'माइक दबाकर अपनी भाषा में फसल, भाव या खेती के बारे में पूछें'
+                    : language === 'bn'
+                    ? 'মাইক চেপে আপনার নিজের ভাষায় ফসল, মান্ডি দর বা চাষ নিয়ে জিজ্ঞাসা করুন'
+                    : 'Tap mic and ask anything about crops, mandi prices, or farming in your language'}
+                </p>
               )}
 
               {phase === 'error' && (
@@ -669,18 +664,18 @@ export default function VoiceAssistant() {
 
             {/* Quick Suggestion Chips */}
             <div className="w-full max-w-md mb-6">
-              <div className="flex items-center justify-center gap-1.5 mb-2.5 text-[11px] font-semibold text-navy-400 uppercase tracking-wider">
+              <div className="flex items-center justify-center gap-1.5 mb-2.5 text-xs font-semibold text-navy-500">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 <span>
                   {language === 'hi' ? 'सुझाए गए सवाल' : language === 'bn' ? 'প্রস্তাবিত প্রশ্ন' : 'Suggested Questions'}
                 </span>
               </div>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
                 {suggestionList.map((chip, idx) => (
                   <button
                     key={idx}
                     onClick={() => processQuery(chip.replace(/^[^\s]+\s+/, ''))}
-                    className="px-3 py-1.5 bg-white border border-primary-200/80 rounded-xl text-xs font-medium text-navy-800 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 shadow-sm transition active:scale-95 text-left"
+                    className="w-full text-left px-3.5 py-2.5 bg-white border border-navy-100 rounded-xl text-xs font-medium text-navy-800 hover:bg-navy-50 hover:border-navy-200 shadow-xs transition active:scale-95"
                   >
                     {chip}
                   </button>

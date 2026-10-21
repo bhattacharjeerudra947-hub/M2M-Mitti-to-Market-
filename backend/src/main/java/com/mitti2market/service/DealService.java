@@ -148,6 +148,22 @@ public class DealService {
             }
         }
 
+        Double transportCost = null;
+        if (details.get("transportationCost") != null) {
+            transportCost = num(details.get("transportationCost"));
+        } else if (details.get("estimatedLogisticsCost") != null) {
+            transportCost = num(details.get("estimatedLogisticsCost"));
+        }
+        if (transportCost == null || transportCost <= 0) {
+            if (pickupLat != null && deliveryLat != null && pickupLng != null && deliveryLng != null) {
+                double distKm = RouteService.haversineKm(pickupLat, pickupLng, deliveryLat, deliveryLng) * 1.3;
+                double ratePerKg = Math.max(1.50, Math.round(((distKm * 0.035) + 0.30) * 100.0) / 100.0);
+                transportCost = Math.round(ratePerKg * quantity * 100.0) / 100.0;
+            } else {
+                transportCost = Math.round(3.10 * quantity * 100.0) / 100.0;
+            }
+        }
+
         String dealIdStr = "M2M-" + LocalDateTime.now().getYear() + "-" + (DEAL_COUNTER.incrementAndGet());
 
         Deal deal = Deal.builder()
@@ -167,6 +183,7 @@ public class DealService {
                 .pickupLongitude(pickupLng)
                 .deliveryLatitude(deliveryLat)
                 .deliveryLongitude(deliveryLng)
+                .estimatedLogisticsCost(transportCost)
                 .conditions(conditions)
                 .status(DealStatus.LOCK_PENDING)
                 .conversationId(conversationId)
@@ -184,10 +201,12 @@ public class DealService {
                 user.getName() + " initiated a deal for " + quantity + " " + unit + " of " + cropName +
                         " @ ₹" + agreedPrice + "/" + unit, null);
 
-        // Send system message about deal lock request
+        // Send system message about deal lock request with produce and transportation cost
         sendDealMessage(conversationId, "🔒 Deal Lock Requested\nDeal ID: " + dealIdStr + "\n" +
                 quantity + " " + unit + " " + cropName + " @ ₹" + agreedPrice + "/" + unit +
-                "\nTotal: ₹" + String.format("%,.0f", quantity * agreedPrice) +
+                "\nProduce Subtotal: ₹" + String.format("%,.0f", quantity * agreedPrice) +
+                "\nTransportation Cost (Est.): ₹" + String.format("%,.0f", transportCost) +
+                "\nTotal Landed Deal: ₹" + String.format("%,.0f", (quantity * agreedPrice) + transportCost) +
                 "\n\nBoth parties must confirm to lock the deal.");
 
         // Notify the other party
@@ -566,8 +585,35 @@ public class DealService {
         resp.put("logisticsProviderId", deal.getLogisticsProviderId());
         resp.put("logisticsProviderName", deal.getLogisticsProviderName());
         resp.put("logisticsProviderPhone", deal.getLogisticsProviderPhone());
-        resp.put("logisticsVehicleNumber", deal.getLogisticsVehicleNumber());
-        resp.put("estimatedLogisticsCost", deal.getEstimatedLogisticsCost());
+        Double fromLat = deal.getPickupLatitude() != null ? deal.getPickupLatitude() : (deal.getFarmer() != null ? deal.getFarmer().getLatitude() : null);
+        Double fromLng = deal.getPickupLongitude() != null ? deal.getPickupLongitude() : (deal.getFarmer() != null ? deal.getFarmer().getLongitude() : null);
+        Double toLat = deal.getDeliveryLatitude() != null ? deal.getDeliveryLatitude() : (deal.getBuyer() != null ? deal.getBuyer().getLatitude() : null);
+        Double toLng = deal.getDeliveryLongitude() != null ? deal.getDeliveryLongitude() : (deal.getBuyer() != null ? deal.getBuyer().getLongitude() : null);
+
+        Double distanceKm = null;
+        if (fromLat != null && toLat != null && fromLng != null && toLng != null) {
+            distanceKm = Math.round(RouteService.haversineKm(fromLat, fromLng, toLat, toLng) * 1.3 * 10.0) / 10.0;
+        }
+
+        Double transportCost = deal.getEstimatedLogisticsCost();
+        if (transportCost == null || transportCost <= 0) {
+            double qty = deal.getQuantity() != null ? deal.getQuantity().doubleValue() : 100.0;
+            if (distanceKm != null && distanceKm > 0) {
+                double ratePerKg = Math.max(1.50, Math.round(((distanceKm * 0.035) + 0.30) * 100.0) / 100.0);
+                transportCost = Math.round(ratePerKg * qty * 100.0) / 100.0;
+            } else {
+                transportCost = Math.round(3.10 * qty * 100.0) / 100.0;
+            }
+        }
+        resp.put("distanceKm", distanceKm);
+        resp.put("estimatedLogisticsCost", transportCost);
+        resp.put("transportationCost", transportCost);
+        if (deal.getQuantity() != null && deal.getQuantity() > 0 && transportCost != null && transportCost > 0) {
+            resp.put("transportationRatePerKg", Math.round((transportCost / deal.getQuantity()) * 100.0) / 100.0);
+        }
+        double prodTotal = deal.getTotalAmount() != null ? deal.getTotalAmount() : (deal.getQuantity() * deal.getAgreedPrice());
+        resp.put("produceTotal", prodTotal);
+        resp.put("grandTotal", Math.round((prodTotal + (transportCost != null ? transportCost : 0.0)) * 100.0) / 100.0);
         resp.put("paymentStatus", deal.getPaymentStatus());
 
         logisticsRepo.findByDealId(deal.getId()).ifPresent(l -> {
@@ -575,6 +621,16 @@ public class DealService {
             resp.put("logisticsStatus", l.getStatus().name());
             resp.put("trackingId", l.getTrackingId());
             resp.put("expectedDelivery", l.getExpectedDelivery());
+            if (l.getRouteDistanceKm() != null && l.getRouteDistanceKm() > 0) {
+                resp.put("distanceKm", l.getRouteDistanceKm());
+                resp.put("routeDistanceKm", l.getRouteDistanceKm());
+            }
+            if (l.getRouteDurationMinutes() != null) {
+                resp.put("routeDurationMinutes", l.getRouteDurationMinutes());
+            }
+            if (l.getRouteEstimatedCost() != null) {
+                resp.put("routeEstimatedCost", l.getRouteEstimatedCost());
+            }
         });
 
         return resp;

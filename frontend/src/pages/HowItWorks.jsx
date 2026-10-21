@@ -55,17 +55,17 @@ export default function HowItWorks() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Link
-                to="/marketplace"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20"
+                to="/signup"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-mustard-400 text-navy-900 font-bold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20 text-base"
               >
-                Explore Marketplace
+                Get Started — It&apos;s Free
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition border border-white/25"
+                to="/marketplace"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition border border-white/25 backdrop-blur-xs text-base"
               >
-                Get Started — It&apos;s Free
+                Explore Marketplace
               </Link>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function HowItWorks() {
       <section className="py-20 sm:py-24 bg-cream">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-[11px] font-semibold tracking-widest uppercase rounded-full mb-4">
+            <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-xs font-semibold rounded-full mb-4">
               Simple steps, strong impact
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
@@ -115,7 +115,7 @@ export default function HowItWorks() {
       <section className="py-20 sm:py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-[11px] font-semibold tracking-widest uppercase rounded-full mb-4">
+            <span className="inline-block px-4 py-1.5 bg-navy-900/5 text-navy-700 text-xs font-semibold rounded-full mb-4">
               One platform, two sides
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
@@ -176,7 +176,7 @@ export default function HowItWorks() {
               </ul>
               <Link
                 to="/marketplace"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-mustard-400 text-navy-900 text-sm font-semibold rounded-xl hover:bg-mustard-300 transition"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-navy-900 text-white text-sm font-semibold rounded-xl hover:bg-navy-800 transition"
               >
                 Explore Marketplace
                 <ArrowRight className="w-4 h-4" />

@@ -51,7 +51,7 @@ export default function SyncStatusBar({ role = 'farmer' }) {
   return (
     <button
       onClick={goToDrafts}
-      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-medium text-left transition hover:shadow-sm ${classes}`}
+      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium text-left transition hover:shadow-sm ${classes}`}
       title="Offline drafts & sync"
     >
       {icon || <Wifi className="w-3.5 h-3.5 flex-shrink-0" />}

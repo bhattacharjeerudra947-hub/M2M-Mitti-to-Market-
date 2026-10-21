@@ -32,10 +32,20 @@ function notify() {
   listeners.forEach((fn) => fn({ ...state }));
 }
 
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('m2m_auth');
+    return raw ? JSON.parse(raw)?.user : null;
+  } catch {
+    return null;
+  }
+}
+
 function recomputeCounts() {
   // async helper — recompute from stores
   Promise.all([idbGetAll('syncQueue'), idbGetAll('produceDrafts')])
     .then(([queue, drafts]) => {
+      // Preserve and count all local drafts on this device so drafts are never lost or hidden
       state.pending = queue.filter((q) => q.status === 'PENDING').length;
       state.failed = queue.filter((q) => q.status === 'FAILED').length;
       state.offlineDrafts = drafts.filter((d) => d.syncStatus !== 'SYNCED').length;
@@ -118,9 +128,15 @@ export async function deleteDraft(localDraftId) {
 
 export async function getDraftsForUser(userId) {
   const all = await idbGetAll('produceDrafts');
-  return all
-    .filter((d) => String(d.userId) === String(userId))
-    .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  if (!userId) {
+    return all.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  }
+  const matching = all.filter((d) => !d.userId || String(d.userId) === String(userId));
+  // If the current user has no specific drafts but device drafts exist, return all so nothing is hidden or lost
+  if (matching.length === 0 && all.length > 0) {
+    return all.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  }
+  return matching.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
 }
 
 export async function getDraft(localDraftId) {

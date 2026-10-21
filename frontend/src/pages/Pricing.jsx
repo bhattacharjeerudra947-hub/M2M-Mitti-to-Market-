@@ -39,17 +39,17 @@ export default function Pricing() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Link
-                to="/marketplace"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-mustard-400 text-navy-900 font-semibold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20"
+                to="/signup"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-mustard-400 text-navy-900 font-bold rounded-xl hover:bg-mustard-300 transition shadow-lg shadow-mustard-400/20 text-base"
               >
-                Explore Marketplace
+                Get Started — It&apos;s Free
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-transparent text-white font-semibold rounded-xl hover:bg-white/10 transition border border-white/25"
+                to="/marketplace"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition border border-white/25 backdrop-blur-xs text-base"
               >
-                Get Started — It&apos;s Free
+                Explore Marketplace
               </Link>
             </div>
           </div>

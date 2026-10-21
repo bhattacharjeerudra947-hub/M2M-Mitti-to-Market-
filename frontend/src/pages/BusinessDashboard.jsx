@@ -14,46 +14,54 @@ export default function BusinessDashboard() {
   const { user, isGuestModeActive } = useAuth();
   const displayName = user?.name?.split(' ')[0] || 'Business';
   const [orders, setOrders] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [priceChartData, setPriceChartData] = useState([]); // NEW: fixes ReferenceError
+  const [priceChartData, setPriceChartData] = useState([]);
 
   useEffect(() => {
     if (!user) {
       setLoading(false);
       return;
     }
-    apiGet(`/api/orders/buyer/${user.id}`)
-      .then((data) => setOrders(data || []))
-      .catch(() => setOrders([]))
+    Promise.all([
+      apiGet(`/api/orders/buyer/${user.id}`).catch(() => []),
+      apiGet(`/api/analytics/buyer/${user.id}`).catch(() => null),
+    ])
+      .then(([ordersData, analyticsData]) => {
+        setOrders(ordersData || []);
+        setAnalytics(analyticsData);
+        if (analyticsData?.spendTrend && analyticsData.spendTrend.length > 0) {
+          setPriceChartData(analyticsData.spendTrend);
+        } else {
+          const byMonth = new Map();
+          for (const o of (ordersData || [])) {
+            if (o.status !== 'DELIVERED' || !o.orderDate) continue;
+            const d = new Date(o.orderDate);
+            if (isNaN(d)) continue;
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+          }
+          setPriceChartData([...byMonth.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .slice(-6)
+            .map(([key, total]) => {
+              const [y, m] = key.split('-');
+              return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), spend: Math.round(total) };
+            }));
+        }
+      })
       .finally(() => setLoading(false));
   }, [user]);
 
-  // Real spend trend: delivered order value per month (last 6 months)
-  useEffect(() => {
-    const byMonth = new Map();
-    for (const o of orders) {
-      if (o.status !== 'DELIVERED' || !o.orderDate) continue;
-      const d = new Date(o.orderDate);
-      if (isNaN(d)) continue;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
-    }
-    setPriceChartData([...byMonth.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-6)
-      .map(([key, total]) => {
-        const [y, m] = key.split('-');
-        return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), spend: Math.round(total) };
-      }));
-  }, [orders]);
-
   const activeOrders = orders.filter(o => !['DELIVERED','CANCELLED'].includes(o.status));
   const pendingDeliveries = orders.filter(o => ['CONFIRMED','PACKED','IN_TRANSIT'].includes(o.status));
-  const totalSpent = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
-  // Real count: distinct farmers this buyer has actually ordered from (no hardcoded numbers)
-  const distinctSuppliers = new Set(
-    orders.map(o => o.farmer?.id ?? o.farmerId ?? o.farmer?.name ?? o.farmerName).filter(Boolean)
-  ).size;
+  const totalSpent = analytics?.totalSpend != null && analytics.totalSpend > 0
+    ? analytics.totalSpend
+    : orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+  const distinctSuppliers = analytics?.distinctSuppliers != null && analytics.distinctSuppliers > 0
+    ? analytics.distinctSuppliers
+    : new Set(orders.map(o => o.farmer?.id ?? o.farmerId ?? o.farmer?.name ?? o.farmerName).filter(Boolean)).size;
 
   return (
     <div className="flex min-h-screen bg-mustard-50/30">

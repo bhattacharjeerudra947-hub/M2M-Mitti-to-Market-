@@ -15,6 +15,10 @@ import com.mitti2market.repository.BuyerRequirementRepository;
 import com.mitti2market.repository.ProduceRepository;
 import com.mitti2market.repository.UserRepository;
 import com.mitti2market.repository.WarehouseHubRepository;
+import com.mitti2market.model.Deal;
+import com.mitti2market.model.Order;
+import com.mitti2market.repository.DealRepository;
+import com.mitti2market.repository.OrderRepository;
 import com.mitti2market.model.Message;
 import com.mitti2market.model.Notification;
 import com.mitti2market.repository.MessageRepository;
@@ -42,6 +46,8 @@ public class DataSeeder implements CommandLineRunner {
     private final WarehouseHubRepository warehouseHubRepository;
     private final MessageRepository messageRepository;
     private final NotificationRepository notificationRepository;
+    private final DealRepository dealRepository;
+    private final OrderRepository orderRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -786,6 +792,13 @@ public class DataSeeder implements CommandLineRunner {
         // ============================================================
         seedWarehouseHubs();
 
+        // ============================================================
+        // 9. REALISTIC COMPLETED & ACTIVE DEALS AND ORDERS (HISTORICAL PROGRESS ANALYTICS)
+        // ============================================================
+        seedDealsAndOrders(farmer1, farmer2, farmer3, wbFarmer1,
+                business1, business2, business3, wbBuyer3,
+                tomato, jyotiPotato, basmati);
+
         log.info("==========================================================");
         log.info("Mitti2Market Production Seed Data Successfully Initialized");
         log.info("  - Operational Accounts : Admin, Quality Inspector, Hub Operator");
@@ -1167,6 +1180,140 @@ public class DataSeeder implements CommandLineRunner {
                     .build());
 
             log.info("Seeded conversation and notifications between {} and {}", farmer.getName(), buyer.getName());
+        }
+    }
+
+    private void seedDealsAndOrders(User farmer1, User farmer2, User farmer3, User wbFarmer1,
+                                    User business1, User business2, User business3, User wbBuyer3,
+                                    Produce tomato, Produce jyotiPotato, Produce basmati) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // 1. Completed Deals (spanning 4 months ago, 3 months ago, 2 months ago, last month, this month)
+        createDealIfMissing("M2M-2026-0101", farmer1, business1, tomato, "Tomato (Hybrid)", 2000, "kg", 28.0, 56000.0,
+                Deal.DealStatus.COMPLETED, now.minusMonths(3));
+        createDealIfMissing("M2M-2026-0102", wbFarmer1, wbBuyer3, jyotiPotato, "Jyoti Potato", 5000, "kg", 18.0, 90000.0,
+                Deal.DealStatus.COMPLETED, now.minusMonths(2));
+        createDealIfMissing("M2M-2026-0103", farmer3, business2, basmati, "Basmati Rice 1121", 2000, "kg", 84.0, 168000.0,
+                Deal.DealStatus.COMPLETED, now.minusMonths(1));
+        createDealIfMissing("M2M-2026-0104", farmer1, business2, tomato, "Tomato (Hybrid)", 2500, "kg", 29.0, 72500.0,
+                Deal.DealStatus.COMPLETED, now.minusDays(8));
+
+        // 2. Active Deals (In-Transit, Locked, and Negotiating)
+        createDealIfMissing("M2M-2026-0105", farmer1, business3, tomato, "Tomato (Hybrid)", 1200, "kg", 28.5, 34200.0,
+                Deal.DealStatus.IN_TRANSIT, now.minusDays(2));
+        createDealIfMissing("M2M-2026-0106", farmer2, business1, null, "Nashik Red Onion", 3000, "kg", 24.0, 72000.0,
+                Deal.DealStatus.LOCKED, now.minusDays(1));
+        createDealIfMissing("M2M-2026-0107", wbFarmer1, business1, jyotiPotato, "Jyoti Potato", 2000, "kg", 19.0, 38000.0,
+                Deal.DealStatus.NEGOTIATING, now.minusHours(4));
+
+        // Seed transactions for user 68 (Rudra) if present
+        userRepository.findById(68L).ifPresent(rudra -> {
+            if (produceRepository.findByFarmerId(68L).isEmpty()) {
+                Produce rudraProduce = produceRepository.save(Produce.builder()
+                        .name("Fresh Cauliflower")
+                        .category("Vegetables")
+                        .farmer(rudra)
+                        .quantity(800)
+                        .listedQuantity(1200)
+                        .soldQuantity(400)
+                        .pricePerUnit(32.0)
+                        .unit("kg")
+                        .location(rudra.getLocation() != null ? rudra.getLocation() : "Sonarpur, West Bengal")
+                        .status(ProduceStatus.AVAILABLE)
+                        .createdAt(now.minusMonths(2))
+                        .build());
+
+                Produce rudraSpinach = produceRepository.save(Produce.builder()
+                        .name("Sonarpur Red Spinach")
+                        .category("Vegetables")
+                        .farmer(rudra)
+                        .quantity(350)
+                        .listedQuantity(500)
+                        .soldQuantity(150)
+                        .pricePerUnit(26.0)
+                        .unit("kg")
+                        .location(rudra.getLocation() != null ? rudra.getLocation() : "Sonarpur, West Bengal")
+                        .status(ProduceStatus.AVAILABLE)
+                        .createdAt(now.minusMonths(1))
+                        .build());
+
+                createDealIfMissing("M2M-RUDR-001", rudra, business1, rudraProduce, "Fresh Cauliflower", 400, "kg", 32.0, 12800.0,
+                        Deal.DealStatus.COMPLETED, now.minusMonths(1));
+                createDealIfMissing("M2M-RUDR-002", rudra, business2, rudraSpinach, "Sonarpur Red Spinach", 150, "kg", 26.0, 3900.0,
+                        Deal.DealStatus.COMPLETED, now.minusDays(5));
+                createDealIfMissing("M2M-RUDR-003", rudra, business3, rudraProduce, "Fresh Cauliflower", 200, "kg", 32.0, 6400.0,
+                        Deal.DealStatus.IN_TRANSIT, now.minusDays(1));
+            }
+        });
+
+        // 3. Orders (completed and in-transit)
+        createOrderIfMissing(farmer1, business1, tomato, 1000, 28000.0, Order.OrderStatus.DELIVERED, now.minusMonths(3).plusDays(10));
+        createOrderIfMissing(farmer1, business2, tomato, 1500, 42000.0, Order.OrderStatus.DELIVERED, now.minusMonths(2).plusDays(15));
+        createOrderIfMissing(wbFarmer1, wbBuyer3, jyotiPotato, 3000, 54000.0, Order.OrderStatus.DELIVERED, now.minusMonths(1).plusDays(5));
+        createOrderIfMissing(farmer1, business1, tomato, 1200, 34800.0, Order.OrderStatus.DELIVERED, now.minusDays(12));
+        createOrderIfMissing(farmer2, business1, tomato, 1500, 36000.0, Order.OrderStatus.IN_TRANSIT, now.minusDays(1));
+        createOrderIfMissing(farmer3, business2, basmati, 800, 68000.0, Order.OrderStatus.CONFIRMED, now.minusHours(8));
+
+        // Update sold quantities on produce
+        if (tomato != null) {
+            tomato.setSoldQuantity((tomato.getSoldQuantity() != null ? tomato.getSoldQuantity() : 0) + 4500);
+            produceRepository.save(tomato);
+        }
+        if (jyotiPotato != null) {
+            jyotiPotato.setSoldQuantity((jyotiPotato.getSoldQuantity() != null ? jyotiPotato.getSoldQuantity() : 0) + 8000);
+            produceRepository.save(jyotiPotato);
+        }
+        if (basmati != null) {
+            basmati.setSoldQuantity((basmati.getSoldQuantity() != null ? basmati.getSoldQuantity() : 0) + 2000);
+            produceRepository.save(basmati);
+        }
+
+        log.info("Seeded realistic historical & active Deals and Orders for analytics and progress tracking");
+    }
+
+    private void createDealIfMissing(String dealId, User farmer, User buyer, Produce produce, String cropName,
+                                     int qty, String unit, double agreedPrice, double totalAmount,
+                                     Deal.DealStatus status, LocalDateTime createdAt) {
+        if (farmer == null || buyer == null) return;
+        if (dealRepository.findByDealId(dealId).isEmpty()) {
+            dealRepository.save(Deal.builder()
+                    .dealId(dealId)
+                    .farmer(farmer)
+                    .buyer(buyer)
+                    .produce(produce)
+                    .cropName(cropName)
+                    .quantity(qty)
+                    .unit(unit)
+                    .agreedPrice(agreedPrice)
+                    .totalAmount(totalAmount)
+                    .status(status)
+                    .pickupLocation(farmer.getLocation())
+                    .deliveryLocation(buyer.getLocation())
+                    .paymentStatus(status == Deal.DealStatus.COMPLETED ? "RELEASED_TO_FARMER" : "PAID_ESCROW")
+                    .createdAt(createdAt)
+                    .lockedAt(createdAt)
+                    .completedAt(status == Deal.DealStatus.COMPLETED ? createdAt.plusDays(3) : null)
+                    .build());
+        }
+    }
+
+    private void createOrderIfMissing(User farmer, User buyer, Produce produce, int qty, double totalPrice,
+                                      Order.OrderStatus status, LocalDateTime orderDate) {
+        if (farmer == null || buyer == null || produce == null) return;
+        boolean exists = orderRepository.findByFarmerId(farmer.getId()).stream()
+                .anyMatch(o -> o.getBuyer() != null && o.getBuyer().getId().equals(buyer.getId())
+                        && o.getTotalPrice() != null && Math.abs(o.getTotalPrice() - totalPrice) < 0.01);
+        if (!exists) {
+            orderRepository.save(Order.builder()
+                    .farmer(farmer)
+                    .buyer(buyer)
+                    .produce(produce)
+                    .quantity(qty)
+                    .totalPrice(totalPrice)
+                    .deliveryAddress(buyer.getLocation())
+                    .status(status)
+                    .orderDate(orderDate)
+                    .build());
         }
     }
 }

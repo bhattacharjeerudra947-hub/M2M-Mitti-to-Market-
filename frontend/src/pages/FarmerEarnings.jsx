@@ -12,13 +12,18 @@ const fmtINR = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 export default function FarmerEarnings() {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     try {
-      const data = await apiGet(`/api/orders/farmer/${user.id}`);
-      setOrders(Array.isArray(data) ? data : []);
+      const [orderData, analyticsData] = await Promise.all([
+        apiGet(`/api/orders/farmer/${user.id}`).catch(() => []),
+        apiGet(`/api/analytics/farmer/${user.id}`).catch(() => null),
+      ]);
+      setOrders(Array.isArray(orderData) ? orderData : []);
+      setAnalytics(analyticsData);
     } catch {
       setOrders([]);
     } finally {
@@ -28,7 +33,7 @@ export default function FarmerEarnings() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Real aggregates — computed from delivered orders, never hardcoded
+  // Real aggregates — computed from delivered orders & deals
   const delivered = orders.filter(o => o.status === 'DELIVERED');
   const now = new Date();
   const thisMonth = delivered
@@ -40,25 +45,34 @@ export default function FarmerEarnings() {
     .filter(o => o.orderDate && new Date(o.orderDate).getMonth() === lastMonthDate.getMonth()
       && new Date(o.orderDate).getFullYear() === lastMonthDate.getFullYear())
     .reduce((s, o) => s + (o.totalPrice || 0), 0);
-  const total = delivered.reduce((s, o) => s + (o.totalPrice || 0), 0);
+
+  const total = analytics?.totalRevenue != null && analytics.totalRevenue > 0
+    ? analytics.totalRevenue
+    : delivered.reduce((s, o) => s + (o.totalPrice || 0), 0);
+
   const changePct = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 1000) / 10 : null;
 
   // Monthly earnings trend (last 6 months)
-  const byMonth = new Map();
-  for (const o of delivered) {
-    if (!o.orderDate) continue;
-    const d = new Date(o.orderDate);
-    if (isNaN(d)) continue;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+  let trend = [];
+  if (analytics?.earningsTrend && analytics.earningsTrend.length > 0) {
+    trend = analytics.earningsTrend;
+  } else {
+    const byMonth = new Map();
+    for (const o of delivered) {
+      if (!o.orderDate) continue;
+      const d = new Date(o.orderDate);
+      if (isNaN(d)) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+    }
+    trend = [...byMonth.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([key, t]) => {
+        const [y, m] = key.split('-');
+        return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), earnings: Math.round(t) };
+      });
   }
-  const trend = [...byMonth.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-6)
-    .map(([key, total]) => {
-      const [y, m] = key.split('-');
-      return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), earnings: Math.round(total) };
-    });
 
   const recentPayouts = delivered.slice(0, 6);
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import StatCard from '../components/StatCard';
 import PriceAdvisor from '../components/PriceAdvisor';
@@ -7,6 +8,7 @@ import PriceChart from '../components/PriceChart';
 import OrderTracker from '../components/OrderTracker';
 import VoiceAssistant from '../components/VoiceAssistant';
 import TrendInsights from '../components/TrendInsights';
+import { ProgressFunnel } from '../components/AnalyticsCharts';
 import GuestSignInGate from '../components/GuestSignInGate';
 import MapRouteOptimizer from '../components/MapRouteOptimizer';
 import LanguageSelector from '../components/LanguageSelector';
@@ -40,9 +42,10 @@ export default function FarmerDashboard() {
   const [activeView, setActiveView] = useState('dashboard');
 
   // ─── Real stats from backend ───
-  const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0, monthlyEarnings: 0 });
+  const [stats, setStats] = useState({ produceKg: 0, orders: 0, interests: 0, monthlyEarnings: 0, totalRevenue: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
   const [priceChartData, setPriceChartData] = useState([]);
+  const [pipelineStages, setPipelineStages] = useState([]);
 
   useEffect(() => {
     if (!user) {
@@ -51,43 +54,46 @@ export default function FarmerDashboard() {
     }
     (async () => {
       try {
-        const [produceData, orderData, interestData] = await Promise.all([
+        const [produceData, orderData, interestData, analyticsData] = await Promise.all([
           apiGet(`/api/produce/farmer/${user.id}`).catch(() => []),
           apiGet(`/api/orders/farmer/${user.id}`).catch(() => []),
           apiGet(`/api/interests/farmer/${user.id}`).catch(() => []),
+          apiGet(`/api/analytics/farmer/${user.id}`).catch(() => null),
         ]);
         const produce = produceData || [];
         const ordersList = orderData || [];
         const interests = interestData || [];
+
         setStats({
           produceKg: produce.reduce((s, p) => s + (p.quantity || 0), 0),
           orders: ordersList.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status)).length,
           interests: interests.filter(i => i.status === 'PENDING').length,
+          monthlyEarnings: analyticsData?.totalRevenue || 0,
+          totalRevenue: analyticsData?.totalRevenue || 0,
         });
         setRecentOrders(ordersList);
-        // Real monthly earnings: delivered orders paid in the current month
-        const now = new Date();
-        const monthly = ordersList
-          .filter((o) => o.status === 'DELIVERED' && o.orderDate && new Date(o.orderDate).getMonth() === now.getMonth())
-          .reduce((s, o) => s + (o.totalPrice || 0), 0);
-        setStats((prev) => ({ ...prev, monthlyEarnings: monthly }));
 
-        // Real earnings trend: delivered order value per month (last 6 months)
-        const byMonth = new Map();
-        for (const o of ordersList) {
-          if (o.status !== 'DELIVERED' || !o.orderDate) continue;
-          const d = new Date(o.orderDate);
-          if (isNaN(d)) continue;
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+        if (analyticsData?.earningsTrend && analyticsData.earningsTrend.length > 0) {
+          setPriceChartData(analyticsData.earningsTrend);
+          setPipelineStages(analyticsData.pipelineStages || []);
+        } else {
+          // Fallback real earnings trend: delivered order value per month (last 6 months)
+          const byMonth = new Map();
+          for (const o of ordersList) {
+            if (o.status !== 'DELIVERED' || !o.orderDate) continue;
+            const d = new Date(o.orderDate);
+            if (isNaN(d)) continue;
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            byMonth.set(key, (byMonth.get(key) || 0) + (o.totalPrice || 0));
+          }
+          setPriceChartData([...byMonth.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .slice(-6)
+            .map(([key, total]) => {
+              const [y, m] = key.split('-');
+              return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), earnings: Math.round(total) };
+            }));
         }
-        setPriceChartData([...byMonth.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .slice(-6)
-          .map(([key, total]) => {
-            const [y, m] = key.split('-');
-            return { month: new Date(Number(y), Number(m) - 1).toLocaleString('en-IN', { month: 'short' }), earnings: Math.round(total) };
-          }));
       } catch {}
     })();
   }, [user]);
@@ -324,9 +330,11 @@ export default function FarmerDashboard() {
                     { name: 'earnings', label: 'Earnings (₹)' },
                   ]}
                   title="Monthly Earnings (₹)"
+                  subtitle="Delivered orders & completed deals"
                   unit="₹"
                   colors={['#16a34a']}
                   height={250}
+                  chartType="area"
                 />
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">
@@ -343,6 +351,37 @@ export default function FarmerDashboard() {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Progress Pipeline & Link to Full Analytics */}
+              <div className="grid lg:grid-cols-3 gap-6 mb-8">
+                <div className="lg:col-span-2">
+                  <ProgressFunnel
+                    title="Your Deals & Orders Progress Pipeline"
+                    subtitle="Tracking transition from negotiation to completion"
+                    stages={pipelineStages.length > 0 ? pipelineStages : [
+                      { stage: 'Pending / Negotiating', count: 0, color: '#f59e0b' },
+                      { stage: 'Confirmed / Locked', count: 0, color: '#3b82f6' },
+                      { stage: 'In Transit', count: 0, color: '#8b5cf6' },
+                      { stage: 'Delivered / Completed', count: 0, color: '#10b981' },
+                    ]}
+                  />
+                </div>
+                <div className="bg-gradient-to-br from-navy-900 to-navy-800 text-white rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <span className="text-2xl mb-2 block">📊</span>
+                    <h3 className="text-base font-bold text-white mb-1">Deep-Dive Analytics</h3>
+                    <p className="text-xs text-navy-200 leading-relaxed mb-4">
+                      View complete crop performance, sold volume breakdowns, and revenue growth trajectory.
+                    </p>
+                  </div>
+                  <Link
+                    to="/farmer/analytics"
+                    className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl text-center transition shadow-sm"
+                  >
+                    Open Farmer Analytics Hub →
+                  </Link>
                 </div>
               </div>
             </>

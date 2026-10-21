@@ -89,7 +89,11 @@ export default function Navbar({ dark = false }) {
                 </button>
                 <Link
                   to={role === 'farmer' ? '/farmer' : '/business'}
-                  className="text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-5 py-2.5 rounded-xl transition shadow-sm"
+                  className={`text-[13px] font-medium px-4 py-2 rounded-xl transition border ${
+                    dark
+                      ? 'text-white/90 bg-white/10 hover:bg-white/20 border-white/25 backdrop-blur-xs'
+                      : 'text-navy-800 bg-navy-50 hover:bg-navy-100 border-navy-200 shadow-xs'
+                  }`}
                 >
                   {t('nav.myDashboard')}
                 </Link>

@@ -29,7 +29,15 @@ async function apiGet(path) {
     throw apiError('Network error — you may be offline', 0);
   }
   if (res.status === 401) {
-    localStorage.removeItem('m2m_auth');
+    const rawAuth = localStorage.getItem('m2m_auth');
+    try {
+      const parsed = rawAuth ? JSON.parse(rawAuth) : null;
+      if (!parsed?.refreshToken) {
+        localStorage.removeItem('m2m_auth');
+      }
+    } catch {
+      localStorage.removeItem('m2m_auth');
+    }
     throw apiError('Session expired. Please log in again.', 401);
   }
   let data;
@@ -50,7 +58,15 @@ async function apiPost(path, body) {
     throw apiError('Network error — you may be offline', 0);
   }
   if (res.status === 401) {
-    localStorage.removeItem('m2m_auth');
+    const rawAuth = localStorage.getItem('m2m_auth');
+    try {
+      const parsed = rawAuth ? JSON.parse(rawAuth) : null;
+      if (!parsed?.refreshToken) {
+        localStorage.removeItem('m2m_auth');
+      }
+    } catch {
+      localStorage.removeItem('m2m_auth');
+    }
     throw apiError('Session expired. Please log in again.', 401);
   }
   let data;

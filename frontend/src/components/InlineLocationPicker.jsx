@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { 
-  MapPin, Search, Navigation, Check, X, Loader2, AlertCircle, Home, CheckCircle2 
+  MapPin, Search, Navigation, Check, X, Loader2, AlertCircle, Home, CheckCircle2, Truck 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { geocodeAddress, setDealLocations } from '../api/locationApi';
@@ -35,6 +35,42 @@ export default function InlineLocationPicker({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Opposite endpoint coordinates for distance calculation
+  const oppositeLat = isPickup
+    ? (deal?.deliveryLatitude || deal?.buyer?.latitude || null)
+    : (deal?.pickupLatitude || deal?.farmer?.latitude || user?.latitude || null);
+  const oppositeLng = isPickup
+    ? (deal?.deliveryLongitude || deal?.buyer?.longitude || null)
+    : (deal?.pickupLongitude || deal?.farmer?.longitude || user?.longitude || null);
+
+  // Haversine distance with 1.3 road multiplier
+  const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371.0;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c * 1.3 * 10) / 10;
+  };
+
+  const currentDistanceKm = oppositeLat && oppositeLng 
+    ? calculateDistanceKm(coords.lat, coords.lng, Number(oppositeLat), Number(oppositeLng)) 
+    : (deal?.distanceKm || deal?.routeDistanceKm || null);
+
+  const ratePerKg = currentDistanceKm
+    ? Math.max(1.50, Math.round(((currentDistanceKm * 0.035) + 0.30) * 100) / 100)
+    : 3.10;
+
+  const realTransportCost = deal?.quantity
+    ? Math.round(ratePerKg * Number(deal.quantity))
+    : null;
 
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -348,21 +384,52 @@ export default function InlineLocationPicker({
       </div>
 
       {/* Selected Address Display Card */}
-      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 flex items-start justify-between gap-2 text-xs">
-        <div className="min-w-0 flex-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
-            Selected {isPickup ? 'Pickup' : 'Delivery'} Point:
-          </span>
-          <p className="font-semibold text-navy-900 truncate mt-0.5" title={address || searchQuery}>
-            {address || searchQuery || 'Pin placed on map'}
-          </p>
-          <span className="text-[10px] font-mono text-gray-500">
-            Coordinates: [{coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}]
+      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 space-y-1.5 text-xs">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+              Selected {isPickup ? 'Pickup' : 'Delivery'} Point:
+            </span>
+            <p className="font-semibold text-navy-900 truncate mt-0.5" title={address || searchQuery}>
+              {address || searchQuery || 'Pin placed on map'}
+            </p>
+            <span className="text-[10px] font-mono text-gray-500">
+              Coordinates: [{coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}]
+            </span>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
+            Ready
           </span>
         </div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
-          Ready
-        </span>
+
+        {/* Transportation Freight Preview based on Real Distance */}
+        {deal?.quantity && (
+          <div className="pt-2 border-t border-emerald-200/60 space-y-1 text-[11px]">
+            <div className="flex items-center justify-between">
+              <span className="text-emerald-950 font-semibold flex items-center gap-1.5">
+                <Truck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span>Real Route Distance:</span>
+              </span>
+              <span className="font-bold text-navy-900">
+                {currentDistanceKm ? `${currentDistanceKm} km (Road Route)` : 'Calculating from coordinates...'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-gray-600">
+              <span>Distance Freight Rate:</span>
+              <span className="font-semibold text-emerald-800">
+                ₹{ratePerKg.toFixed(2)} / kg
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-emerald-100 pt-1">
+              <span className="font-bold text-navy-900">
+                Real Transportation Cost ({deal.quantity} {deal.unit || 'kg'}):
+              </span>
+              <span className="font-extrabold text-emerald-950 text-xs">
+                ₹{realTransportCost ? realTransportCost.toLocaleString('en-IN') : '0'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (

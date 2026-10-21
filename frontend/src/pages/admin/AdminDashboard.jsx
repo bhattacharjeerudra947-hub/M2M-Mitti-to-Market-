@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, BarChart3, TrendingUp } from 'lucide-react';
 import { getStats, getAuditLog } from '../../services/adminApi';
+import { apiGet } from '../../api';
+import PriceChart from '../../components/PriceChart';
+import { GroupProgressComparison, GroupComparisonBarChart } from '../../components/AnalyticsCharts';
 import { MetricStrip, TableSkeleton } from '../../components/admin/ui/adminUi';
 import { formatDateTime } from '../../utils/dateUtils';
 
@@ -47,15 +50,21 @@ function ActivityItem({ log }) {
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     async function loadData() {
-      const [statsRes, logsRes] = await Promise.all([getStats(), getAuditLog()]);
+      const [statsRes, logsRes, analyticsRes] = await Promise.all([
+        getStats(),
+        getAuditLog(),
+        apiGet('/api/analytics/admin').catch(() => null),
+      ]);
       if (!cancelled) {
         if (statsRes.ok) setStats(statsRes.data);
         if (logsRes.ok) setAuditLogs(Array.isArray(logsRes.data) ? logsRes.data.slice(0, 7) : []);
+        setAnalytics(analyticsRes);
         setLoading(false);
       }
     }
@@ -110,6 +119,51 @@ export default function AdminDashboard() {
 
       <MetricStrip metrics={userMetrics} />
       <MetricStrip metrics={marketplaceMetrics} />
+
+      {/* Group Progress Comparison Overview */}
+      {analytics && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Group Progress Overview</h3>
+              <p className="text-xs text-gray-500">Farmers supply progress vs Businessman procurement progress</p>
+            </div>
+            <Link
+              to="/admin/analytics"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+            >
+              View Full Analytics & Charts <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <GroupProgressComparison
+            farmerGroup={analytics.farmerGroup || {}}
+            businessGroup={analytics.businessGroup || {}}
+          />
+
+          {/* Group Comparison & GMV Growth Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <GroupComparisonBarChart
+              data={analytics.groupComparison || []}
+              title="Group Progress Comparison"
+              subtitle="Farmers (Supply) vs Businessman (Demand)"
+              height={220}
+            />
+            <PriceChart
+              data={analytics.gmvTrend || []}
+              dataKeys={[
+                { name: 'month', xKey: 'month' },
+                { name: 'amount', label: 'GMV (₹)' },
+              ]}
+              title="Monthly Platform GMV"
+              subtitle="Platform deals & fulfilled orders volume"
+              unit="₹"
+              colors={['#10b981']}
+              height={220}
+              chartType="area"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Requires attention */}

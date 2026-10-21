@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import GuestSignInGate from '../components/GuestSignInGate';
+import StorageComparisonCard from '../components/StorageComparisonCard';
 import { useAuth } from '../context/AuthContext';
 import { Brain, TrendingUp, TrendingDown, Minus, Info, Loader2, RefreshCw, Database, ShieldCheck, Truck } from 'lucide-react';
 import { apiGet } from '../api';
@@ -325,6 +326,11 @@ export default function PriceAdvisorPage() {
                         💡 <strong>Why does logistics increase the price?</strong> Transporting produce involves fuel, vehicle wear, driver wages, and loading fees. When negotiating with distant buyers or offering doorstep delivery, quote the <strong>Landed Delivered Price (₹{analysis.landedOptimalPrice || (Math.round(((analysis.aiOptimalPrice || 0) + (distanceKm * 0.035 + 0.30)) * 100) / 100)}/kg)</strong> so transportation expenses do not reduce your farm profits.
                       </p>
                     </div>
+
+                    <StorageComparisonCard
+                      cropName={selected?.name || analysis.cropName}
+                      defaultPrice={analysis.aiOptimalPrice || 28}
+                    />
 
                     {/* AI Reasons */}
                     <div className="bg-gradient-to-br from-mustard-50 to-white rounded-2xl border border-mustard-200 p-6">

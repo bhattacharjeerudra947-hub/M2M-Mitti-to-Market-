@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import {
   MapPin, Package, X, Camera, Image, FileImage, Loader2, Brain,
   TrendingUp, TrendingDown, Minus, Info, WifiOff, Save, CloudUpload,
-  Navigation, LocateFixed, Check, Truck,
+  Navigation, LocateFixed, Check, Truck, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiPost, apiUpload, apiGet } from '../api';
@@ -71,6 +71,8 @@ export default function AddProduce() {
   // Offline-first draft state
   const [localDraftId, setLocalDraftId] = useState(null);
   const [draftStatus, setDraftStatus] = useState(''); // '' | saved | pending | synced | failed | needsLogin
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [savingDraft, setSavingDraft] = useState(false);
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const syncStatus = useSyncStatus();
 
@@ -88,6 +90,38 @@ export default function AddProduce() {
       setForm(prev => ({ ...prev, location: profileLocation }));
     }
   }, [profileLocation]);
+
+  // Load draft data if navigated from OfflineDrafts page
+  useEffect(() => {
+    if (location.state?.draft) {
+      const d = location.state.draft;
+      setLocalDraftId(d.localDraftId || null);
+      setDraftStatus(d.syncStatus?.toLowerCase() || 'saved');
+      setForm({
+        name: d.name || '',
+        category: d.category || 'Vegetables',
+        quantity: d.quantity ? String(d.quantity) : '',
+        unit: d.unit || 'kg',
+        grade: d.grade || 'A',
+        pricePerUnit: d.pricePerUnit ? String(d.pricePerUnit) : '',
+        location: d.location || profileLocation || '',
+        readyDate: d.readyDate || '',
+        harvestDate: d.harvestDate || new Date().toISOString().split('T')[0],
+        shelfLife: d.shelfLife || '15_DAYS',
+        customExpiryDate: d.customExpiryDate || '',
+        description: d.description || '',
+      });
+      if (d.image?.blob) {
+        try {
+          const previewUrl = URL.createObjectURL(d.image.blob);
+          setImagePreview(previewUrl);
+          setImageFile(new File([d.image.blob], d.image.name || 'produce.jpg', { type: d.image.type || 'image/jpeg' }));
+        } catch {
+          // ignore blob parsing error
+        }
+      }
+    }
+  }, [location.state, profileLocation]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -215,6 +249,10 @@ export default function AddProduce() {
         grade: d.grade || 'A',
         pricePerUnit: d.pricePerUnit || '',
         location: d.location || '',
+        readyDate: d.readyDate || '',
+        harvestDate: d.harvestDate || new Date().toISOString().split('T')[0],
+        shelfLife: d.shelfLife || '15_DAYS',
+        customExpiryDate: d.customExpiryDate || '',
         description: d.description || '',
       });
       setLocalDraftId(d.localDraftId);
@@ -223,34 +261,59 @@ export default function AddProduce() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const buildDraft = useCallback((id, syncStatusValue = 'LOCAL', imageUrl = null) => ({
-    localDraftId: id,
-    userId: user?.id,
-    name: form.name.trim(),
-    category: form.category,
-    quantity: form.quantity,
-    unit: form.unit,
-    grade: form.grade,
-    pricePerUnit: form.pricePerUnit,
-    location: form.location.trim(),
-    description: form.description.trim(),
-    image: imageFile ? { name: imageFile.name, type: imageFile.type, size: imageFile.size, blob: imageFile } : null,
-    imageStatus: !imageFile ? 'NONE' : imageUrl ? 'UPLOADED' : 'PENDING_UPLOAD',
-    imageUrl,
-    syncStatus: syncStatusValue,
-    lastError: null,
-  }), [form, imageFile, user]);
+  const buildDraft = useCallback((id, syncStatusValue = 'LOCAL', imageUrl = null) => {
+    let imageObj = null;
+    if (imageFile) {
+      try {
+        imageObj = {
+          name: imageFile.name,
+          type: imageFile.type,
+          size: imageFile.size,
+          blob: imageFile instanceof Blob ? imageFile : null,
+        };
+      } catch {
+        imageObj = { name: imageFile.name, type: imageFile.type, size: imageFile.size };
+      }
+    }
+
+    return {
+      localDraftId: id,
+      userId: user?.id,
+      name: (form.name || '').trim(),
+      category: form.category || 'Vegetables',
+      quantity: form.quantity || '',
+      unit: form.unit || 'kg',
+      grade: form.grade || 'A',
+      pricePerUnit: form.pricePerUnit || '',
+      location: (form.location || '').trim(),
+      readyDate: form.readyDate || '',
+      harvestDate: form.harvestDate || '',
+      shelfLife: form.shelfLife || '15_DAYS',
+      customExpiryDate: form.customExpiryDate || '',
+      description: (form.description || '').trim(),
+      image: imageObj,
+      imageStatus: !imageFile ? 'NONE' : imageUrl ? 'UPLOADED' : 'PENDING_UPLOAD',
+      imageUrl,
+      syncStatus: syncStatusValue,
+      lastError: null,
+    };
+  }, [form, imageFile, user]);
 
   const autosaveDraft = useCallback(async () => {
     if (!user?.id) return;
     if (!form.name.trim() && !form.quantity && !form.pricePerUnit && !form.location.trim()) return;
-    const id = localDraftId || crypto.randomUUID();
-    setLocalDraftId(id);
-    const existing = await getDraft(id).catch(() => null);
-    // Preserve PENDING/SYNCING so a queued draft stays queued while being edited
-    const keepStatus = existing && ['PENDING', 'SYNCING'].includes(existing.syncStatus) ? existing.syncStatus : 'LOCAL';
-    await saveDraft(buildDraft(id, keepStatus));
-    setDraftStatus('saved');
+    try {
+      const id = localDraftId || crypto.randomUUID();
+      if (!localDraftId) setLocalDraftId(id);
+      const existing = await getDraft(id).catch(() => null);
+      // Preserve PENDING/SYNCING so a queued draft stays queued while being edited
+      const keepStatus = existing && ['PENDING', 'SYNCING'].includes(existing.syncStatus) ? existing.syncStatus : 'LOCAL';
+      await saveDraft(buildDraft(id, keepStatus));
+      setDraftStatus('saved');
+      return id;
+    } catch (err) {
+      console.warn('Autosave draft error:', err);
+    }
   }, [user, form, imageFile, localDraftId, buildDraft]);
 
   // Debounced autosave while typing
@@ -262,21 +325,45 @@ export default function AddProduce() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, imageFile, user?.id]);
 
-  const handleSaveDraft = async () => {
-    if (!user?.id) { setError('You must be logged in to save a draft'); return; }
+  const handleSaveDraft = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!user?.id) {
+      setError('You must be logged in to save a draft');
+      return;
+    }
     if (!form.name.trim() && !form.quantity && !form.pricePerUnit && !form.location.trim()) {
       setError('Enter at least a crop name or quantity before saving a draft');
       return;
     }
-    if (!idbSupported()) { setError('This browser does not support offline drafts'); return; }
+    if (!idbSupported()) {
+      setError('This browser does not support offline drafts');
+      return;
+    }
+
     setError('');
-    await autosaveDraft();
-    setDraftStatus(offline ? 'pending' : 'saved');
-    if (offline) {
-      // Queue it so it syncs the moment connection returns
+    setSavingDraft(true);
+    try {
       const id = localDraftId || crypto.randomUUID();
-      setLocalDraftId(id);
-      await queueDraft(buildDraft(id, 'PENDING'));
+      if (!localDraftId) setLocalDraftId(id);
+      const existing = await getDraft(id).catch(() => null);
+      const keepStatus = existing && ['PENDING', 'SYNCING'].includes(existing.syncStatus) ? existing.syncStatus : 'LOCAL';
+      const draftData = buildDraft(id, keepStatus);
+      await saveDraft(draftData);
+      setDraftStatus(offline ? 'pending' : 'saved');
+      if (offline) {
+        await queueDraft(buildDraft(id, 'PENDING'));
+      }
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setSaveSuccessMsg(`Draft saved locally at ${timeStr}!`);
+      setTimeout(() => setSaveSuccessMsg(''), 8000);
+    } catch (err) {
+      console.error('Save draft error:', err);
+      setError('Could not save draft: ' + (err.message || 'Storage error'));
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -884,13 +971,38 @@ export default function AddProduce() {
                   className="w-full px-4 py-3 bg-gray-50 border border-navy-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mustard-400 transition resize-none" />
               </div>
 
+              {/* Draft Save Feedback Banner right above buttons */}
+              {saveSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-sm text-emerald-800 flex items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>{saveSuccessMsg}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/farmer/offline-drafts')}
+                    className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition"
+                  >
+                    View Drafts →
+                  </button>
+                </div>
+              )}
+
               <div className="flex gap-2">
-                <button type="button" onClick={handleSaveDraft} disabled={loading}
-                  className="px-5 py-3.5 bg-white border-2 border-navy-200 text-navy-800 font-semibold rounded-xl hover:bg-navy-50 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                  <Save className="w-4 h-4" /> Save Draft
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={loading || savingDraft}
+                  className="px-5 py-3.5 bg-white border-2 border-navy-200 text-navy-800 font-semibold rounded-xl hover:bg-navy-50 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {savingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {saveSuccessMsg ? 'Draft Saved ✓' : 'Save Draft'}
                 </button>
-                <button type="submit" disabled={loading}
-                  className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                <button
+                  type="submit"
+                  disabled={loading || savingDraft}
+                  className="flex-1 py-3.5 bg-navy-900 text-white font-semibold rounded-xl hover:bg-navy-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
                   {loading ? (
                     <><Loader2 className="w-5 h-5 animate-spin" />{uploadingImage ? 'Uploading image...' : 'Creating listing...'}</>
                   ) : offline ? 'Save & Queue for Sync' : 'List Produce'}

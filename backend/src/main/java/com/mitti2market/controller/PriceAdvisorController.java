@@ -4,6 +4,7 @@ import com.mitti2market.dto.ApiResponse;
 import com.mitti2market.service.DatasetPriceService;
 import com.mitti2market.service.MarketDataService;
 import com.mitti2market.service.ProduceService;
+import com.mitti2market.service.StorageComparisonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,8 +19,8 @@ public class PriceAdvisorController {
 
     private final MarketDataService marketDataService;
     private final ProduceService produceService;
-
     private final DatasetPriceService datasetPriceService;
+    private final StorageComparisonService storageComparisonService;
 
     /**
      * GET /api/price-advisor/estimate?crop=Tomato&state=West Bengal
@@ -78,5 +79,36 @@ public class PriceAdvisorController {
 
         Map<String, Object> analysis = marketDataService.getMarketAnalysis(cropName, location, desiredPrice, distanceKm, destination);
         return ResponseEntity.ok(ApiResponse.ok(analysis));
+    }
+
+    /**
+     * GET /api/price-advisor/{cropName}/storage-breakdown
+     * Transparent price breakdown factoring in cold storage, handling, freight, and net realization.
+     */
+    @GetMapping("/{cropName}/storage-breakdown")
+    public ResponseEntity<ApiResponse<com.mitti2market.dto.StorageComparisonDto>> getStorageBreakdown(
+            @PathVariable String cropName,
+            @RequestParam(required = false, defaultValue = "1000") Double quantityKg,
+            @RequestParam(required = false, defaultValue = "30") Integer storageDays,
+            @RequestParam(required = false) Double currentPrice,
+            @RequestParam(required = false) Double futurePrice,
+            @RequestParam(required = false, defaultValue = "0.50") Double dailyRate,
+            @RequestParam(required = false) Double productionCost) {
+
+        com.mitti2market.dto.StorageComparisonDto result = storageComparisonService.compareScenarios(
+                cropName,
+                quantityKg,
+                currentPrice,
+                futurePrice,
+                storageDays,
+                com.mitti2market.model.InventoryLot.BillingModel.PER_KG_PER_DAY,
+                dailyRate,
+                null,
+                null,
+                null,
+                productionCost,
+                2.0
+        );
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 }

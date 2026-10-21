@@ -48,11 +48,27 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
     quantity: '',
     unit: 'kg',
     agreedPrice: '',
+    transportationCost: '',
     conditions: '',
     farmerId: '',
     buyerId: '',
     produceId: produceId || ''
   });
+
+  // State for importing real transportation cost according to distance
+  const [distanceKmInput, setDistanceKmInput] = useState('');
+  const [distanceImportNote, setDistanceImportNote] = useState('');
+
+  const importTransportFromDistance = (distKm) => {
+    const d = parseFloat(distKm);
+    if (!d || d <= 0) return;
+    const qty = Number(lockForm.quantity) || 100;
+    const ratePerKg = Math.max(1.50, Math.round(((d * 0.035) + 0.30) * 100) / 100);
+    const cost = Math.round(ratePerKg * qty);
+    setDistanceKmInput(String(d));
+    setLockForm(prev => ({ ...prev, transportationCost: String(cost) }));
+    setDistanceImportNote(`Imported for ${d} km: ₹${ratePerKg.toFixed(2)}/kg → ₹${cost.toLocaleString('en-IN')}`);
+  };
 
   // Logistics details form
   const [logisticsForm, setLogisticsForm] = useState({
@@ -201,11 +217,15 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
     setError('');
     try {
       // Determine who is farmer and who is buyer
-      const isFarmer = user.role === 'FARMER';
+      const transportCostVal = lockForm.transportationCost !== '' && lockForm.transportationCost !== undefined
+        ? Number(lockForm.transportationCost)
+        : Math.round(qty * 3.10);
       const data = {
         ...lockForm,
         quantity: qty,
         agreedPrice: price,
+        transportationCost: transportCostVal,
+        estimatedLogisticsCost: transportCostVal,
         farmerId: isFarmer ? user.id : otherUserId,
         buyerId: isFarmer ? otherUserId : user.id,
         produceId: produceId || null
@@ -213,7 +233,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
       const result = await initiateDealLock(conversationId, data);
       setDeal(result);
       setShowLockForm(false);
-      setLockForm({ cropName: produceName || '', quantity: '', unit: 'kg', agreedPrice: '', conditions: '', farmerId: '', buyerId: '', produceId: produceId || '' });
+      setLockForm({ cropName: produceName || '', quantity: '', unit: 'kg', agreedPrice: '', transportationCost: '', conditions: '', farmerId: '', buyerId: '', produceId: produceId || '' });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -458,10 +478,104 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
               placeholder="Agreed price per unit (₹)"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm"
             />
+            {/* Real Distance-Based Transport Cost Importer */}
+            <div className="bg-sky-50/70 border border-sky-200 rounded-xl p-2.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sky-900 flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5 text-sky-600" />
+                  Import Transportation Cost from Distance:
+                </span>
+                {distanceImportNote && (
+                  <span className="text-[10px] font-bold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded-md">
+                    ✓ {distanceImportNote}
+                  </span>
+                )}
+              </div>
+
+              {/* Quick Distance Presets */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { label: 'Local (25 km)', dist: 25, sub: '₹1.50/kg' },
+                  { label: 'Regional (80 km)', dist: 80, sub: '₹3.10/kg' },
+                  { label: 'Inter-State (250 km)', dist: 250, sub: '₹9.05/kg' }
+                ].map((tier) => (
+                  <button
+                    key={tier.label}
+                    type="button"
+                    onClick={() => importTransportFromDistance(tier.dist)}
+                    className="py-1.5 px-2 bg-white hover:bg-sky-100/60 border border-sky-200 rounded-lg text-left transition flex flex-col"
+                  >
+                    <span className="font-bold text-[11px] text-navy-900 truncate">{tier.label}</span>
+                    <span className="text-[9px] text-gray-500">{tier.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Distance Input */}
+              <div className="flex gap-1.5 items-center pt-0.5">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Enter custom distance in km..."
+                    value={distanceKmInput}
+                    onChange={(e) => setDistanceKmInput(e.target.value)}
+                    className="w-full pl-3 pr-8 py-1.5 bg-white border border-sky-200 rounded-lg text-xs"
+                  />
+                  <span className="absolute right-2.5 top-1.5 text-[10px] font-medium text-gray-400">km</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => importTransportFromDistance(distanceKmInput)}
+                  disabled={!distanceKmInput || Number(distanceKmInput) <= 0}
+                  className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shrink-0 transition flex items-center gap-1 shadow-xs"
+                >
+                  <span>Import Cost</span>
+                </button>
+              </div>
+
+              {/* Transportation Freight Input */}
+              <div className="pt-1">
+                <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                  Transportation Freight Amount (₹):
+                </label>
+                <input
+                  value={lockForm.transportationCost || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === '' || (!val.includes('-') && Number(val) >= 0)) {
+                      setLockForm({ ...lockForm, transportationCost: val });
+                    }
+                  }}
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder={lockForm.quantity ? `Auto-est: ₹${Math.round(Number(lockForm.quantity) * 3.10)} (or imported from distance)` : "Estimated freight cost (₹, optional)"}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+            </div>
             <input value={lockForm.conditions} onChange={e => setLockForm({...lockForm, conditions: e.target.value})}
               placeholder="Any conditions (optional)" className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm" />
             {lockForm.quantity && lockForm.agreedPrice && Number(lockForm.quantity) > 0 && Number(lockForm.agreedPrice) > 0 && (
-              <p className="text-sm font-semibold text-navy-900">Total: ₹{Number(lockForm.quantity * lockForm.agreedPrice).toLocaleString()}</p>
+              <div className="space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-200 text-xs">
+                <div className="flex justify-between text-gray-600">
+                  <span>Produce Subtotal:</span>
+                  <span className="font-semibold">₹{Number(lockForm.quantity * lockForm.agreedPrice).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-sky-700">
+                  <span className="flex items-center gap-1"><Truck className="w-3 h-3" /> Transportation Cost:</span>
+                  <span className="font-semibold">
+                    ₹{Number(lockForm.transportationCost !== '' && lockForm.transportationCost !== undefined ? lockForm.transportationCost : Math.round(Number(lockForm.quantity) * 3.10)).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-navy-900 border-t border-gray-200 pt-1">
+                  <span>Total Landed Deal:</span>
+                  <span>
+                    ₹{Number((lockForm.quantity * lockForm.agreedPrice) + Number(lockForm.transportationCost !== '' && lockForm.transportationCost !== undefined ? lockForm.transportationCost : Math.round(Number(lockForm.quantity) * 3.10))).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
             )}
             <button onClick={handleInitiateLock} disabled={actionLoading}
               className="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 disabled:opacity-50">
@@ -473,7 +587,9 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
     );
   }
 
-  const totalAmount = deal?.totalAmount || (deal?.quantity * deal?.agreedPrice) || 0;
+  const produceAmount = deal?.produceTotal || deal?.totalAmount || (deal?.quantity * deal?.agreedPrice) || 0;
+  const transportCost = Number(deal?.transportationCost ?? deal?.estimatedLogisticsCost ?? (deal?.quantity ? Math.round(deal.quantity * 3.10) : 0));
+  const totalAmount = produceAmount + transportCost;
   const upfrontAmount = Math.round((totalAmount / 2.0) * 100) / 100;
   const isEscrowSecured = deal?.paymentStatus === 'PAID_ESCROW' || deal?.paymentStatus === 'ESCROW_PAID' || deal?.paymentStatus === 'RELEASED_TO_FARMER' || deal?.paymentStatus === 'RELEASED';
   const isPaymentReleased = deal?.paymentStatus === 'RELEASED_TO_FARMER' || deal?.paymentStatus === 'RELEASED' || deal?.status === 'COMPLETED';
@@ -500,16 +616,45 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
       </div>
 
       {/* Deal Details — terms are immutable once locked */}
-      <div className="bg-gray-50 rounded-xl p-3 mb-3 text-xs space-y-1">
+      <div className="bg-gray-50 rounded-xl p-3 mb-3 text-xs space-y-1.5">
         <div className="flex justify-between"><span className="text-gray-500">Product</span><span className="font-semibold">{deal.cropName}</span></div>
         <div className="flex justify-between"><span className="text-gray-500">Quantity</span><span className="font-semibold">{deal.quantity} {deal.unit}</span></div>
-        <div className="flex justify-between"><span className="text-gray-500">Price</span><span className="font-semibold">₹{deal.agreedPrice}/{deal.unit}</span></div>
-        <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
-          <span className="text-gray-500 font-bold">Total</span>
-          <span className="font-bold text-navy-900">₹{Number(deal.totalAmount).toLocaleString()}</span>
+        <div className="flex justify-between"><span className="text-gray-500">Produce Price</span><span className="font-semibold">₹{deal.agreedPrice}/{deal.unit}</span></div>
+        <div className="flex justify-between border-t border-gray-200/80 pt-1">
+          <span className="text-gray-500">Produce Subtotal</span>
+          <span className="font-semibold text-navy-900">₹{Number(produceAmount).toLocaleString('en-IN')}</span>
         </div>
-        {deal.pickupLocation && <div className="flex justify-between"><span className="text-gray-500">Pickup</span><span>{deal.pickupLocation}</span></div>}
-        {deal.deliveryLocation && <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span>{deal.deliveryLocation}</span></div>}
+
+        {/* Transportation / Logistics Cost */}
+        <div className="bg-sky-50/80 -mx-1 px-2.5 py-2 rounded-xl border border-sky-100 space-y-1">
+          <div className="flex justify-between items-center">
+            <span className="text-sky-900 font-semibold flex items-center gap-1.5">
+              <Truck className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+              <span>Transportation Cost</span>
+            </span>
+            <span className="font-bold text-sky-950">
+              ₹{Number(transportCost).toLocaleString('en-IN')}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-[10px] text-sky-700 pt-0.5 border-t border-sky-200/60">
+            <span className="flex items-center gap-1 font-medium">
+              📍 {deal.distanceKm || deal.routeDistanceKm 
+                ? `Route Distance: ${(deal.distanceKm || deal.routeDistanceKm).toFixed(1)} km` 
+                : 'Distance-based freight'}
+            </span>
+            <span className="font-semibold">
+              ~₹{(transportCost / (deal.quantity || 1)).toFixed(2)}/kg
+            </span>
+          </div>
+        </div>
+
+        <div className="flex justify-between border-t border-gray-200 pt-1.5">
+          <span className="text-gray-700 font-bold">Total Landed Deal</span>
+          <span className="font-extrabold text-navy-950 text-sm">₹{Number(totalAmount).toLocaleString('en-IN')}</span>
+        </div>
+
+        {deal.pickupLocation && <div className="flex justify-between pt-0.5"><span className="text-gray-500">Pickup</span><span className="text-right truncate max-w-[220px]">{deal.pickupLocation}</span></div>}
+        {deal.deliveryLocation && <div className="flex justify-between"><span className="text-gray-500">Delivery</span><span className="text-right truncate max-w-[220px]">{deal.deliveryLocation}</span></div>}
         {deal.amendmentCount > 0 && (
           <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
             <span className="text-amber-600 font-semibold">✏️ Amended</span>
@@ -620,8 +765,9 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
                 </p>
                 <div className="bg-white/80 rounded-lg p-2.5 border border-emerald-100 grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-gray-500 block text-[10px]">Agreed Deal Total</span>
+                    <span className="text-gray-500 block text-[10px]">Total Landed Deal</span>
                     <span className="font-bold text-navy-900">₹{Number(totalAmount).toLocaleString('en-IN')}</span>
+                    {transportCost > 0 && <span className="text-[9px] text-sky-600 block">(incl. ₹{Number(transportCost).toLocaleString('en-IN')} freight)</span>}
                   </div>
                   <div className="text-right">
                     <span className="text-emerald-700 block text-[10px] font-semibold">Payable Upfront (50%)</span>
@@ -655,7 +801,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
                 </div>
                 <div>
                   <p className="text-xs font-bold text-emerald-900">50% Escrow Secured in Vault: ₹{Number(upfrontAmount).toLocaleString('en-IN')}</p>
-                  <p className="text-[10px] text-emerald-700">Protected by Mitti2Market · Remaining 50% releases upon buyer delivery confirmation</p>
+                  <p className="text-[10px] text-emerald-700">Protected by Mitti2Market (Produce + Transport) · Remaining 50% releases upon buyer delivery confirmation</p>
                 </div>
               </div>
               <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">
@@ -670,7 +816,7 @@ export default function DealLockPanel({ conversationId, otherUserId, produceId, 
                 </div>
                 <div>
                   <p className="text-xs font-bold text-emerald-900">100% Payment Released to Farmer: ₹{Number(totalAmount).toLocaleString('en-IN')}</p>
-                  <p className="text-[10px] text-emerald-700">Delivery confirmed & verified · Escrow funds fully disbursed</p>
+                  <p className="text-[10px] text-emerald-700">Delivery confirmed & verified · Full produce & transit settlement disbursed</p>
                 </div>
               </div>
               <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-600 text-white">

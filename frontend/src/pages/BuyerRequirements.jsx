@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PlusCircle, Package, MapPin, Truck, CheckCircle2, XCircle, AlertCircle, Loader2, Calendar, Search, History, Clock } from 'lucide-react';
 import { apiGet, apiPost, apiPut } from '../api';
 
@@ -19,6 +19,7 @@ const STATUS_BADGES = {
 export default function BuyerRequirements() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [requirements, setRequirements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -32,6 +33,24 @@ export default function BuyerRequirements() {
     crop: '', quantity: '', unit: 'kg', minPrice: '', maxPrice: '',
     quality: '', requiredBy: '', deliveryLocation: '', transportPreference: 'PLATFORM', notes: ''
   });
+
+  // Prefill if navigated from an offline draft
+  useEffect(() => {
+    if (location.state?.draft) {
+      const d = location.state.draft;
+      setForm(prev => ({
+        ...prev,
+        crop: d.name || d.crop || '',
+        quantity: d.quantity ? String(d.quantity) : '',
+        unit: d.unit || 'kg',
+        minPrice: d.pricePerUnit ? String(d.pricePerUnit) : '',
+        maxPrice: d.pricePerUnit ? String(d.pricePerUnit) : '',
+        deliveryLocation: d.location || '',
+        notes: d.description || '',
+      }));
+      setShowForm(true);
+    }
+  }, [location.state]);
 
   const loadRequirements = async () => {
     if (!user) return;

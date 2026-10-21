@@ -517,6 +517,15 @@ public class LogisticsService {
         computeAndStoreRoute(logistics);
         logistics = logisticsRepo.save(logistics);
 
+        if (logistics.getRouteDistanceKm() != null && logistics.getRouteDistanceKm() > 0) {
+            double distanceKm = logistics.getRouteDistanceKm();
+            double cargoKg = deal.getQuantity() != null ? deal.getQuantity().doubleValue() : 100.0;
+            double ratePerKg = Math.max(1.50, Math.round(((distanceKm * 0.035) + 0.30) * 100.0) / 100.0);
+            double estCost = Math.round(ratePerKg * cargoKg * 100.0) / 100.0;
+            deal.setEstimatedLogisticsCost(estCost);
+            dealRepo.save(deal);
+        }
+
         addEvent(logistics, logistics.getStatus(),
                 "Logistics locations updated: " + origSrc + " pickup → " + destSrc + " delivery",
                 null);

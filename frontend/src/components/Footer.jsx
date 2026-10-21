@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Footer() {
@@ -38,8 +39,12 @@ export default function Footer() {
                 {t(item.labelKey)}
               </Link>
             ))}
-            <Link to="/signup" className="text-xs font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-3.5 py-1.5 rounded-lg transition">
+            <Link
+              to="/signup"
+              className="inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-semibold text-navy-900 bg-mustard-400 hover:bg-mustard-300 px-4 py-2 rounded-xl transition shadow-sm ml-2 sm:ml-4"
+            >
               {t('footer.getStarted')}
+              <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
             </Link>
           </nav>
         </div>

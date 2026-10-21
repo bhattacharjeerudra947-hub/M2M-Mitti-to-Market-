@@ -7,22 +7,45 @@ import { useAuth } from '../context/AuthContext';
 import { getMyDocuments } from '../services/api';
 import SyncStatusBar from './SyncStatusBar';
 
-const farmerLinks = [
-  { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/farmer/matches', icon: Sparkles, label: 'Live Matches', highlight: true },
-  { to: '/farmer/produce', icon: Package, label: 'My Produce' },
-  { to: '/farmer/add-produce', icon: PlusCircle, label: 'Add Produce' },
-  { to: '/farmer/price-advisor', icon: Brain, label: 'AI Price Advisor' },
-  { to: '/farmer/buyer-requests', icon: ShoppingCart, label: 'Buyer Requests' },
-  { to: '/farmer/deal-advisor', icon: Trophy, label: 'AI Deal Advisor' },
-  { to: '/farmer/orders', icon: ClipboardList, label: 'Orders' },
-  { to: '/farmer/logistics', icon: Truck, label: 'Logistics' },
-  { to: '/farmer/storage', icon: Warehouse, label: 'Nearby Storage' },
-  { to: '/farmer/earnings', icon: Wallet, label: 'Earnings' },
-  { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
-  { to: '/farmer/deals', icon: Package, label: 'My Deals' },
-  { to: '/farmer/offline-drafts', icon: Save, label: 'Offline Drafts' },
+const farmerNavGroups = [
+  {
+    title: 'Overview',
+    links: [
+      { to: '/farmer', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/farmer/matches', icon: Sparkles, label: 'Live Matches', highlight: true },
+    ],
+  },
+  {
+    title: 'Produce & Deals',
+    links: [
+      { to: '/farmer/produce', icon: Package, label: 'My Produce' },
+      { to: '/farmer/add-produce', icon: PlusCircle, label: 'Add Produce' },
+      { to: '/farmer/buyer-requests', icon: ShoppingCart, label: 'Buyer Requests' },
+      { to: '/farmer/deals', icon: Handshake, label: 'My Deals' },
+      { to: '/farmer/orders', icon: ClipboardList, label: 'Orders' },
+    ],
+  },
+  {
+    title: 'Advisory & Logistics',
+    links: [
+      { to: '/farmer/deal-advisor', icon: Trophy, label: 'AI Deal Advisor' },
+      { to: '/farmer/price-advisor', icon: Brain, label: 'AI Price Advisor' },
+      { to: '/farmer/logistics', icon: Truck, label: 'Logistics' },
+      { to: '/farmer/storage', icon: Warehouse, label: 'Nearby Storage' },
+    ],
+  },
+  {
+    title: 'Finance & Tools',
+    links: [
+      { to: '/farmer/earnings', icon: Wallet, label: 'Earnings' },
+      { to: '/farmer/analytics', icon: BarChart3, label: 'Analytics' },
+      { to: '/farmer/chat', icon: MessageCircle, label: 'Messages' },
+      { to: '/farmer/offline-drafts', icon: Save, label: 'Offline Drafts' },
+    ],
+  },
 ];
+
+const farmerLinks = farmerNavGroups.flatMap(g => g.links);
 
 // Links that require authentication in guest mode (farmer)
 const farmerGuestRestricted = new Set([
@@ -34,20 +57,37 @@ const farmerGuestRestricted = new Set([
   '/farmer/offline-drafts',
 ]);
 
-const businessLinks = [
-  { to: '/business', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/business/browse', icon: Search, label: 'Browse Produce' },
-  { to: '/business/find-farmers', icon: User, label: 'Find Farmers' },
-  { to: '/business/bulk-order', icon: FileText, label: 'Bulk Orders' },
-  { to: '/business/requirements', icon: ClipboardCheck, label: 'My Requirements' },
-  { to: '/business/orders', icon: ClipboardList, label: 'My Orders' },
-  { to: '/business/logistics', icon: Truck, label: 'Logistics' },
-  { to: '/business/suppliers', icon: Heart, label: 'Saved Suppliers' },
-  { to: '/business/insights', icon: TrendingUp, label: 'Market Insights' },
-  { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
-  { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
-  { to: '/business/deals', icon: Package, label: 'My Purchases' },
+const businessNavGroups = [
+  {
+    title: 'Overview',
+    links: [
+      { to: '/business', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/business/browse', icon: Search, label: 'Browse Produce' },
+      { to: '/business/find-farmers', icon: User, label: 'Find Farmers' },
+    ],
+  },
+  {
+    title: 'Orders & Purchases',
+    links: [
+      { to: '/business/bulk-order', icon: FileText, label: 'Bulk Orders' },
+      { to: '/business/requirements', icon: ClipboardCheck, label: 'My Requirements' },
+      { to: '/business/orders', icon: ClipboardList, label: 'My Orders' },
+      { to: '/business/deals', icon: Handshake, label: 'My Purchases' },
+    ],
+  },
+  {
+    title: 'Logistics & Insights',
+    links: [
+      { to: '/business/logistics', icon: Truck, label: 'Logistics' },
+      { to: '/business/suppliers', icon: Heart, label: 'Saved Suppliers' },
+      { to: '/business/insights', icon: TrendingUp, label: 'Market Insights' },
+      { to: '/business/analytics', icon: BarChart3, label: 'Analytics' },
+      { to: '/business/chat', icon: MessageCircle, label: 'Messages' },
+    ],
+  },
 ];
+
+const businessLinks = businessNavGroups.flatMap(g => g.links);
 
 // Links that require authentication in guest mode (business/user)
 const businessGuestRestricted = new Set([
@@ -109,6 +149,7 @@ export default function Sidebar({ role = 'farmer' }) {
     };
   }, [showLogoutModal]);
 
+  const navGroups = role === 'farmer' ? farmerNavGroups : businessNavGroups;
   const links = role === 'farmer' ? farmerLinks : businessLinks;
   const guestRestricted = role === 'farmer' ? farmerGuestRestricted : businessGuestRestricted;
   const profileName = user?.name || (role === 'farmer' ? 'Farmer' : 'Business');
@@ -175,27 +216,36 @@ export default function Sidebar({ role = 'farmer' }) {
         </div>
       </div>
 
-      <div className="flex-1 px-3 space-y-0.5 py-1">
-        {links.map((link) => {
-          const isActive = location.pathname === link.to || (link.to !== `/${role}` && location.pathname.startsWith(link.to));
-          return isGuestModeActive && guestRestricted.has(link.to) ? (
-            <SidebarGuestNavLink
-              key={link.to}
-              icon={link.icon}
-              label={link.label}
-              onGuestClick={() => { setMobileOpen(false); openAuthRequired(); }}
-            />
-          ) : (
-            <SidebarNavLink
-              key={link.to}
-              to={link.to}
-              icon={link.icon}
-              label={link.label}
-              isActive={isActive}
-              onNavigate={() => setMobileOpen(false)}
-            />
-          );
-        })}
+      <div className="flex-1 px-3 space-y-4 py-1">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <p className="px-3 pb-1 text-[11px] font-bold text-navy-400 uppercase tracking-wider">
+              {group.title}
+            </p>
+            <div className="space-y-0.5">
+              {group.links.map((link) => {
+                const isActive = location.pathname === link.to || (link.to !== `/${role}` && location.pathname.startsWith(link.to));
+                return isGuestModeActive && guestRestricted.has(link.to) ? (
+                  <SidebarGuestNavLink
+                    key={link.to}
+                    icon={link.icon}
+                    label={link.label}
+                    onGuestClick={() => { setMobileOpen(false); openAuthRequired(); }}
+                  />
+                ) : (
+                  <SidebarNavLink
+                    key={link.to}
+                    to={link.to}
+                    icon={link.icon}
+                    label={link.label}
+                    isActive={isActive}
+                    onNavigate={() => setMobileOpen(false)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="border-t border-navy-100 p-3 space-y-2 mt-auto shrink-0">

@@ -413,7 +413,27 @@ export default function DealWorkspace() {
                     <div className="flex justify-between"><span className="text-gray-500">Product</span><span className="font-semibold text-navy-900">{deal.cropName || 'Farm Produce'}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Quantity</span><span className="font-semibold text-navy-900">{deal.quantity || 0} {deal.unit || 'kg'}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Price</span><span className="font-semibold text-navy-900">{formatINR(deal.agreedPrice || 0)}/{deal.unit || 'kg'}</span></div>
-                    <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">Total value</span><span className="font-bold text-emerald-700">{formatINR(deal.totalAmount || (deal.quantity && deal.agreedPrice ? deal.quantity * deal.agreedPrice : 0))}</span></div>
+                    {(() => {
+                      const prodVal = deal.produceTotal || deal.totalAmount || (deal.quantity && deal.agreedPrice ? deal.quantity * deal.agreedPrice : 0);
+                      const transVal = Number(deal.transportationCost || deal.estimatedLogisticsCost || (deal.quantity ? Math.round(deal.quantity * 3.10) : 0));
+                      const grandVal = prodVal + transVal;
+                      return (
+                        <>
+                          <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">Produce Subtotal</span><span className="font-semibold text-navy-900">{formatINR(prodVal)}</span></div>
+                          <div className="bg-sky-50/80 -mx-1 px-2.5 py-1.5 rounded-lg border border-sky-100 space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sky-900 font-semibold flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-sky-600 shrink-0" />Transportation Cost</span>
+                              <span className="font-bold text-sky-950">{formatINR(transVal)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] text-sky-700 pt-0.5 border-t border-sky-100">
+                              <span>📍 {deal.distanceKm || deal.routeDistanceKm || routeInfo?.distanceKm ? `Distance: ${(deal.distanceKm || deal.routeDistanceKm || routeInfo?.distanceKm).toFixed(1)} km` : 'Real distance transit'}</span>
+                              <span className="font-medium">{deal.quantity > 0 && `~₹${(transVal / deal.quantity).toFixed(2)}/kg`}</span>
+                            </div>
+                          </div>
+                          <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-700 font-bold">Total Landed Value</span><span className="font-extrabold text-emerald-700 text-base">{formatINR(grandVal)}</span></div>
+                        </>
+                      );
+                    })()}
                     <div className="flex justify-between items-start gap-2"><span className="text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-emerald-600" />Pickup</span><span className="font-semibold text-navy-900 text-right">{deal.pickupLocation || 'Farmer Registered Location'}</span></div>
                     <div className="flex justify-between items-start gap-2"><span className="text-gray-500 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-red-600" />Delivery</span><span className="font-semibold text-navy-900 text-right">{deal.deliveryLocation || 'Buyer Delivery Location'}</span></div>
                     {deal.conditions && <div className="flex justify-between items-start gap-2"><span className="text-gray-500">Conditions</span><span className="font-semibold text-navy-900 text-right">{deal.conditions}</span></div>}

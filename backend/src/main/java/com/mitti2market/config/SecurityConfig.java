@@ -69,6 +69,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/price-advisor/all").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/price-advisor/estimate").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stats").permitAll()
+                .requestMatchers("/api/analytics/**").permitAll()
                 // Open buyer requirements — public demand board (guest-browsable)
                 .requestMatchers(HttpMethod.GET, "/api/requirements").permitAll()
                 // Public rating endpoints — anyone can view a user's reviews/summary
